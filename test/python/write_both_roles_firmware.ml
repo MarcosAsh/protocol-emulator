@@ -26,7 +26,7 @@ let entry name timed =
 
 let words list = String.concat ~sep:", " (List.map list ~f:(sprintf "0x%X"))
 
-(* Each case as the model runs it, so the board is held to what both engines push there. *)
+(* Each case as the model runs it, so the board must match what both engines push. *)
 let case (c : Both_roles.Case.t) =
   let outcome =
     Both_roles.model

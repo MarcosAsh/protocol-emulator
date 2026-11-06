@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# python/usb_board.py's Board on its own: the words the core pushes in, the replies out.
+# Tests python/usb_board.py's Board alone: words from the core in, replies out.
 import sys
 
 sys.path.insert(0, sys.argv[1])
@@ -10,7 +10,7 @@ SET_CONFIGURATION = [0x00, 9, 1, 0, 0, 0, 0, 0]
 
 
 def setup(board, request):
-    """A SETUP's eight bytes as the core pushes them, bit reversed, and its CRC words."""
+    """Feeds a SETUP's eight bytes the way the core pushes them (bit reversed), plus its CRC words."""
     data = request + [0, 0, 0, 0]
     board.feed(usb_board.TAG_DATA0)
     for i in range(0, 12, 2):
@@ -18,7 +18,7 @@ def setup(board, request):
 
 
 def acknowledge(board):
-    """Every queued reply sent and taken by the host."""
+    """The host takes every queued reply and acknowledges it."""
     while board.replies:
         board.replies.pop(0)
         board.feed(usb_board.TAG_ACK)

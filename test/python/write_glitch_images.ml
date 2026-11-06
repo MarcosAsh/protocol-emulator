@@ -3,9 +3,9 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The glitch map as JSON lines for demo/glitch_map.py: the receiver, then each image with
-   the pulse the rows place and what the rows say the receiver pushes, each with what the
-   host certifies it with. *)
+(* The glitch map as JSON lines for demo/glitch_map.py. First the receiver, then each
+   image with the pulse the rows place and what the rows say the receiver pushes. Each
+   line also carries what the host certifies it with. *)
 
 let ints items = "[" ^ String.concat ~sep:", " (List.map items ~f:Int.to_string) ^ "]"
 
@@ -21,7 +21,7 @@ let config c =
 
 let at (i : Interval.t) = ints (List.filter_opt [ i.lo; i.hi ])
 
-(* what the host certifies the firmware with, under what it was analysed under *)
+(* what the host certifies the firmware with, under the assumptions it was analysed with *)
 let check timed =
   let assumptions = System_lockstep.Assumptions.of_timed timed in
   sprintf

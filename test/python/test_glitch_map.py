@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/glitch_map.py's reading of the Pico's lines: a frame agrees with the rows only when
-# its bytes and its framing error both do, and a fault is never an agreement.
+# Checks how demo/glitch_map.py reads the Pico's lines. A frame agrees with the rows only
+# when its bytes and its framing error both do, and a fault is never an agreement.
 import sys
 
 sys.path.insert(0, sys.argv[1])

@@ -9,12 +9,12 @@ let () =
      # The outside chip demos' firmware (BRINGUP.md) as words and the configuration it \
      runs\n\
      # under, at the bench's 48 MHz but for 10BASE-T's 40.\n";
-  (* the keyboard's log is not written here, but held to its limits all the same *)
+  (* the keyboard's log isn't written here, but it is still held to its limits *)
   Datasheet.check_exn Library.limits ~exempt:Library.exempt Uart.log;
   List.iter Library.bench ~f:(fun (bench : Bench.t) ->
     Datasheet.check_exn Library.limits ~exempt:Library.exempt bench;
     let timed = Bench.timed bench in
-    (* the premises the chip's checker takes with the certificate *)
+    (* the assumptions the chip's checker takes along with the certificate *)
     let loaded, floor, single_edge =
       match bench.assumption with
       | Nothing -> None, false, false

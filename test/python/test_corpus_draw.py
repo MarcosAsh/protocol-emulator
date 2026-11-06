@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/corpus_draw.py's rule and draw: the snapshot and pool are pinned, the round is the one
-# announced, a past round replays to the same six, and the owner's exclusion list withholds
-# exactly the decoders sealed in it whatever its padding.
+# Tests demo/corpus_draw.py's rule and draw. The snapshot and pool are pinned, the round is
+# the announced one, a past round replays to the same six, and the owner's exclusion list
+# withholds exactly the decoders sealed in it, whatever its padding.
 import glob
 import hashlib
 import json

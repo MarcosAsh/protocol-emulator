@@ -15,9 +15,10 @@ let writes_pins (t : Isa.t) =
   | _ -> false
 ;;
 
-(* The departure time in a stamped frame, for a transmitter shaped like [Uart.tx_stamped]:
-   [mov y, now] starts the stamp, a [set pins, 0] sends the start bit, [mov osr, y] loads
-   the stamp and [wait t+; out pins, 1; jmp x--] sends it LSB first. The claims:
+(* Proves the departure time in a stamped frame, for a transmitter shaped like
+   [Uart.tx_stamped]. [mov y, now] starts the stamp, a [set pins, 0] sends the start bit,
+   [mov osr, y] loads the stamp and [wait t+; out pins, 1; jmp x--] sends it LSB first.
+   The claims:
 
    - in the first cycle the start bit shows, the line was high the cycle before and [y]
      holds the low 16 bits of [now];
@@ -26,16 +27,16 @@ let writes_pins (t : Isa.t) =
    - from each [out] to the next, the pin shows the stamp bit it sent.
 
    The first is inductive through the line's level where the program knows it (after a
-   [set pins] it holds to the next pin write) and the delay left at each pc.
+   [set pins] it holds until the next pin write) and the delay left at each pc.
 
-   Assumes no more than the certificate: inputs and fifo traffic are free and the host
-   never halts the core. No clock bound is needed, as the stamp is [now] modulo 2^16 and
-   wraps with it. A receiver wanting the whole cycle unwraps it, which takes frames less
-   than 65536 cycles apart. The pin is the engine's [pin_out] register, and each flop
-   between it and the pad adds one cycle.
+   It assumes nothing beyond the certificate: inputs and fifo traffic are free and the
+   host never halts the core. No clock bound is needed, since the stamp is [now] modulo
+   2^16 and wraps with it. A receiver that wants the whole cycle unwraps it, which works
+   for frames less than 65536 cycles apart. The pin is the engine's [pin_out] register,
+   and each flop between it and the pad adds one cycle.
 
-   Two claims wrong on purpose have to fail: OFF_BY_ONE puts the stamp a cycle after the
-   edge, NEXT_BIT says the pin shows the bit after the one sent. *)
+   Two deliberately wrong claims have to fail: OFF_BY_ONE puts the stamp a cycle after the
+   edge, and NEXT_BIT says the pin shows the bit after the one sent. *)
 let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   if config.side_set_count <> 0
      || config.manchester
@@ -76,7 +77,7 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
      , Jmp { cond = X_dec; target } )
      when wait = load + 2 && target = wait -> ()
    | _ -> raise_s [%message "BUG: the stamp is not sent as sixteen bits"]);
-  (* the level each pc finds the line at, where every way in agrees; [None] is unknown *)
+  (* the level each pc finds the line at, where every way in agrees ([None] if unknown) *)
   let level_after (row : Analyser.Row.t) level_in =
     match row.instruction with
     | Op { op = Set { dest = Pins; value }; _ } -> Some (value land 1)
@@ -86,7 +87,7 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   let rec settle levels =
     let next =
       List.fold rows ~init:levels ~f:(fun levels (row : Analyser.Row.t) ->
-        (* the start is a way in to pc 0 at a level nothing set *)
+        (* the start is a way into pc 0 at a level nothing set *)
         let start = if row.pc = 0 then [ None ] else [] in
         let ways_in =
           start
@@ -115,7 +116,7 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
           level))
     |> String.concat ~sep:"\n"
   in
-  (* without this induction holds the start bit back with a delay nothing left it *)
+  (* without this, induction can hold the start bit back with a delay nothing left *)
   let delays =
     List.map rows ~f:(fun (row : Analyser.Row.t) ->
       let left (from : int) =
@@ -178,12 +179,13 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   monitor, claims
 ;;
 
-(* Which bits of the host word the pins carry, for firmware that pulls by hand and outs
-   to the pins, n bits at a time. From the osr kernel's rows: osr_count and the osr follow
-   the count since the pull; a pulled row holds a word or has set underflow; while an out
-   to the pins was the last write to them or the osr, the pins show its bits [c - n, c),
-   and where a row's sum S is one value, bits [S - n - x, S - x). Bits count from the end
-   the osr shifts from; the word is the tx fifo's head at the pull (fifo_order.sv). *)
+(* Which bits of the host word the pins carry, for firmware that pulls by hand and outs to
+   the pins n bits at a time. This comes from the osr kernel's rows. osr_count and the osr
+   follow the count since the pull, and a pulled row holds a word or has set underflow.
+   While an out to the pins was the last write to them or the osr, the pins show its bits
+   [c - n, c), and where a row's sum S is one value, bits [S - n - x, S - x). Bits count
+   from the end the osr shifts from. The word is the tx fifo's head at the pull
+   (fifo_order.sv). *)
 let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list) =
   if config.autopull || config.manchester
   then raise_s [%message "BUG: data claims are for firmware that pulls by hand"];
@@ -210,7 +212,7 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
   in
   if overlaps config.side_set_base config.side_set_count
   then raise_s [%message "BUG: side-set drives the pins the outs send on"];
-  (* at each issue, what the count, the word and the last write to the out pins do *)
+  (* what the count, the word and the last write to the out pins do at each issue *)
   let count_on = sprintf "shifted <= shifted + 6'd%d > 32 ? 6'd32 : shifted + 6'd%d;" in
   let actions =
     List.filter_map rows ~f:(fun row ->
@@ -232,7 +234,8 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
         sprintf "        %d: begin\n          %s\n        end" row.pc action))
     |> String.concat ~sep:"\n"
   in
-  (* whether every way in, and whether some way in, had an out to the pins last *)
+  (* whether every way in, and whether some way in, had an out to the pins as its last
+     write *)
   let sent_after (row : Analyser.Row.t) sent_in =
     match row.instruction with
     | Op { op = Out { dest = Pins; _ }; _ } -> true
@@ -268,7 +271,7 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
       if r.shifted_lo > r.shifted_hi
       then []
       else (
-        (* a bound at either end of what the ghost can hold says nothing *)
+        (* a bound at either end of what the ghost can hold tells us nothing *)
         let bound value lo hi ~max =
           List.filter_opt
             [ Option.some_if (lo > 0) (sprintf "%s >= %d" value lo)
@@ -298,7 +301,7 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
           then [ sprintf "      if (pc == %d) assert (sent);" row.pc ]
           else []
         in
-        (* which bits, by x, where the sum is one value and the count is not *)
+        (* which bits, depending on x, where the sum is one value and the count is not *)
         let which =
           if r.sum_lo <> r.sum_hi
              || r.shifted_lo = r.shifted_hi
@@ -322,7 +325,7 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
   in
   let right = Program_config.Shift_direction.equal config.out_shift Right in
   let shift = if right then "w >> c" else "w << c" in
-  (* the first n bits the osr shifts out, from c on *)
+  (* the first n bits the osr shifts out, starting at c *)
   let from c =
     if right
     then sprintf "shifted_by(w, %s)" c
@@ -375,7 +378,7 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
   monitor, claims
 ;;
 
-(* how far into the program, in instructions, the teeth row lies *)
+(* how far into the program, in instructions, the teeth row is *)
 let teeth_steps = 6
 
 let anyseq_host =
@@ -383,14 +386,14 @@ let anyseq_host =
 ;;
 
 (* The same certificate as an invariant for induction, which holds for all time. The
-   program is a ROM behind the macro's port, read a cycle late, so nothing about it can be
-   wrong in the state induction starts from. At every cycle the core runs:
+   program is a ROM behind the macro's port, read a cycle late, so the state induction
+   starts from can't get it wrong. At every cycle the core runs:
 
    - the instruction register holds the word at the pc and the memory's output the word
      after it, but in the second cycle of a jump, when the output is the word at the new
      pc and the register still the jump;
    - the opcode, the decode flag and the wait pin, which the core registers beside the
-     word, say what the word says: they are state of their own, and induction would start
+     word, say what the word says. They are state of their own, so induction could start
      them disagreeing with it and let a wait retire before its deadline;
    - with no [crc_send] in the program, the CRC is not sending, so outs send the osr;
    - what is left of a delay brings the next issue to the phase its row allows;
@@ -402,8 +405,7 @@ let anyseq_host =
    - where the program moves the capture, the captured edge has passed, which is what the
      analyser takes [mov t, capture] to load, and the clock and capture start at zero;
    - the cycles since the last pin edge are what the analyser says for the way in, also
-     while a delay or wait holds the core, which holds the gaps in a loop with no
-     deadline;
+     while a delay or wait holds the core. That holds the gaps in a loop with no deadline;
    - under the single-edge assumption, the capture is armed until the edge, which comes
      after the arm, and after the wait for it is as old as the analyser says. *)
 let inductive
@@ -463,9 +465,9 @@ let inductive
     | [] -> "0"
     | cases -> String.concat ~sep:" || " cases
   in
-  (* only a move can anchor a deadline on the capture: [in capture] passes the stamp to
-     the host and the analyser takes nothing from it, and on a line that stays idle the
-     stamp grows older than 24 bits can tell, so nothing is claimed of it there *)
+  (* only a move can anchor a deadline on the capture. [in capture] passes the stamp to
+     the host and the analyser takes nothing from it, and on an idle line the stamp grows
+     older than 24 bits can tell, so we claim nothing about it there *)
   let moves_capture (t : Isa.t) =
     match t with
     | Op { op = Mov { source = Capture; _ }; _ } -> true
@@ -484,21 +486,21 @@ let inductive
       Option.some_if (writes_pins row.instruction) (sprintf "a == %d" row.pc))
     |> any
   in
-  (* a count is unsigned, so a floor at or below zero says nothing and is left out *)
+  (* a count is unsigned, so a floor at or below zero tells us nothing and is left out *)
   let count (i : Interval.t) = { i with lo = Option.filter i.lo ~f:(fun lo -> lo > 0) } in
   let reachable = List.map rows ~f:(fun row -> sprintf "pc == %d" row.pc) |> any in
   let assert_when cond = function
     | [] -> []
     | c -> [ sprintf "      if (%s) assert (%s);" cond (String.concat ~sep:" && " c) ]
   in
-  (* An age on the way into a row, at the entry and while a delay holds the core, where
-     [_ahead] is the age it issues at *)
+  (* An age on the way into a row, at the entry and while a delay holds the core. [_ahead]
+     is the age it issues at *)
   let entering name ~way (since : Interval.t) =
     assert_when ("entry && " ^ way) (within name (count since))
     @ assert_when ("stall != 0 && " ^ way) (within (name ^ "_ahead") (count since))
   in
-  (* The same age while a wait stalls, where a deadline wait keeps [_behind], the age less
-     the phase, still *)
+  (* The same age while a wait stalls. A deadline wait keeps [_behind], the age less the
+     phase, constant *)
   let stalling name (row : Analyser.Row.t) (since : Interval.t) =
     if not (is_wait row.instruction)
     then []
@@ -543,8 +545,8 @@ let inductive
         List.concat_map row.gaps ~f:(fun (from, gap) ->
           assert_when ("entry && " ^ way from) (within "since + 1" (count gap)))
       in
-      (* while a wait stalls the count runs on from its entry, which a Manchester flip the
-         wait brings starts again *)
+      (* while a wait stalls the count keeps running from its entry, and a Manchester flip
+         brought by the wait starts it again *)
       let stalled =
         let since =
           List.map row.since_edge ~f:snd
@@ -570,9 +572,9 @@ let inductive
   let ages name (row : Analyser.Row.t) since =
     entering name ~way:(sprintf "pc == %d" row.pc) since @ stalling name row since
   in
-  (* Under the single-edge assumption: from the arm to the wait for the edge the core
-     holds the capture armed until the edge and after it an edge younger than the arm;
-     from that wait on, the capture is the edge, younger than the row's arm. *)
+  (* Under the single-edge assumption: from the arm to the wait for the edge, the core
+     keeps the capture armed until the edge, and afterwards holds an edge younger than the
+     arm. From that wait on, the capture is the edge, younger than the row's arm. *)
   let edge_claims (row : Analyser.Row.t) =
     let awaiting =
       if not row.awaiting
@@ -649,9 +651,9 @@ let inductive
               (if is_deadline_wait row.instruction then " && phase <= 0" else "")
           ]
       in
-      (* the offsets the kernel's table keeps, taken modulo the timer, as the core's own
-         arithmetic is; a loop entered at a phase bounded only below keeps the lower
-         bound, which carries it past a count longer than the induction's depth *)
+      (* the offsets the kernel's table keeps, taken modulo the timer like the core's own
+         arithmetic. A loop entered at a phase bounded only below keeps the lower bound,
+         which carries it past a count longer than the induction's depth *)
       let fits n = abs n < 1 lsl (Isa.timer_bits - 1) in
       let bounds =
         match Kernel.Table.offset_bounds ~slope:row.slope row.offset with
@@ -688,7 +690,7 @@ let inductive
       registers @ pending @ entry @ offset @ stalled @ edge)
     |> String.concat ~sep:"\n"
   in
-  (* each row's fewest instructions from pc 0, going on only from rows [through] keeps *)
+  (* each row's fewest instructions from pc 0, continuing only from rows [through] keeps *)
   let fewest_steps ~through =
     let steps = Hashtbl.create (module Int) in
     let rec walk depth = function
@@ -708,9 +710,10 @@ let inductive
     steps
   in
   let steps = fewest_steps ~through:(fun _ -> true) in
-  (* Teeth bmc runs from reset and has to fail, so a run meets every claim and every
-     assumption until it reaches this row: the furthest within [teeth_steps] instructions
-     of pc 0 short of a deadline's release, which may be a period away. *)
+  (* The teeth bmc runs from reset and has to fail, so a run satisfies every claim and
+     assumption until it reaches this row: the furthest row within [teeth_steps]
+     instructions of pc 0 that stops short of a deadline's release, which may be a period
+     away. *)
   let before_deadline pc =
     List.exists rows ~f:(fun (row : Analyser.Row.t) ->
       row.pc = pc
@@ -728,8 +731,8 @@ let inductive
     |> Option.value_exn
     |> fst
   in
-  (* Teeth bmc runs from reset: the bounded row fewest instructions from pc 0 moved a
-     cycle, and a receiver's capture a cycle older or younger. *)
+  (* The teeth bmc runs from reset. They move the bounded row fewest instructions from pc
+     0 by a cycle, and a receiver's capture a cycle older or younger. *)
   let anchors_on_edge = single_capture_edge && no_wrap && anchors_on_capture in
   let moved =
     let tooth name claim = sprintf "`ifdef %s\n      %s\n`endif\n" name claim in
@@ -767,13 +770,13 @@ let inductive
     in
     phase ^ capture
   in
-  (* The one thing a certificate assumes of time, [no_wrap]. A wait for the host or a pin
-     can stall indefinitely, so the rows after it have no ceiling on phase and 24 bits of
-     the difference wrap. A loop that anchors no deadline does the same, and a captured
-     edge can lie as far back on an idle line. The core's own release compares the same 24
-     bits (a deadline over about 168 ms away at 50 MHz reads the wrong way round), so the
-     hardware keeps this bound too. Within 84 ms of the deadline and of that edge covers
-     all three. *)
+  (* The one thing a certificate assumes about time: [no_wrap]. A wait for the host or a
+     pin can stall indefinitely, so the rows after it have no ceiling on phase and 24 bits
+     of the difference wrap. A loop that anchors no deadline does the same, and on an idle
+     line a captured edge can be arbitrarily far back. The core's own release compares the
+     same 24 bits (a deadline over about 168 ms away at 50 MHz reads the wrong way round),
+     so the hardware keeps this bound too. Staying within 84 ms of the deadline and of
+     that edge covers all three. *)
   let no_wrap =
     if not no_wrap
     then ""
@@ -789,7 +792,7 @@ let inductive
            \  always @(*) assume ($signed(now - capture) <= 24'sd4194304);\n")
       ^ "\n"
   in
-  (* What the firmware's entry in [Certified] assumes, as phase_step.sv takes it *)
+  (* What the firmware's entry in [Certified] assumes, in the form phase_step.sv takes *)
   let loads_period =
     match period with
     | None -> ""
@@ -881,7 +884,7 @@ let inductive
   let data_monitor, data_claims =
     if data then data_claims ~config ~words rows else "", ""
   in
-  (* with no crc_send the CRC never sends, and the pins carry what the program outs *)
+  (* with no crc_send the CRC never sends, so the pins carry what the program outs *)
   let sends_crc =
     List.exists rows ~f:(fun row ->
       match row.instruction with
@@ -903,7 +906,7 @@ let inductive
   in
   let wrap_top = config.wrap_top in
   let wrap_bottom = config.wrap_bottom in
-  (* a table interpreter's data memory, free in every cycle, as I1 has it *)
+  (* a table interpreter's data memory, free in every cycle like in I1 *)
   let data_wire, data_dout =
     if any_data
     then "  (* anyseq *) wire [15:0] data_dout;\n", "data_dout"
@@ -1024,10 +1027,10 @@ endmodule
 |}]
 ;;
 
-(* The miter for [Fsm_compiler]: [Uart.Tx] of hardcaml_hobby_boards, unmodified, beside
+(* The miter for [Fsm_compiler]: the unmodified [Uart.Tx] of hardcaml_hobby_boards beside
    the engine running what the compiler makes of it at 4 clocks per bit. The host writes
    each byte the circuit takes, and the engine's pin is the circuit's line 4 cycles later,
-   given a byte comes at least 4 cycles after the circuit is ready. The coupling
+   provided a byte comes at least 4 cycles after the circuit is ready. The coupling
    invariants are written by hand for this machine. *)
 let lag = 4
 let gap = 4
@@ -1044,7 +1047,7 @@ let fsm_miter ~mutant =
     let module C = Circuit.With_interface (Hobby_uart_tx.I) (Hobby_uart_tx.Pin) in
     Fsm_compiler.compile (C.create_exn ~name:"hobby_uart_tx" (Uart.pin scope)) |> ok_exn
   in
-  (* flat, with the registers the invariants name brought out as ports *)
+  (* flat, with the registers the invariants name exposed as ports *)
   let circuit_verilog =
     let scope = Scope.create ~flatten_design:true () in
     let module C = Circuit.With_interface (Hobby_uart_tx.I) (Hobby_uart_tx.O) in
@@ -1063,7 +1066,7 @@ let fsm_miter ~mutant =
     let probes =
       List.map [ "enable_rate"; "data_count"; "sm_tx" ] ~f:(fun name ->
         probe name ~f:(named name))
-      (* the shift register is the one nine bits wide, and has no name *)
+      (* the shift register is the nine-bit one, and it has no name *)
       @ [ probe "txdata" ~f:(fun s -> Signal.width s = 9) ]
     in
     [ Circuit.create_exn ~name:"source" (Circuit.outputs circuit @ probes) ]
@@ -1071,7 +1074,7 @@ let fsm_miter ~mutant =
     |> Rtl.full_hierarchy
     |> Rope.to_string
   in
-  (* the teeth: a compiler one short in its bit count *)
+  (* the teeth: a compiler that is one bit short in its bit count *)
   let source =
     if not mutant
     then compiled.source
@@ -1099,7 +1102,8 @@ let fsm_miter ~mutant =
   let data = label "data" in
   let stop = label "stop" in
   let complete = label "complete" in
-  (* a showahead fifo's count is one bit over its address, its level the status word's *)
+  (* a showahead fifo's count is one bit wider than its address, and its level is the
+     status word's *)
   let used_bits = Int.ceil_log2 Host_fifo.depth + 1 in
   let host =
     [%string

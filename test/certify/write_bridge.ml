@@ -3,11 +3,12 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* Bridge's UART to SPI bridge by induction on the two-engine chip, for all time: each
-   frame on IN0 reaches the wire, then SCK and MOSI, every edge a fixed number of steps
-   after its stop bit begins, MOSI showing its byte at SCK's rises. Assumes any UART at
-   Bridge.period on IN0, frames Bridge.spacing or more apart; hosts' fifo traffic free.
-   The invariant is write_link.ml's kind: mined tables of both engines' state. *)
+(* Proves Bridge's UART to SPI bridge by induction on the two-engine chip, for all time.
+   Each frame on IN0 reaches the wire, then SCK and MOSI, with every edge a fixed number
+   of steps after its stop bit begins and MOSI showing its byte at SCK's rises. It assumes
+   any UART at Bridge.period on IN0 with frames Bridge.spacing or more apart, and free
+   fifo traffic from the hosts. The invariant is the same kind as write_link.ml's: mined
+   tables of both engines' state. *)
 
 let period = Bridge.period
 let wire = Bridge.wire
@@ -20,9 +21,9 @@ module Chip = Engines.Make (struct
 
 module Sim = Cyclesim.With_interface (Chip.I) (Chip.O)
 
-(* Steps count from the start pulse, step 0; the tables claim from step 2. Engine 0's key
-   is the steps since IN0's start bit, engine 1's since the wire's, each for [spacing]
-   steps; outside a frame either is the step, held at [settled]. *)
+(* Steps count from the start pulse (step 0), and the tables claim from step 2. Engine 0's
+   key is the steps since IN0's start bit and engine 1's is the steps since the wire's,
+   each for [spacing] steps. Outside a frame either key is the step, held at [settled]. *)
 let settled = 16
 
 let encode ~since_start ~since =
@@ -32,7 +33,7 @@ let encode ~since_start ~since =
 let key_bits = Int.ceil_log2 (settled + 2 + spacing)
 
 (* One step of a run: the chip's outputs in port order, the ghosts bridge.sv keeps, each
-   engine's key, and the events the theorem speaks of. *)
+   engine's key, and the events the theorem is about. *)
 module Step = struct
   type t =
     { values : int array
@@ -77,7 +78,7 @@ let bit v n = (v lsr n) land 1
 
 let run ~sends ~steps =
   let scope = Scope.create ~flatten_design:true () in
-  (* ungated, as engines_sram.v, which the proof reads, is *)
+  (* ungated, like engines_sram.v, which the proof reads *)
   let sim = Sim.create (Chip.hierarchical ~gated:false ~memory:Flops scope) in
   let i = Cyclesim.inputs sim in
   let o = Cyclesim.outputs sim in
@@ -192,10 +193,11 @@ let run ~sends ~steps =
   Queue.to_list trace
 ;;
 
-(* What the tables say of: each engine's outputs, but the host's fifos and the two timers,
-   which they give as distances back from [now]; and the ghosts. Each is keyed by one
-   engine, whose frame's byte its data bits follow. A count the ghosts saturate is claimed
-   as the range it keeps, any other non-data field as one value. *)
+(* What the tables cover: each engine's outputs, except the host's fifos and the two
+   timers (which are given as distances back from [now]), plus the ghosts. Each is keyed
+   by one engine, and its data bits follow that engine's frame byte. A count the ghosts
+   saturate is claimed as the range it keeps, and any other non-data field as a single
+   value. *)
 module Field = struct
   module Kind = struct
     type t =
@@ -266,8 +268,8 @@ module Field = struct
     }
   ;;
 
-  (* a shift count runs from 0 in the first frame and from full after: a floor where it
-     differs *)
+  (* a shift count starts from 0 in the first frame and from full after that, so we use a
+     floor where they differ *)
   let counts =
     List.filter_map outputs ~f:(fun field ->
       Option.some_if
@@ -281,16 +283,16 @@ module Field = struct
     @ counts
     @ List.concat_map [ 0; 1 ] ~f:(fun n ->
       [ back_from_now n "t"; back_from_now n "capture" ])
-    @ [ (* what each receiver's pin sampled the step before *)
+    @ [ (* what each receiver's pin sampled on the previous step *)
         ghost ~engine:0 ~verilog:"pins_sampled_0[0]" "last_pad" 1 Data
       ; ghost ~engine:1 ~verilog:"pins_sampled_1[20]" "last_wire" 1 Data
       ; ghost ~engine:0 "last_pad" 1 Data
       ; ghost ~engine:0 "since_edge_0" 8 Range
       ; ghost ~engine:0 "since_sample_0" 8 Range
       ; ghost ~engine:0 "last_pc_0" Isa.pc_bits Value
-        (* engine 0's key knows where engine 1's frame is, and what it carries *)
+        (* engine 0's key knows where engine 1's frame is and what it carries *)
       ; ghost ~engine:0 "since_fall" 9 Value
-        (* and before the wire falls, how long engine 1 has had since its last frame *)
+        (* and before the wire falls, how long it has been since engine 1's last frame *)
       ; ghost ~engine:0 "since_fall" 9 Range
       ; ghost ~engine:0 "wire_word" 8 Data
       ; ghost ~engine:0 "last_wire" 1 Data
@@ -306,8 +308,8 @@ module Field = struct
   ;;
 end
 
-(* A bit of a data field at one key: the same in every run, or one bit of the word or its
-   complement in every run, or not claimed. *)
+(* A bit of a data field at one key: either the same in every run, or one bit of the word
+   (or its complement) in every run, or not claimed at all. *)
 let bit_formula samples ~bit ~word_name =
   let value (v, _) = (v lsr bit) land 1 in
   let word_bit j (_, w) = (w lsr j) land 1 in
@@ -326,9 +328,9 @@ let bit_formula samples ~bit ~word_name =
         else None)
 ;;
 
-(* The claim on one field at one key, as the least and the most it may be, or for data the
-   bits expected and the mask of those claimed. A count only has a floor: a run can idle
-   longer than any simulated. *)
+(* The claim on one field at one key: the least and the most it may be, or for data the
+   expected bits and a mask of the claimed ones. A count only has a floor, because a run
+   can idle longer than any we simulated. *)
 let claim (field : Field.t) samples =
   let w = field.width in
   let values = List.map samples ~f:fst in
@@ -407,7 +409,7 @@ let rom name words =
   |> String.concat ~sep:"\n"
 ;;
 
-(* engines_top's inputs: the configs, the start, both hosts' fifo traffic, the pads *)
+(* engines_top's inputs: the configs, the start, both hosts' fifo traffic and the pads *)
 let input_ports () =
   let configs =
     List.concat_mapi firmware ~f:(fun n timed ->
@@ -444,7 +446,7 @@ let input_ports () =
     [%string ".%{name}(%{value})"])
 ;;
 
-(* The one value [f] gives at every step [at] picks, or raise *)
+(* The one value [f] gives at every step [at] picks. Raises if there isn't exactly one *)
 let constant runs what ~at ~f =
   match
     List.concat runs
@@ -468,19 +470,19 @@ let bridge () =
   let words = [ 0; 0xff; 0x5a; 0xa5; 0x3c ] @ List.init 8 ~f:(fun j -> 1 lsl j) in
   let word n = List.nth_exn words (n % List.length words) in
   let runs =
-    (* one frame, at each of the first steps it may *)
+    (* one frame, starting at each of the earliest steps it may *)
     List.concat_map
       (List.range settled (settled + 3))
       ~f:(fun at ->
         List.map words ~f:(fun w -> run ~sends:[ at, w ] ~steps:(at + spacing + 40)))
-    (* two, the second at each of a few gaps from the closest on *)
+    (* two, with the second at each of a few gaps starting from the closest *)
     @ List.map (List.range 0 24) ~f:(fun extra ->
       let at = settled + 1 in
       let gap = spacing + extra in
       run
         ~sends:[ at, word extra; at + gap, word ((7 * extra) + 3) ]
         ~steps:(at + gap + spacing + 40))
-    (* three as close as may be, and none *)
+    (* three as close together as allowed, and none *)
     @ List.map words ~f:(fun w ->
       run
         ~sends:

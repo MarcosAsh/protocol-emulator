@@ -4,8 +4,8 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* The full speed device for the board's Python: the program, its configuration, the line
-   table and the certificate the chip checks it against, with the places the program reads
-   in the data memory, so the Python never assembles. *)
+   table, the certificate the chip checks it against and the data memory places the
+   program reads. The Python never has to assemble. *)
 let () =
   let program = Asm.assemble Usb_fs.device |> ok_exn in
   let config = Asm.Program.configure program Usb_fs.config in

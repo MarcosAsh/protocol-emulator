@@ -1,8 +1,9 @@
 open! Core
 open Protocol_emulator_test
 
-(* Each datasheet limit the named bench firmware breaks, one line and one picture in
-   [dir]; the library's benches pass, so [i2c_short_start] and [ws2812_short_bit] show it. *)
+(* Writes each datasheet limit the named bench firmware breaks, as one line and one
+   picture in [dir]. The library's benches pass, so [i2c_short_start] and
+   [ws2812_short_bit] show how it looks. *)
 let names =
   [ Bench.scl, "SCL"; Bench.sda, "SDA"; Bench.neopixel, "DIN"; Bench.one_wire, "DQ" ]
 ;;

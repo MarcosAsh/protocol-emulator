@@ -4,11 +4,12 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* A UART from engine 0 to engine 1 over a wire, proved by induction on the two-engine
-   chip for all time: each word engine 1 pushes is the low byte of the word engine 0
-   pulled for that frame, once a frame, with every sample half a bit from the wire's
-   edges. The invariant is a table of both engines' state by steps since the start, the
-   pull and the start bit, proposed by simulation and checked for any words at any times.
-   Engine 1's claims hold until its host lets the fifo overflow, which halts it. *)
+   chip for all time. Each word engine 1 pushes is the low byte of the word engine 0
+   pulled for that frame, once per frame, with every sample half a bit from the wire's
+   edges. The invariant is a table of both engines' state, indexed by steps since the
+   start, the pull and the start bit. Simulation proposes it and the proof checks it for
+   any words at any times. Engine 1's claims hold until its host lets the fifo overflow,
+   which halts it. *)
 
 let wire = 20
 
@@ -35,8 +36,8 @@ let receiver ~period =
     } )
 ;;
 
-(* Neither firmware goes into a proof the analyser refuses: the receiver's certificate
-   rests on its start edge being the one edge the line makes before it is captured. *)
+(* Neither firmware goes into a proof the analyser refuses. The receiver's certificate
+   rests on its start edge being the only edge the line makes before it is captured. *)
 let assemble ?single_capture_edge (source, config) =
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
@@ -51,10 +52,10 @@ let pc_of (program : Asm.Program.t) ~f =
 ;;
 
 module Key = struct
-  (* Steps count from the start pulse, step 0; the tables claim from step 2, once the
+  (* Steps count from the start pulse (step 0), and the tables claim from step 2, once the
      start has reset the clock. Engine 0's key is the steps since its pc reached the pull,
-     for [tx_frame] steps; engine 1's the steps since the wire fell outside a frame of its
-     own, for [rx_frame]; outside a frame either is the step, held at [settled]. *)
+     for [tx_frame] steps. Engine 1's is the steps since the wire fell outside a frame of
+     its own, for [rx_frame]. Outside a frame either key is the step, held at [settled]. *)
   type t =
     { settled : int
     ; tx_frame : int
@@ -68,8 +69,8 @@ module Key = struct
   let limit t = t.settled + 1 + Int.max t.tx_frame t.rx_frame
 end
 
-(* One step of a run: the chip's outputs in port order, the level the receiver sampled the
-   step before, the ghost state link.sv keeps, and the keys. *)
+(* One step of a run: the chip's outputs in port order, the level the receiver sampled on
+   the previous step, the ghost state link.sv keeps, and the keys. *)
 module Step = struct
   type t =
     { values : int array
@@ -80,7 +81,7 @@ module Step = struct
     ; since_sample : int
     ; since_fall : int
     ; pushes : int
-    ; pushed : int option (** what engine 1 pushes this step *)
+    ; pushed : int option (** what engine 1 pushes in this step *)
     ; tx_key : int
     ; rx_key : int
     }
@@ -170,11 +171,11 @@ let run ~(key : Key.t) ~programs ~configs ~pull_pc ~sample_pc ~push_pc ~sends ~s
   Queue.to_list trace
 ;;
 
-(* What the tables say of: each engine's outputs, but the host's fifos and the two timers,
-   which they give as distances back from [now]; the level the receiver sampled; and the
-   ghosts. Each is keyed by the engine it belongs to. A data field is claimed bit by bit
-   as a constant or a bit of the word, a count the ghosts saturate as the range it keeps,
-   anything else as one value. *)
+(* What the tables cover: each engine's outputs, except the host's fifos and the two
+   timers (which are given as distances back from [now]), plus the level the receiver
+   sampled and the ghosts. Each is keyed by the engine it belongs to. A data field is
+   claimed bit by bit, as a constant or a bit of the word. A count the ghosts saturate is
+   claimed as the range it keeps, and anything else as a single value. *)
 module Field = struct
   module Kind = struct
     type t =
@@ -202,7 +203,7 @@ module Field = struct
       let%bind.Option field = String.chop_prefix name ~prefix:"engines$" in
       let base, engine = String.rsplit2_exn field ~on:'_' in
       let rx = String.equal engine "1" in
-      (* the receiver's host may let its fifo fill *)
+      (* the receiver's host may let its fifo fill up *)
       let host_decides = String.equal base "fault$overflow" && rx in
       Option.some_if
         (not (List.mem skip base ~equal:String.equal || host_decides))
@@ -253,8 +254,8 @@ module Field = struct
   ;;
 end
 
-(* A bit of a data field at one key: the same in every run, or one bit of the word or its
-   complement in every run, or not claimed. *)
+(* A bit of a data field at one key: either the same in every run, or one bit of the word
+   (or its complement) in every run, or not claimed at all. *)
 let bit_formula samples ~bit =
   let value (v, _) = (v lsr bit) land 1 in
   let word_bit j (_, w) = (w lsr j) land 1 in
@@ -273,9 +274,9 @@ let bit_formula samples ~bit =
         else None)
 ;;
 
-(* The claim on one field at one key, as the least and the most it may be, or for data the
-   bits expected and the mask of those claimed. A count only has a floor: a run can idle
-   longer than any simulated. *)
+(* The claim on one field at one key: the least and the most it may be, or for data the
+   expected bits and a mask of the claimed ones. A count only has a floor, because a run
+   can idle longer than any we simulated. *)
 let claim (field : Field.t) samples =
   let w = field.width in
   let values = List.map samples ~f:fst in
@@ -321,8 +322,8 @@ let table_claim n (field : Field.t) (runs : Step.t list list) =
   in
   let top = field.width - 1 in
   let key = if field.rx then "rx_key" else "tx_key" in
-  (* a data field's claim is the expected bits and the mask of those claimed, any other's
-     the least and the most *)
+  (* a data field's claim is the expected bits and a mask of the claimed ones; any other
+     field's is the least and the most *)
   let check =
     match field.kind with
     | Data -> [%string "((%{field.verilog} ^ a_%{n#Int}) & b_%{n#Int}) == 0"]
@@ -355,7 +356,7 @@ let rom name words =
 ;;
 
 (* engines_top's inputs: the configs, the start, engine 0's tx fifo and both rx pops from
-   the host, the pads; nothing else *)
+   the host, and the pads. Nothing else *)
 let input_ports ~configs =
   let configs =
     List.concat_mapi configs ~f:(fun n config ->
@@ -431,8 +432,8 @@ let link ~rx_period =
       run [ 3, w; 4, w lxor 0xa5a5; 5, lnot w land 0xffff ] ~steps:(4 * key.tx_frame))
     @ [ run [] ~steps:(key.settled + 60) ]
   in
-  (* the simulation already says whether the words arrive, which with a receiver at
-     another period they need not *)
+  (* the simulation already shows whether the words arrive (with a receiver at another
+     period they might not) *)
   let frames, wrong =
     List.concat runs
     |> List.filter_map ~f:(fun (step : Step.t) ->
@@ -449,7 +450,7 @@ let link ~rx_period =
   let margin = period / 2 in
   let top = Key.limit key in
   let key_bits = Int.ceil_log2 (top + 1) in
-  (* a showahead fifo's count, one bit over its address *)
+  (* a showahead fifo's count is one bit wider than its address *)
   let used_bits = Int.ceil_log2 Host_fifo.depth + 1 in
   let declare =
     List.map Field.ports ~f:(fun (name, width) ->

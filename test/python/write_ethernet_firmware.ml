@@ -3,7 +3,7 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* The 10BASE-T firmware for the board's Python, checked at the board's link interval when
-   it compiled. *)
+   it compiles. *)
 let () =
   let words = Timed_program.words Ethernet.firmware in
   let certificate =

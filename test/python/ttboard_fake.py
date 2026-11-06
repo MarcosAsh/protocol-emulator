@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# The demo board's RP2 under CPython: the machine, rp2, micropython, time and ttboard calls
-# python/demo_board.py and demo_board_check.py make, a PIO interpreter and the pads. Names
-# follow tt-micropython-firmware v3.1.1 and MicroPython's rp2 module. A chip backend has
-# run(board, ticks, stop), which elapses each wait board.events yields, drive and pads.
+# The demo board's RP2 under CPython. It fakes the machine, rp2, micropython, time and
+# ttboard calls that python/demo_board.py and demo_board_check.py make, and has a PIO
+# interpreter and the pads. Names follow tt-micropython-firmware v3.1.1 and MicroPython's
+# rp2 module. A chip backend has run(board, ticks, stop), which elapses each wait that
+# board.events yields, plus drive and pads.
 
 import collections
 import importlib
@@ -10,9 +11,9 @@ import sys
 import types
 from fractions import Fraction
 
-# GPIOs of ui_in, uo_out and uio, the system clock at boot, and whether a PIO has a GPIO
-# base: the RP2350B DB v3 of SDK v3, the RP2040 TT06 board of SDK v2, and Pico A on the
-# bench, whose host port alone is wired (python/etr_standin.py)
+# Each board: the GPIOs of ui_in, uo_out and uio, the system clock at boot, and whether a PIO
+# has a GPIO base. They are the RP2350B DB v3 of SDK v3, the RP2040 TT06 board of SDK v2,
+# and Pico A on the bench, where only the host port is wired (python/etr_standin.py).
 BOARDS = {
     "dbv3": (range(17, 25), range(33, 41), range(25, 33), 150_000_000, True),
     "tt06": ([9, 10, 11, 12, 17, 18, 19, 20], [5, 6, 7, 8, 13, 14, 15, 16], range(21, 29),
@@ -20,13 +21,13 @@ BOARDS = {
     "pico_a": ([2, 3, 5, 20, 21, 22, 26, 27], [4, 6, 7, 8, 9, 10, 11, 12], range(13, 20),
                125_000_000, False),
 }
-# what a MicroPython call costs, roughly, so time passes between pin moves
+# roughly what a MicroPython call costs, so time passes between pin moves
 CALL_US = 2
-# a blocking call that waits this long on a fake would hang the real board
+# a blocking call that waits this long on the fake would hang the real board
 HANG_S = Fraction(1, 50)
 FIFO = 4
-# a PIO reads a pad through the GPIO's two-flop synchroniser, and after both pads and the
-# chip's mux, guessed at 20 ns there and back
+# a PIO reads a pad through the GPIO's two-flop synchroniser, after the pads and the chip's
+# mux (a guess of 20 ns there and back)
 IN_SYNC = 2
 PAD_NS = 20
 # MicroPython's rp2.PIO and machine.Pin constants
@@ -48,8 +49,8 @@ class Instr:
 
 
 class Program:
-    """What @rp2.asm_pio makes: the body run once with the assembler's names as globals.
-    Items 1 to 3 are its offset on each PIO, -1 when not loaded, as in rp2.py's list."""
+    """What @rp2.asm_pio makes: the body runs once with the assembler's names as globals.
+    Items 1 to 3 are its offset on each PIO (-1 if not loaded), as in rp2.py's list."""
 
     def __init__(self, body, config):
         self.code, self.labels, self.config = [], {}, config
@@ -85,8 +86,8 @@ def asm_pio(**config):
 
 
 class StateMachine:
-    """One PIO state machine, a cycle per step. Its reads see the chip's pads as they were
-    board.lag() system clocks before the step; a side-set lands on stalled cycles too."""
+    """One PIO state machine, one cycle per step. Its reads see the chip's pads as they were
+    board.lag() system clocks before the step. A side-set also lands on stalled cycles."""
 
     def __init__(self, board, number):
         self.board, self.number, self.pio = board, number, board.pios[number // 4]
@@ -113,7 +114,7 @@ class StateMachine:
         for gpio in [self.in_base] + [b + c - 1 for b, c in self.outs.values()]:
             if gpio is not None and not 0 <= gpio - self.pio.base < 32:
                 raise ValueError("GPIO %d not within gpio_base range" % gpio)
-        # a program keeps the offset it was given, loaded or not, as MicroPython's does
+        # a program keeps the offset it was given, loaded or not, like MicroPython's
         offset = program.offsets[self.pio.index]
         if offset < 0:
             offset = self.pio.add_program(program)
@@ -127,7 +128,7 @@ class StateMachine:
         self.rx.clear()
         self.blocked = False
 
-    # the steps fall at origin + floor(k * div / 256) ticks, as the fractional divider has them
+    # step k falls at origin + floor(k * div / 256) ticks, like the fractional divider
     def _align(self):
         k = -(-((self.board.ticks - self.origin) * 256) // self.div)
         self.k = k
@@ -268,8 +269,8 @@ class StateMachine:
 
 
 class Pio:
-    """Instruction memory, each slot an instruction and its jump's address, and which slots
-    are in use. Programs go in from the top, as pico-sdk places them."""
+    """Instruction memory: each slot holds an instruction and its jump's address, and we track
+    which slots are in use. Programs go in from the top, like pico-sdk places them."""
 
     def __init__(self, board, index):
         self.board, self.index, self.base = board, index, 0
@@ -291,8 +292,9 @@ class Pio:
         return offset
 
     def remove_program(self, program=None):
-        """Every slot freed, or program's, whose offset alone it resets. rp2_pio.c's check
-        for a program not loaded tests an unsigned offset, so the board would go on."""
+        """Frees every slot, or only program's, in which case just its offset is reset.
+        rp2_pio.c's check for a program that isn't loaded tests an unsigned offset, so the
+        board would carry on."""
         if program is None:
             self.used = 0
             return
@@ -302,7 +304,7 @@ class Pio:
         program.offsets[self.index] = -1
 
     def gpio_base(self, pin=None):
-        """Only with no program loaded, as the pico-sdk refuses it otherwise."""
+        """Only allowed with no program loaded, since the pico-sdk refuses it otherwise."""
         if pin is not None:
             if pin.id not in (0, 16):
                 raise ValueError("invalid GPIO base")
@@ -313,8 +315,8 @@ class Pio:
 
 
 class Pin:
-    """machine.Pin. Init takes the pad back from a PIO, as gpio_set_function does; a
-    bare Pin(n) changes nothing, as MicroPython's does."""
+    """machine.Pin. Init takes the pad back from a PIO, like gpio_set_function does. A
+    bare Pin(n) changes nothing, like MicroPython's."""
 
     IN, OUT, PULL_UP, PULL_DOWN = IN, OUT, PULL_UP, PULL_DOWN
     board = None
@@ -379,8 +381,8 @@ class StandardPin:
 
 
 class DemoBoard:
-    """The SDK calls demo_board makes. Enable starts info.yaml's clock, as a project with
-    no config.ini section gets; RP control turns the DB v3.3 button's monitor on."""
+    """The SDK calls that demo_board makes. Enable starts info.yaml's clock, like a project
+    with no config.ini section gets. RP control turns the DB v3.3 button's monitor on."""
 
     def __init__(self, board):
         self.board = board
@@ -404,7 +406,7 @@ class DemoBoard:
 
     @mode.setter
     def mode(self, mode):
-        """ui pads become RP outputs, but not one a DIP switch holds high."""
+        """ui pads become RP outputs, except any a DIP switch holds high."""
         board = self.board
         board.note("mode", mode)
         if mode != self._mode:
@@ -434,8 +436,8 @@ class Design:
         self.board, self.name = board, name
 
     def enable(self, force=False):
-        """As ProjectMux.enable: refused at a danger level above safe, else the mux goes
-        through project 0, which powers every design down, and the callback runs."""
+        """Like ProjectMux.enable: refused at a danger level above safe. Otherwise the mux
+        goes through project 0, which powers every design down, and the callback runs."""
         board = self.board
         if self.name in board.risky and not force:
             return False
@@ -447,7 +449,7 @@ class Design:
 
 
 class Shuttle:
-    """The callback is apply_user_config's, for a project with no config.ini section:
+    """apply_user_config's callback for a project with no config.ini section: it sets
     info.yaml's clock_hz."""
 
     def __init__(self, board):
@@ -468,8 +470,8 @@ class Shuttle:
 
 class Board:
     """Pads, time and PIO. The system clock is the largest multiple of twice the PWM's
-    under 133 MHz, as the SDK finds when it divides exactly. CPU reads see the pads as the
-    last run left them, so a chip in another thread is only touched inside run."""
+    under 133 MHz, which is what the SDK finds when it divides exactly. CPU reads see the
+    pads as the last run left them, so a chip in another thread is only touched inside run."""
 
     def __init__(self, chip, kind="dbv3", switches=0,
                  projects=("tt_um_marcosash_protocol_emulator", "tt_um_other"), risky=()):
@@ -498,7 +500,7 @@ class Board:
         if hz:
             sys_hz = 2 * hz if 2 * hz > 133_000_000 else 133_000_000 // (2 * hz) * 2 * hz
             self.before, self.ticks, self.sys_hz = self.seconds(), 0, sys_hz
-            # a running state machine keeps its divider, so its rate moves with the clock
+            # a running state machine keeps its divider, so its rate follows the clock
             for sm in self.sms.values():
                 if sm.running:
                     sm.origin = 0
@@ -543,13 +545,13 @@ class Board:
 
     # time
     def lag(self):
-        """System clocks from the chip moving a pad to a PIO read seeing it."""
+        """System clocks between the chip moving a pad and a PIO read seeing it."""
         return IN_SYNC + -(-PAD_NS * self.sys_hz // 10**9)
 
     def events(self, ticks, stop=None):
-        """Each wait for the chip to elapse, with the PIO stepped between, until ticks pass
-        or stop() holds. Pads go to the chip first and come back last; a PIO about to read
-        samples them lag() early."""
+        """Yields each wait for the chip to elapse, stepping the PIO in between, until ticks
+        pass or stop() holds. Pads go to the chip first and come back last. A PIO about to
+        read samples them lag() early."""
         end = self.ticks + ticks
         self.sync()
         while self.ticks < end and not (stop and stop()):
@@ -585,9 +587,9 @@ class Board:
                 raise TimeoutError("the board would hang here")
 
     def install(self, sdk=None):
-        """machine, rp2, micropython and ttboard in sys.modules, and demo_board and
-        demo_board_check imported fresh with this board's time. sdk, a module to import as
-        ttboard's instead of the fake's, gets a machine.freq that sets the chip's clock to
+        """Puts machine, rp2, micropython and ttboard in sys.modules and imports demo_board
+        and demo_board_check fresh with this board's time. sdk is a module to import as
+        ttboard instead of the fake. It gets a machine.freq that sets the chip's clock to
         half the system's, as the SDK's PWM would."""
         board = self
         Pin.board = board
@@ -663,7 +665,7 @@ MODULES = ("rp2", "machine", "micropython", "ttboard", "ttboard.demoboard", "ttb
 
 
 def run_sync(chip, board, ticks, stop=None):
-    """A chip backend's run, when elapse needs no await."""
+    """A chip backend's run, for when elapse needs no await."""
     for wait in board.events(ticks, stop):
         if wait:
             chip.elapse(board, wait)

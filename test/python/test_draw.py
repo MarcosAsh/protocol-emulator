@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/outline.py on a small made up die and on pages/die/die.bin, python/demo_draw.py's
-# reports and its queue, and demo/draw.py's replay, which must catch a clamped move.
+# Tests demo/outline.py on a small made-up die and on pages/die/die.bin, the reports and
+# queue in python/demo_draw.py, and the replay in demo/draw.py, which must catch a clamped
+# move.
 import os
 import sys
 import tempfile
@@ -12,8 +13,8 @@ import outline  # noqa: E402
 
 
 def test_small_die():
-    # an L of engine 0 beside a square of host FIFOs, a macro and a stray glue cell, on a
-    # 4 x 4 step grid with no blur
+    # an L of engine 0 next to a square of host FIFOs, a macro and a stray glue cell, on a
+    # 4 x 4 grid with no blur
     cells = [(x, y, 4, 4, "engine 0") for x, y in ((0, 0), (4, 0), (8, 0), (0, 4), (0, 8))]
     cells += [(x, y, 4, 4, "host FIFOs") for x in (12, 16) for y in (8, 12)]
     cells += [(16, 0, 4, 4, outline.SRAM), (12, 16, 4, 4, "glue")]
@@ -25,7 +26,7 @@ def test_small_die():
         ("host FIFOs", [(12, 8), (20, 8), (20, 16), (12, 16)]),
     ], found
     assert found == outline.regions((20, 20), cells, grid=4, blur=0), "deterministic"
-    # every corner is more than SMOOTH off a line that skips it
+    # every corner is more than SMOOTH away from a line that skips it
     assert outline.outlines(found, 18, grid=4) == found
     rings = outline.outlines(found, 16, grid=4)
     assert rings[2:] == [
@@ -37,7 +38,7 @@ def test_small_die():
         raise AssertionError("four outlines in 13 segments")
     except ValueError:
         pass
-    # y down, the tile from the pointer's start, then the nearest corner each time
+    # y points down; the tile starts at the pointer, then each ring starts at the nearest corner
     assert outline.pen_path(rings, (20, 20), 40) == [
         [(0, 0), (0, 40), (40, 40), (40, 0), (0, 0)],
         [(0, 16), (0, 40), (24, 32), (8, 32), (0, 16)],
@@ -47,7 +48,7 @@ def test_small_die():
 
 
 def test_corner_touching_squares_stay_apart():
-    # two squares touching at a corner are two pieces, and an 8-connected gap is no hole
+    # two squares touching at a corner are two pieces, and a gap connected diagonally is not a hole
     labels = [["engine 0", None], [None, "engine 0"]]
     assert outline.pieces(labels, "engine 0") == [{(0, 0)}, {(1, 1)}]
     ring = [["engine 0"] * 3, ["engine 0", None, "engine 0"], ["engine 0"] * 3]
@@ -69,7 +70,7 @@ def test_replay_catches_a_clamp():
     data = demo_draw.encode(strokes, 5)
     assert data[0] == 5
     drawn, lifted, end = draw.replay(data)
-    # a split move's points round to the nearest pixel
+    # the points of a split move round to the nearest pixel
     assert draw.drift(strokes, drawn, end) <= 0.5 and end == (0, 0)
     assert lifted == [[(0, 0), (10, 10)], [(10, 10), (0, 0)]], lifted
 
@@ -102,7 +103,7 @@ def test_reports_queue_and_stop():
     assert len(queue) == 4
     press = queue.pop(0)
     assert press == [2, 1, 0, 0] and queue.held == 1
-    # a bus reset puts it back, ahead of the rest
+    # a bus reset puts the report back at the front of the queue
     queue.insert(0, press)
     assert queue.pop(0) == press and len(queue) == 3
     assert queue.pop(0) == [2, 1, 5, 0]
@@ -122,7 +123,7 @@ def test_reports_queue_and_stop():
     except demo_draw.Stopped as stopped:
         assert stopped.args == (True,)
 
-    # nothing held: nothing more is sent, and a report never taken stops it anyway
+    # with nothing held nothing more is sent, and a report nobody takes stops it anyway
     queue = demo_draw.Reports(data, lambda: now[0])
     queue.start(0)
     queue.stop()

@@ -3,9 +3,9 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* Every delay variant of the swept firmware as a JSON line, for demo/kernel_vs_board.py
-   to run on the board: its words, the analyser's and the kernel's verdicts, whether the
-   model ran it late, and the certificate a host makes for it from the analyser's rows,
-   with what the model of the chip's walk says of it. *)
+   to run on the board. Each line has the words, the analyser's and the kernel's verdicts,
+   whether the model ran it late, the certificate a host makes from the analyser's rows,
+   and what the model of the chip's walk says about it. *)
 
 let json_string s =
   let escaped =

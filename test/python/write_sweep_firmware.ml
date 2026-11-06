@@ -3,11 +3,11 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The sweep demo: every library firmware engine 1 can stamp, its watched output moved to
-   wire 20 and its other outputs beside it, with a stimulus and, for every edge from its
-   frame's first, the cycle the model of both engines gives and the interval the kernel's
-   rows allow along the model's path. Each is checked at the period it runs at, as the
-   command line does. *)
+(* The sweep demo covers every library firmware that engine 1 can stamp. Its watched
+   output moves to wire 20 with its other outputs beside it. Each firmware has a stimulus
+   and, for every edge counted from its frame's first, the cycle the model of both engines
+   gives and the interval the kernel's rows allow along the model's path. Each is checked
+   at the period it runs at, like the command line does. *)
 
 let wire = Swept.wire
 
@@ -21,10 +21,10 @@ let logger_words = In_channel.read_all "../edge_logger_echo.asm" |> Firmware.ass
 
 module Edge = struct
   type t =
-    { at : int (** The cycle it shows, by engine 0's clock. *)
+    { at : int (** The cycle it appears, by engine 0's clock. *)
     ; pc : int
-    ; t : int (** The deadline when it issued. *)
-    ; first : bool (** The first of a frame. *)
+    ; t : int (** The deadline at the time it was issued. *)
+    ; first : bool (** True for the first edge of a frame. *)
     ; stamp : int
     }
 end
@@ -38,15 +38,15 @@ let signed d =
 
 let level (m : Machine.t) = (m.pin_out lsr wire) land 1
 
-(* A burst is over once engine 0 has its words and the wire has not moved for as long as a
-   stamp can tell apart. *)
+(* A burst is over once engine 0 has its words and the wire has been still for as long as
+   a stamp can tell apart. *)
 let quiet = 1 lsl 16
 
-(* The model of both engines from the logger's start, as the sweep runs them: the setup's
-   edges, then each burst's, a burst pushed once the one before is quiet, each with the
-   cycle it began. A frame starts at a burst's first edge and at the first after an
-   anchor, a write of [t] from the clock or the capture: between frames the host's timing
-   decides. *)
+(* The model of both engines from the logger's start, run the way the sweep runs them. It
+   gives the setup's edges, then each burst's (a burst is pushed once the one before is
+   quiet), each with the cycle it began. A frame starts at a burst's first edge and at the
+   first edge after an anchor, which is a write of [t] from the clock or the capture.
+   Between frames the host's timing decides. *)
 let simulate ~config ~words ~preamble ~bursts =
   let instructions =
     Array.of_list words
@@ -143,7 +143,7 @@ let simulate ~config ~words ~preamble ~bursts =
     List.map2_exn edges stamps ~f:(fun (pc, at, t, first) stamp ->
       { Edge.at; pc; t; first; stamp })
   in
-  (* the logger stamps each edge as many cycles after it shows *)
+  (* the logger stamps each edge a fixed number of cycles after it appears *)
   (match
      List.map edges ~f:(fun e -> (e.stamp - e.at) land 0xffff)
      |> List.dedup_and_sort ~compare:Int.compare
@@ -160,7 +160,7 @@ let simulate ~config ~words ~preamble ~bursts =
   split edges (setup :: pushed)
 ;;
 
-(* Where the kernel's rows put an edge on the wire from the deadline it issued at. *)
+(* Where the kernel's rows put an edge on the wire, given the deadline it was issued at. *)
 let edge_at ~(config : Program_config.t) ~rows (e : Edge.t) =
   let side =
     List.init config.side_set_count ~f:(fun j ->
@@ -173,8 +173,8 @@ let edge_at ~(config : Program_config.t) ~rows (e : Edge.t) =
   | _ -> raise_s [%message "BUG: the rows place no edge here" (e.pc : int)]
 ;;
 
-(* Each edge's cycles from its frame's first: the model's, and the least and most the rows
-   allow along the model's path, [None] where they bound nothing. *)
+(* Each edge's cycles from its frame's first edge: the model's, and the least and most the
+   rows allow along the model's path ([None] where they bound nothing). *)
 let frames ~config ~rows edges =
   let rec group = function
     | [] -> []
@@ -199,7 +199,7 @@ let frames ~config ~rows edges =
 ;;
 
 (* The host polls at most [poll] cycles apart, so nine edges must take twice that unless
-   the fifo holds them all; a stamp is 16 bits, so a gap must fit. *)
+   the fifo holds them all. A stamp is 16 bits, so a gap has to fit. *)
 let check_burst name (burst : Edge.t list) =
   let at = Array.of_list_map burst ~f:(fun e -> e.at) in
   let depth = Machine.fifo_depth in
@@ -251,7 +251,7 @@ let print_changes indent config =
     printf "%s},\n" indent)
 ;;
 
-(* what the chip checks a program against before it starts it *)
+(* the certificate the chip checks a program against before it starts it *)
 let certificate ?period ?single_capture_edge ~config words =
   Load_check.of_program ?period ?single_capture_edge ~config words
   |> ok_exn
@@ -282,7 +282,7 @@ let print_swept { Swept.name; watch; on_wire; period; bursts } =
     |> List.map ~f:(fun (r : Analyser.Row.t) -> r.pc, r)
     |> Int.Map.of_alist_exn
   in
-  (* the pins the run writes go low first, as the model starts them *)
+  (* the pins the run writes start low, like the model's *)
   let park =
     Firmware.assemble
       (if config.side_set_count = 0

@@ -44,8 +44,8 @@ let receiver_at ~half =
     Bench.receiver_source
 ;;
 
-(* One certificate for every step, under the floor of their periods' whole cycles: rows
-   with a fraction, which the chip's walk also takes for the steps with none. *)
+(* One certificate for every step, under the floor of their periods' whole cycles. The
+   rows carry a fraction, which the chip's walk also accepts for steps that have none. *)
 let sender_under ~floor ms =
   let config = { Bench.sender_config with period_fraction = 1 } in
   let timed = Timed_program.of_source_exn ~period_floor:floor ~config Bench.sender in
@@ -79,8 +79,8 @@ let sender_under ~floor ms =
   timed
 ;;
 
-(* test/test_tolerance_bench.py's shortened bench: its half period, and its fastest step a
-   tenth below the nominal rate *)
+(* test/test_tolerance_bench.py's shortened bench: its half period, and its fastest step
+   at a tenth below the nominal rate *)
 let short_half = 26
 let short_bytes = [ 0x00; 0x55; 0xA5; 0x7F ]
 let short_fastest = 2 * short_half * Tolerance.unit * 9 / 10

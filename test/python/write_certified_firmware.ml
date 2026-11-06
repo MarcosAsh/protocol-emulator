@@ -3,8 +3,8 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The DShot600, SENT and CEC firmware for the board's Python and the cocotb tests, each
-   checked under its [Certified] entry's assumptions, as the command line does. *)
+(* The DShot600, SENT and CEC firmware for the board's Python and the cocotb tests. Each
+   is checked under its [Certified] entry's assumptions, like the command line does. *)
 let () =
   print_string
     "# Written by test/python/write_certified_firmware.ml; `dune promote` after a change.\n\
@@ -19,7 +19,7 @@ let () =
       Analyser.check ?period ~single_capture_edge ~config program |> ok_exn
     in
     let words = Asm.Program.words program |> ok_exn in
-    (* the kernel's load, the floor where there is one, as the chip checks under *)
+    (* the load the kernel checks under: the floor if there is one *)
     let loaded = Option.first_some period_floor period in
     let certificate =
       Load_check.of_program

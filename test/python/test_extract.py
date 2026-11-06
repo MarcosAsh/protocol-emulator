@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/extract.py's comparison of two blind readings: equal limits written differently agree,
-# a reading carrying one of the three misreads the 10-18 prior-art scout found disputes against
-# an honest one at the right page, and only a person's ruling settles a dispute. The readings
-# in extract/ are the readers' tables from the blind run of 2026-10-18.
+# Tests how demo/extract.py compares two blind readings. Equal limits written differently
+# agree. A reading with one of the three misreads the 10-18 prior-art scout found is disputed
+# against an honest one at the right page. Only a person's ruling settles a dispute. The
+# readings in extract/ are the readers' tables from the blind run of 2026-10-18.
 import copy
 import os
 import sys
@@ -86,7 +86,7 @@ def with_rows(base, change):
 
 
 def test_known_misreads():
-    """Both blind readers got all three right, so each misread goes into one reading by hand."""
+    """Both blind readers got all three right, so we put each misread into one reading by hand."""
     eeprom = reading("eeprom_24lc256_a")
     params_2_to_10 = {"thigh", "tlow", "tr", "tf", "thdsta", "tsusta", "thddat", "tsudat",
                       "tsusto"}
@@ -116,8 +116,8 @@ def test_known_misreads():
 
     got = disputed(with_rows(um10204, hold_300), reading("i2c_um10204_b"))
     assert ("tHD;DAT", "min", "0.3", "0", [44]) in got
-    # a superseded sheet read well twice agrees: both name Rev B/0 of 2024-03-02, and B/1's
-    # T0H >= 0.25 us is not in it to read
+    # a superseded sheet read well twice agrees: both name Rev B/0 of 2024-03-02, which
+    # doesn't contain B/1's T0H >= 0.25 us
     sk6812 = [reading("sk6812_" + r)["document"] for r in "ab"]
     assert [(d["revision"], d["date"]) for d in sk6812] == [("B/0", "2024-03-02")] * 2
     assert not [d for d in ex.compare(reading("sk6812_a"), reading("sk6812_b"))["disputes"]
@@ -139,8 +139,8 @@ def test_rulings():
 
 
 def test_ruled_from_file():
-    # a ruling read back from disputed.tsv can leave a field blank, and reaches a row one
-    # reader wrote with no symbol, which the comparison keys by its parameter
+    # a ruling read back from disputed.tsv can leave a field blank, and can apply to a row
+    # that only one reader wrote, with no symbol, which the comparison keys by parameter
     head = "document\tsheet\tRev. 1\t\nsymbol\tparameter\tcondition\tmin\ttyp\tmax\tunit\tpage\twhere\n"
     a = ex.parse(head + "\tclock frequency\t\t2\t\t\tMHz\t2\ttext\n"
                  "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n")
@@ -164,7 +164,7 @@ def test_ruled_from_file():
             "agreement 7/17 fields (41.2%), 2 rows agreed, 0 fields disputed, 10 ruled")
         fclk = [r for r in ex.compare(a, b, ex.rulings(path))["rows"] if r["symbol"] == "fclk"]
         assert [(r["min"], r["typ"], r["max"]) for r in fclk] == [("", "2", "")]
-    # the document line's fields settle the same way
+    # the document line's fields are settled the same way
     dated = copy.deepcopy(b)
     dated["document"]["date"] = "Last updated: 1 May 2020"
     a["document"]["date"] = "1 May 2020"
@@ -175,8 +175,9 @@ def test_ruled_from_file():
 
 
 def test_one_reader_typical():
-    # a row only one reader wrote, typical values only, bounds nothing: kept and marked, no
-    # dispute. One with a bound is disputed, and a person's ruling on either still counts
+    # a row only one reader wrote, with typical values only, bounds nothing: it is kept and
+    # marked, with no dispute. One with a bound is disputed, and a person's ruling on either
+    # still counts
     head = "document\tsheet\tRev. 1\t\nsymbol\tparameter\tcondition\tmin\ttyp\tmax\tunit\tpage\twhere\n"
     shared = "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n"
     a = ex.parse(head + shared + "fclock\tclock\tnominal\t\t90\t\tkHz\t1\ttext\n"

@@ -5,7 +5,7 @@ open Protocol_emulator_test
 let py_int = Option.value_map ~default:"None" ~f:Int.to_string
 let py_str = Option.value_map ~default:"None" ~f:(sprintf "%S")
 
-(* the image and load a prediction is of *)
+(* the image and load a prediction is made for *)
 let words_md5 (bench : Bench.t) =
   Timed_program.words (Bench.timed bench) @ Option.to_list bench.load
   |> List.map ~f:(sprintf "%04X")

@@ -1,11 +1,12 @@
 (** Reads a Verilog module through Yosys ([read_verilog], [chparam], [hierarchy], [proc],
-    [flatten]) and hardcaml_of_verilog into a circuit for [Frame_compiler]. A cell
+    [flatten]) and hardcaml_of_verilog into a circuit for [Frame_compiler]. A cell that
     hardcaml_of_verilog has no model for, or that is outside the subset (memories,
     latches), is refused with its line before conversion.
 
-    Ports not given are found by name and width: the pin is the one 1-bit output, the
-    reset the input named like rst, reset or clear (active low when it ends in n or l),
-    valid the one other 1-bit input that is not the clock, data the one wider input. *)
+    Ports that aren't given are found by name and width. The pin is the one 1-bit output,
+    the reset is the input named like rst, reset or clear (active low when it ends in n or
+    l), valid is the one other 1-bit input that isn't the clock, and data is the one wider
+    input. *)
 
 open! Core
 open! Hardcaml

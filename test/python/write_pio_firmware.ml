@@ -4,7 +4,7 @@ open Protocol_emulator
 open Pio
 
 (* Each bench run: the upstream path, the program, and the PIO tx words of its data, as
-   its example's C code writes them. *)
+   written by its example's C code. *)
 module Run = struct
   type t =
     { name : string
@@ -18,7 +18,7 @@ end
 let commit = "0d62f75bafc2c8120d3276c3343d1a9195e909e9"
 let dir = "../../pio/test/pico_examples/"
 
-(* demo_neopixel's pixels, low enough that USB powers the stick, then turned by one *)
+(* demo_neopixel's pixels, dim enough for USB to power the stick, then rotated by one *)
 let pixels =
   [ 0x20, 0x00, 0x00
   ; 0x00, 0x20, 0x00
@@ -39,8 +39,8 @@ let grb (r, g, b) = ((g lsl 16) lor (r lsl 8) lor b) lsl 8
 (* uart_tx.c's string; uart_tx_program_putc puts each character as a word *)
 let hello = "Hello, world! (from PIO!)\r\n"
 
-(* W25Q64JV's Release Power-down, ABh, which it needs 3 us after, then Read JEDEC ID, 9Fh,
-   and three bytes for the reply *)
+(* W25Q64JV's Release Power-down (ABh), which needs 3 us to finish, then Read JEDEC ID
+   (9Fh) and three bytes of reply *)
 let commands = [ [ 0xab ]; [ 0x9f; 0; 0; 0 ] ]
 
 let runs =

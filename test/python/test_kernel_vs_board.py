@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/kernel_vs_board.py's reading of the Pico's lines: every pairing of the kernel's
-# verdict with what the board did gets its own word, and a late accepted variant is unsound.
+# Checks how demo/kernel_vs_board.py reads the Pico's lines. Each pairing of the kernel's
+# verdict and what the board did gets its own word, and a late accepted variant is unsound.
 import sys
 
 sys.path.insert(0, sys.argv[1])

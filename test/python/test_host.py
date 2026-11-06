@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The host library against a fake core whose clock runs on between SPI frames.
+# Tests the host library against a fake core whose clock keeps running between SPI frames.
 import sys
 
 sys.path.insert(0, sys.argv[1])
 import protocol_emulator as pe
 
-# cycles a frame takes, 24 SCK bits and the gaps
+# cycles per frame: 24 SCK bits plus the gaps
 FRAME = 300
 
 

@@ -3,17 +3,17 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* A UART receiver's tolerance on the RTL, every frame of a stream by induction on frames.
-   The sender runs free at m 2^-16 cycles a bit from any phase, as Tolerance models it;
-   the bytes, m within the bounds and the start are free. The host reads the byte sent,
-   with no irq and no fault, and the next frame meets the receiver at another phase the
-   proof already covers. With m a step past either bound, or the sample point a cycle
-   late, a run has to fail. *)
+(* A UART receiver's tolerance on the RTL, proved for every frame of a stream by induction
+   on frames. The sender runs free at m 2^-16 cycles a bit from any phase, as Tolerance
+   models it. The bytes, m (within the bounds) and the start are free. The host reads the
+   byte sent, with no irq and no fault, and the next frame meets the receiver at another
+   phase that the proof already covers. With m a step past either bound, or the sample
+   point a cycle late, a run has to fail. *)
 
 module Firmware = struct
   type t =
     { receiver : Tolerance.Receiver.t
-    ; moved : Tolerance.Receiver.t (** Every read a cycle later. *)
+    ; moved : Tolerance.Receiver.t (** Every read happens a cycle later. *)
     ; label : string
     }
 
@@ -94,7 +94,7 @@ let write (firmware : Firmware.t) ~moved =
     else ""
   in
   let pin = config.in_base in
-  (* the receiver is waiting for a start bit by then, with or without a host word *)
+  (* by then the receiver is waiting for a start bit, with or without a host word *)
   let begin_at = 16 in
   let slowest = Int.max bounds.most own.most + 1 in
   let done_at = begin_at + 7 + ceil_div (10 * slowest) Tolerance.unit + 8 in
@@ -208,10 +208,11 @@ endmodule
 |}]
 ;;
 
-(* The SPI target in mode 0 under a controller whose every SCK phase is free from [active]
-   or [idle] cycles to [slack] more, each on its own, the setup from CS too: two bytes,
-   MOSI moving on SCK's falling edge in the cycle it falls. FASTER takes one cycle off the
-   shortest active phase, SLOWER off the shortest idle one. *)
+(* The SPI target in mode 0 under a controller whose every SCK phase is free to last from
+   [active] or [idle] cycles to [slack] more, each phase on its own (the setup from CS
+   too). It sends two bytes, with MOSI moving on SCK's falling edge in the cycle it falls.
+   FASTER takes one cycle off the shortest active phase and SLOWER one off the shortest
+   idle phase. *)
 let write_spi ~active ~idle ~slack =
   let mode = Spi_cs.Mode.of_int 0 in
   let pins = Spi_target.pads in
@@ -324,9 +325,9 @@ let spi_depth ~active ~idle ~slack =
   24 + active + slack + (16 * (active + idle + (2 * slack))) + 20
 ;;
 
-(* -name NAME: uart_rx_N at N cycles a bit, or uart_rx_host_rate_N at half period N;
-   -moved for the receiver with its sample point a cycle late; -depth for the steps the
-   proof needs *)
+(* -name NAME is uart_rx_N at N cycles a bit, or uart_rx_host_rate_N at half period N.
+   -moved is the receiver with its sample point a cycle late. -depth is the number of
+   steps the proof needs *)
 let () =
   let args = Sys.get_argv () |> Array.to_list in
   let has flag = List.mem args flag ~equal:String.equal in

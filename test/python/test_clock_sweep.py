@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/clock_sweep.py's reading of a sweep against the sealed windows.
+# Checks how demo/clock_sweep.py reads a sweep against the sealed windows.
 import sys
 
 sys.path.insert(0, sys.argv[1])

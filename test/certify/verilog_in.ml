@@ -31,7 +31,7 @@ type t =
 
 let refuse fmt = Printf.ksprintf (fun s -> Or_error.error_string s) fmt
 
-(* the cells hardcaml_of_verilog models, less memories and latches *)
+(* the cells hardcaml_of_verilog models, except memories and latches *)
 let supported =
   String.Set.of_list
     [ "$not"
@@ -184,7 +184,7 @@ let check_cells module_ =
   | errors -> Error (Error.of_list errors)
 ;;
 
-(* netname to its declaration's line, and to its init value *)
+(* maps each net name to its declaration's line and to its init value *)
 let netnames module_ =
   Jsonaf.member_exn "netnames" module_
   |> Jsonaf.assoc_list_exn
@@ -225,7 +225,7 @@ let read ~files ~top ~parameters (names : Names.t) =
       |> Option.bind ~f:(Jsonaf.member "attributes")
       |> Option.bind ~f:(Jsonaf.member "init")
     in
-    (* a register drives a wire with every name its net has *)
+    (* a register drives a wire under every name its net has *)
     let reg_names = Hashtbl.create (module Signal.Type.Uid) in
     Signal_graph.iter (Circuit.signal_graph circuit) ~f:(fun (s : Signal.t) ->
       match s with

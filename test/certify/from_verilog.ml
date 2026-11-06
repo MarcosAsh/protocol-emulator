@@ -14,7 +14,7 @@ type t =
 
 let refuse fmt = Printf.ksprintf (fun s -> Or_error.error_string s) fmt
 
-(* [name == value] on the bits [value] knows, runs of constants or of data bits together *)
+(* [name == value] on the bits [value] knows, grouping runs of constant or data bits *)
 let equals name (value : Bit.t array) =
   let width = Array.length value in
   let rec runs b =
@@ -73,7 +73,7 @@ module Index = struct
   [@@deriving compare, sexp_of]
 end
 
-(* each bit known when every run agrees on it, as a constant or as a bit of the word *)
+(* a bit is known when every run agrees on it, as a constant or as a bit of the word *)
 let mine ~width ~data_width (observations : (int option * int option) list) =
   Array.init width ~f:(fun b ->
     let seen =
@@ -154,7 +154,7 @@ let fifo_ports =
   \    "
 ;;
 
-(* one bit or one cycle short: the loop's count, else the first deadline *)
+(* one bit or one cycle short: the loop's count, or the first deadline if there is none *)
 let mutate source =
   let lines = String.split_lines source in
   let shorter =
@@ -193,7 +193,7 @@ let create ~name (verilog : Verilog_in.t) (compiled : Frame_compiler.t) =
   let inputs = ports_of (Circuit.inputs circuit) in
   let outputs = ports_of (Circuit.outputs circuit) in
   let is_output name = List.Assoc.mem outputs name ~equal:String.equal in
-  (* the registers with a name, each a wire c_k of the miter *)
+  (* the named registers, each exposed as a wire c_k in the miter *)
   let named =
     List.filter_map (Bit_sim.registers sim) ~f:(fun r ->
       Option.map (verilog.register_name r) ~f:(fun name -> r, name))
@@ -217,7 +217,7 @@ let create ~name (verilog : Verilog_in.t) (compiled : Frame_compiler.t) =
     | Frame k when k <= frame.length -> frame.states.(k)
     | Warm _ | Frame _ | Settled -> frame.idle
   in
-  (* the engine over runs: single takes at a few times, and pairs a gap or more apart *)
+  (* the engine over runs: single takes at a few times, and pairs at least a gap apart *)
   let words =
     let mask = (1 lsl data_width) - 1 in
     List.map
@@ -282,8 +282,8 @@ let create ~name (verilog : Verilog_in.t) (compiled : Frame_compiler.t) =
         List.concat_map
           (fields ~out_base:firmware.config.out_base)
           ~f:(fun (field, width, get) ->
-            (* the phase grows while the engine waits, so only one every run agrees on
-               whole holds *)
+            (* the phase grows while the engine waits, so it only holds as a whole value
+               that every run agrees on *)
             let value =
               mine ~width ~data_width (List.map seen ~f:(fun (m, w) -> get m, w))
             in
@@ -293,7 +293,7 @@ let create ~name (verilog : Verilog_in.t) (compiled : Frame_compiler.t) =
       in
       assertion (condition index) terms)
   in
-  (* the circuit's pin [back] cycles before an index, where it is known *)
+  (* the circuit's pin [back] cycles before an index, where that is known *)
   let warm = Array.length frame.warm_up - 1 in
   let last_run = List.last_exn (Frame_compiler.Frame.runs frame) |> fst in
   let idle_bit = if frame.pin_idle then Bit.One else Zero in
@@ -464,7 +464,7 @@ let create ~name (verilog : Verilog_in.t) (compiled : Frame_compiler.t) =
   in
   let files = List.map verilog.files ~f:Filename.basename in
   let depth_teeth = first_take + (2 * gap) + lag + 8 in
-  (* below the shortest the engine follows at, unless the circuit cannot take then *)
+  (* below the shortest gap the engine follows at, unless the circuit can't take then *)
   let short_gap = timing.shortest > frame.length in
   let tasks =
     [ "prove"; "early"; "mutant" ] @ if short_gap then [ "short_gap" ] else []

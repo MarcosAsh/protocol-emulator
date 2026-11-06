@@ -1,10 +1,12 @@
-(** The miter for a Verilog circuit [Frame_compiler] compiles: the file as Yosys reads it,
-    not as the front end does, beside the engine running the firmware. The host writes
-    each word the circuit takes, and the engine's pin is the circuit's [lag] cycles later,
-    given no valid in the first cycles after reset and takes at least [gap] apart.
+(** The miter for a Verilog circuit that [Frame_compiler] compiles: the file as Yosys
+    reads it, not as the front end does, beside the engine running the firmware. The host
+    writes each word the circuit takes, and the engine's pin is the circuit's [lag] cycles
+    later, provided there is no valid in the first cycles after reset and takes are at
+    least [gap] apart.
 
     The coupling invariants are mined from many runs of [Bit_sim] and [Machine], keeping
-    what every run agrees on per cycle since the take. A wrong one fails the proof. *)
+    whatever every run agrees on at each cycle since the take. A wrong invariant fails the
+    proof. *)
 
 open! Core
 open Protocol_emulator

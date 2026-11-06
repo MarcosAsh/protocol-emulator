@@ -3,11 +3,11 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* [Self_check.checker] on the core beside its contract, [Self_check_contract]: for any
+(* [Self_check.checker] on the core beside its contract, [Self_check_contract]. For any
    line, the irq rises only after a break of the contract, is up by the cycle the contract
-   says, and no deadline of the checker's is missed. For one set of edges, and as far from
-   the clear as formal/self_check.sby looks. With -invariants, for all time but only up to
-   a break: no irq, no halt, none of the checker's deadlines missed. *)
+   says, and none of the checker's deadlines is missed. This is for one set of edges, as
+   far from the clear as formal/self_check.sby looks. With -invariants it holds for all
+   time, but only up to a break: no irq, no halt, no missed deadline. *)
 
 let max_inner = 9
 
@@ -32,8 +32,8 @@ let rom name words =
 ;;
 
 (* teeth: a checker that takes a fall's stamp a cycle off, one that takes the next frame's
-   first edge a cycle off, one that halts without its irq, and one that raises it a cycle
-   late *)
+   first edge a cycle off, one that halts without its irq, and one that raises the irq a
+   cycle late *)
 let mutate source = function
   | None -> source
   | Some (pattern, with_) ->
@@ -43,7 +43,7 @@ let mutate source = function
 ;;
 
 (* Invariants proposed for the induction: what each register holds, keyed by the
-   contract's phase, the pc and the row pointer, in every cycle before a break of
+   contract's phase, the pc and the row pointer, in every cycle before a break in
    simulated runs of the model beside the contract. Claimed under INVARIANTS. *)
 module Sim = Cyclesim.With_interface (Contract.I) (Contract.O)
 
@@ -62,7 +62,7 @@ module Feature = struct
     let contract verilog width read =
       { verilog; width; in_frame = false; read = (fun _ o -> read o) }
     in
-    (* a time as cycles from the frame's start, as the core's own arithmetic wraps it *)
+    (* a time as cycles from the frame's start, wrapped like the core's own arithmetic *)
     let from_start verilog width read =
       { verilog
       ; width
@@ -98,12 +98,12 @@ module Feature = struct
     ; contract "contract_boot" Contract.O.port_widths.boot (fun o -> o.boot)
     ; contract "previous" 1 (fun o -> o.previous)
     ]
-    (* early and at last, set only by a break; the others carry state in clean runs *)
+    (* early and at last are only set by a break; the others carry state in clean runs *)
     @ List.map [ 2; 3 ] ~f:(fun bit ->
       contract [%string "flags[%{bit#Int}]"] 1 (fun o -> (o.flags lsr bit) land 1))
     @ [ contract "ended" Contract.O.port_widths.ended (fun o -> o.ended) ]
     @
-    (* the stamps against each other, as 16 bits *)
+    (* the stamps compared with each other, as 16 bits *)
     let stamps : (string * (Machine.t -> int)) list =
       [ ("x", fun m -> m.x)
       ; ("y", fun m -> m.y)
@@ -119,7 +119,7 @@ module Feature = struct
   ;;
 end
 
-(* [Frame] in the contract's phase, as its mli numbers them *)
+(* [Frame] in the contract's phase, numbered as in its mli *)
 let frame = 3
 
 let samples ~edges ~base ~program ~config =
@@ -148,8 +148,8 @@ let samples ~edges ~base ~program ~config =
         Array.init m ~f:(fun k ->
           if k = 0 then 0 else if k = m - 1 then 1 else Random.State.int rs 2))
     in
-    (* the line low from the clear for a while, so the checker waits for it high, and
-       glitches before the first frame *)
+    (* the line is low for a while from the clear, so the checker waits for it to go high,
+       and glitches before the first frame *)
     let mutations =
       (if Random.State.bool rs then [ Case.Pulse { at = 0; width = rand 1 20 } ] else [])
       @ List.init (rand 0 3) ~f:(fun _ ->
@@ -187,8 +187,8 @@ let samples ~edges ~base ~program ~config =
   found
 ;;
 
-(* mined claims the induction could not keep, by key and feature: the line high a cycle
-   before, in the high branch, true in every simulated run but not inductive *)
+(* mined claims the induction couldn't keep, by key and feature: the line was high a cycle
+   before, in the high branch. True in every simulated run but not inductive *)
 let refuted =
   List.map
     [ 16, 2; 17, 3; 18, 3; 19, 3; 12, 3; 13, 3 ]
@@ -227,7 +227,7 @@ let mined ~edges ~base ~program ~config =
            (List.last_exn values))
     else None
   in
-  (* one claim a line, so a failing one is named by its line *)
+  (* one claim per line, so a failing one is named by its line *)
   let claims =
     List.concat_map keys ~f:(fun key ->
       List.filter_map Feature.all ~f:(fun (f : Feature.t) ->
@@ -289,9 +289,9 @@ let contract_checks =
 |}
 ;;
 
-(* the core's own, as write_certificate's inductive certificates have them, and the data
-   memory's read a cycle on, or the word it keeps in place of the read; the checker has no
-   crc_send, so its outs send the osr *)
+(* the core's own invariants, as in write_certificate's inductive certificates, plus the
+   data memory's read a cycle on (or the word it keeps instead of the read). The checker
+   has no crc_send, so its outs send the osr *)
 let core_invariants ~after =
   [%string
     {|  wire [31:0] wait_pin = 32'd1 << instruction[4:0];

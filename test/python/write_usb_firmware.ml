@@ -4,12 +4,12 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* The USB device firmware for the board's Python: address 0's words and the
-   address-dependent ones for every address, so the Python never assembles. *)
+   address-dependent ones for every address, so the Python never has to assemble. *)
 let bit_period = 32
 let addresses = 128
 
 let () =
-  (* checked as the command line does, under test_analyser's certificate assumptions *)
+  (* checked like the command line does, under test_analyser's certificate assumptions *)
   let program address =
     let program =
       Asm.assemble (Usb.device ~address ~half_period:(bit_period / 2)) |> ok_exn
@@ -25,7 +25,7 @@ let () =
     Asm.Program.words program |> ok_exn |> Array.of_list
   in
   let programs = Array.init addresses ~f:program in
-  (* x and y whole, so the one certificate passes every address's program *)
+  (* x and y are left whole so the one certificate passes every address's program *)
   let certificate =
     Load_check.of_program
       ~registers_whole:true

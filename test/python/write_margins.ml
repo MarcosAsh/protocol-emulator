@@ -3,8 +3,8 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* Margins.all as JSON for demo/margins.py: each sweep's rows, and each point's firmware,
-   verdicts, sweep limit set and model run, or why the kernel refused it. *)
+(* Margins.all as JSON for demo/margins.py: each sweep's rows, and for each point its
+   firmware, verdicts, sweep limit set and model run, or why the kernel refused it. *)
 
 let string s =
   let b = Buffer.create (String.length s + 2) in

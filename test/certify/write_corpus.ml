@@ -1,9 +1,9 @@
 open! Core
 open Protocol_emulator_test
 
-(* The library as data for test/corpus.py, in [dir]: firmware.tsv with each protocol's
-   firmware and its source in firmware/, and limits.tsv with each datasheet limit, the
-   sheet it is read from and the bound at the clock the firmware ships at. *)
+(* Writes the library as data for test/corpus.py into [dir]. firmware.tsv has each
+   protocol's firmware, with its source in firmware/. limits.tsv has each datasheet limit,
+   the sheet it comes from and the bound at the clock the firmware ships at. *)
 
 let write dir name rows =
   Out_channel.write_lines
