@@ -1,14 +1,14 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# One outside chip demo of BRINGUP.md: runs its script on Pico A while its analyser captures,
-# then prints the Pico's log and sigrok's decode, and FAIL last if the capture lacks the
-# demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip before every demo,
-# as faults hold until reset. Analyser A has the host port, OUT0, CAN and SWD, B the flash,
-# the stick, 1-Wire and I2C (see demo/capture.sh). The capture, log and decode are kept as
-# <name>.sr, .log and .decode in CAPTURES, the current directory unless set.
+# One outside-chip demo from BRINGUP.md. Runs the demo's script on Pico A while its analyser
+# captures, then prints the Pico's log and sigrok's decode. The last line is FAIL if the
+# capture lacks the demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip
+# before every demo, because faults stick until reset. Analyser A sees the host port, OUT0,
+# CAN and SWD; B sees the flash, the stick, 1-Wire and I2C (see demo/capture.sh). The capture,
+# log and decode are saved as <name>.sr, .log and .decode in CAPTURES (default: here).
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh <demo>, one of
 #   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
-#   pio_ws2812 pio_uart_tx pio_spi, or a protocol whose python/demo_<demo>.py has an
+#   pio_ws2812 pio_uart_tx pio_spi, or any protocol whose python/demo_<demo>.py has an
 #   "# outside:" line
 set -e
 name=$1
@@ -67,7 +67,7 @@ swd)
     analyser=A
     ;;
 referee)
-    # the last score lands just past 4 s
+    # the last score arrives just after 4 s
     ms=6000
     decode="-P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset"
     analyser=B
@@ -94,21 +94,21 @@ pio_spi)
     files="python/pio_firmware.py python/pio_upstream.py"
     ;;
 *)
-    # any other demo is a protocol of its own, whose script's "# outside:" line gives the
-    # analyser, the capture's length and sigrok's decoders
+    # anything else is a protocol; its script's "# outside:" line gives the analyser, the
+    # capture length and the sigrok decoders
     line=$(sed -n 's/^# outside: //p' "python/demo_$name.py" 2>/dev/null | head -1)
     if [ -z "$line" ]; then
         echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee|pio_ws2812|pio_uart_tx|pio_spi|<protocol>" >&2
         exit 1
     fi
     analyser=$(echo "$line" | sed -n 's/.*analyser=\([^ ]*\).*/\1/p')
-    # ms= as a word of its own, as a decoder option may end in it (wiegand's bitwidth_ms=)
+    # match ms= as a whole word, since a decoder option can end in it (wiegand's bitwidth_ms=)
     ms=$(echo "$line" | sed -n 's/.* ms=\([0-9]*\).*/\1/p')
     decode=$(echo "$line" | sed -n 's/.*decode=//p')
     ;;
 esac
-# only the firmware the demo names: Pico A compiles all of bench_firmware.py at import,
-# which takes long enough to push the traffic past the capture
+# copy only the firmware this demo names: Pico A compiles all of bench_firmware.py on import,
+# which is slow enough to push the traffic past the end of the capture
 firmware=$(mktemp -d)
 # shellcheck disable=SC2086
 python3 demo/pico_firmware.py "$firmware/bench_firmware.py" "python/demo_$name.py" $files
@@ -121,11 +121,11 @@ try:
     os.remove('outside.log')
 except OSError:
     pass"
-# sigrok's CAN decoder takes the dominant line a reset chip leaves at the start for a frame
+# sigrok's CAN decoder reads the dominant line a reset chip leaves at the start as a frame
 [ -z "$arm" ] || mpremote connect "$PICO" exec "$arm"
 mkdir -p "$captures"
 ANALYSER=$analyser demo/capture.sh "$captures/$name.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$name.py"
-# the demo ends inside the capture, and a second more lets the Pico write its log
+# the demo ends inside the capture; wait a second more so the Pico can write its log
 sleep 1
 if mpremote connect "$PICO" cat :outside.log > "$captures/$name.log"; then
     cat "$captures/$name.log"
@@ -137,7 +137,7 @@ sigrok-cli -i "$captures/$name.sr" $decode > "$captures/$name.decode"
 cat "$captures/$name.decode"
 verdict=$(python3 demo/traffic.py "$name" "$captures")
 echo "$verdict"
-# a protocol started with generate new-protocol gets its bench time in demo/speed.tsv
+# protocols made with generate new-protocol get their bench time in demo/speed.tsv
 # (the Pico's log ends its lines in CRLF)
 if [ -f "$captures/$name.log" ] && [ "$(tail -n 1 "$captures/$name.log" | tr -d '\r')" = PASS ] &&
     ! echo "$verdict" | grep -qx FAIL; then

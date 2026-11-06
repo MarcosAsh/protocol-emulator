@@ -1,28 +1,30 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Spec intake: a headless Claude Code agent turns a protocol's spec (a datasheet PDF, a
+# Spec intake. A headless Claude Code agent turns a protocol's spec (a datasheet PDF, a
 # WaveJSON file or a limit table as text) into a protocol file, firmware and test with
-# generate new-protocol, and the kernel certifies it. Makes a worktree intake-NAME on a branch
-# intake/NAME off the current commit and a run directory holding the prompt (demo/intake_prompt.txt),
-# the spec as text with page markers (pdftotext -layout) and an index of its limits, the full
-# transcript (transcript.jsonl, stream-json), stages.log, speed.tsv and verdict.txt: certified
-# with how many of the spec's limit rows have a min or max, refused with the named limit, or
-# failed. speed.tsv is the worktree's demo/speed.tsv rows for NAME, which generate
-# new-protocol and the formal targets write through demo/speed.py.
-# Before the agent, demo/extract.py reads the spec's limits twice, blind: a disagreement stops
-# the run with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in disputed.tsv.
-# Once a person has ruled on them (demo/extract.py rule), pass --limits with that run directory.
+# generate new-protocol, and the kernel certifies the result. It makes a worktree intake-NAME
+# on a branch intake/NAME off the current commit, plus a run directory holding the prompt
+# (demo/intake_prompt.txt), the spec as text with page markers (pdftotext -layout), an index
+# of its limits, the full stream-json transcript (transcript.jsonl), stages.log, speed.tsv
+# and verdict.txt. The verdict is certified (with how many limit rows have a min or max),
+# refused (naming the limit), or failed. speed.tsv holds the worktree's demo/speed.tsv rows
+# for NAME, which generate new-protocol and the formal targets write via demo/speed.py.
+# Before the agent runs, demo/extract.py reads the spec's limits twice, blind. If the two
+# disagree the run stops with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in
+# disputed.tsv. Once a person has ruled on them (demo/extract.py rule), pass --limits with
+# that run directory.
 # Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--scenario TEXT] [--hide LIST] [--budget USD] [--model M] [--out DIR] SPEC NAME
 #        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
-#   --dry-run  makes the worktree and run directory and prints the claude commands, then removes the worktree
+#   --dry-run  makes the worktree and run directory, prints the claude commands, removes the worktree
 #   --limits-only  stops after the two readings
 #   --scenario  what the test and trace must show, fixed in advance ("a 26-bit card read on two wires")
-#   --hide  library protocols the agent must not see, e.g. nec,swd: the tree is then a new repository
-#     of one commit, HEAD less the paths in demo/hide/LIST.files, the rows demo/hide/LIST.patch takes
-#     out and demo/hide, and the settings deny reads of the checkouts, the run's neighbours and the
-#     hidden paths. A command that reads a path without naming it (python3, dune's cache) is not stopped.
+#   --hide  library protocols the agent must not see, e.g. nec,swd. The tree becomes a new
+#     one-commit repository: HEAD minus the paths in demo/hide/LIST.files, minus the rows
+#     demo/hide/LIST.patch removes, minus demo/hide itself. The settings also deny reads of
+#     the checkouts, the run's neighbours and the hidden paths. A command that reads a path
+#     without naming it (python3, dune's cache) is not stopped.
 set -e
-# a tool input that names the sealed held-out list: exit 1 if the transcript has one
+# exit 1 if any tool input in the transcript names the sealed held-out list
 scan() {
     python3 -I - "$1" <<'PY'
 import json, sys
@@ -84,8 +86,8 @@ verdict() {
     echo "$*"
     echo "run directory: $run"
 }
-# how much of the spec the limits are: rows with a min or max bound the firmware, typical
-# values alone bound nothing, and a certificate held to none is hollow
+# how much of the spec the limits cover: only rows with a min or max bound the firmware,
+# typical values bound nothing, and a certificate checked against none is hollow
 spec_class() {
     python3 -I - "$run/limits.tsv" <<'PY'
 import csv, sys
@@ -136,7 +138,7 @@ awk '/^=== page /{p=$3; next}
     tolower($0) ~ /(table|figure|fig\.)|[0-9] ?(ns|µs|us|ms|khz|mhz|kbit|baud|bps)([^a-z]|$)/ {print p ": " $0}' \
     "$run/spec.txt" | head -400 > "$run/spec.index"
 
-# the limits, read twice blind
+# read the limits twice, blind
 doc=$(basename "$spec")
 if [ "$kind" = wavejson ]; then
     limits_note="a WaveJSON file's numbers are exact, so its limits were not read twice"
@@ -171,8 +173,8 @@ if [ -n "$limits_only" ]; then
     exit 0
 fi
 
-# the worktree and the prompt; with --hide a new repository instead, so no ref or object of
-# the hidden code is in reach of git log, git diff or Grep
+# the worktree and the prompt; with --hide a fresh repository instead, so git log, git diff
+# and Grep can't reach any ref or object of the hidden code
 deny=
 if [ -n "$hide" ]; then
     hidden=$root/demo/hide/$hide
@@ -194,7 +196,7 @@ if [ -n "$hide" ]; then
     deny=$(python3 -I - "$hidden.files" "$run" "$out" "$(dirname "$spec")" "$root" "$main" "$HOME" "$settled" "$tree" <<'PY'
 import json, os, sys
 files, run, out, spec_dir, root, main, home, settled, tree = sys.argv[1:]
-# the checkouts, other agents' scratch and transcripts, and the run's neighbours but the spec's
+# the checkouts, other agents' scratch and transcripts, and the run's neighbours except the spec's
 paths = {root, main, home + "/.cache/claude-scratch", home + "/.cache/remote-dune", home + "/.claude"}
 for d in [out] + ([os.path.dirname(out)] if os.path.dirname(out) != home else []):
     paths |= {os.path.join(d, e) for e in os.listdir(d)} - {run, out, spec_dir, settled}
@@ -202,7 +204,7 @@ paths = {p for p in paths if not (tree + "/").startswith(p + "/")}
 tmp = "/tmp/claude-%d/" % os.getuid()
 rules = [r for p in sorted(paths) for r in ("Read(/%s)" % p, "Read(/%s/**)" % p, "Bash(*%s*)" % p)]
 rules += ["Read(/%s%s*/**)" % (tmp, p.replace("/", "-").replace(".", "-")) for p in sorted({root, main})]
-# the hidden paths in any checkout; a directory only with its slash, so swd_blind is not swd
+# the hidden paths in any checkout; a directory only with its slash, so swd_blind doesn't match swd
 for f in open(files).read().split():
     rules += ["Read(**/%s)" % f, "Read(**/%s/**)" % f, "Bash(*%s%s*)" % (f, "" if "." in f else "/")]
 print("".join(", " + json.dumps(r) for r in rules))
@@ -244,9 +246,9 @@ if [ -n "$dry" ]; then
     exit 0
 fi
 
-# the agent, then the kernel's own check of what it left
+# run the agent, then have the kernel check what it left
 cd "$tree"
-# the untracked notes of the main checkout, whose env.sh (and .venv) is sourced in place
+# copy the main checkout's untracked notes; its env.sh (and .venv) is sourced in place
 for f in CLAUDE.md CONVENTIONS.md PLAN.md; do
     [ -f "$f" ] || [ ! -f "$main/$f" ] || cp "$main/$f" "$f"
 done
