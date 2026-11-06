@@ -646,9 +646,9 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
       incr n;
       sprintf "l%d" !n
   in
-  (* A step's parts. A blocking step has [ready] jumps to its normal markers plus a [stall]
-     copy. The copy is inlined at each normal way in, so its marker is reached as early as
-     a normal one. A stall copy leaves by a plain jump, which ends the inlining. *)
+  (* A step's parts. A blocking step has [ready] jumps to its normal markers plus a
+     [stall] copy. The copy is inlined at each normal way in, so its marker is reached as
+     early as a normal one. A stall copy leaves by a plain jump, which ends the inlining. *)
   let rec parts (key : Key.t) =
     let instruction = Relation.instruction program ~exec key.site in
     let id = Hashtbl.find_exn ids key in

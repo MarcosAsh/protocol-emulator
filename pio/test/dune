@@ -1,6 +1,6 @@
-; pico_examples: .pio files from github.com/raspberrypi/pico-examples at 0d62f75, copied
-; unmodified (BSD-3-Clause, see pico_examples/LICENSE.TXT) and pinned by SHA256SUMS.
-; holes/i2c.pio is pico_examples/i2c.pio with four delays made holes.
+; pico_examples has .pio files copied unmodified from github.com/raspberrypi/pico-examples
+; at 0d62f75 (BSD-3-Clause, see pico_examples/LICENSE.TXT) and pinned by SHA256SUMS.
+; holes/i2c.pio is pico_examples/i2c.pio with four delays turned into holes.
 
 (library
  (name pio_test)
@@ -23,7 +23,7 @@
   (flags
    (-source-tree-root .))))
 
-; the sources are pinned: a change to one is a change to the pin
+; the sources are pinned, so changing one means changing the pin
 
 (rule
  (alias runtest)

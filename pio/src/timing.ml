@@ -340,8 +340,8 @@ module Key = struct
     ; y : int option
     ; levels : Level.t list
     ; seen : bool list
-    (** Whether the phase and each pin's rise and fall have happened yet. This keeps a path
-        from entry from merging with a path where they have. *)
+    (** Whether the phase and each pin's rise and fall have happened yet. This keeps a
+        path from entry from merging with a path where they have. *)
     }
   [@@deriving sexp_of, compare, hash]
 end
@@ -573,8 +573,8 @@ module Report = struct
         Option.some_if (k > 0) (earliest lo /. (Float.of_int k *. cell_length)))
       |> List.min_elt ~compare:Float.compare
     in
-    (* Frames can run back to back, so the next frame's edge may arrive as soon as the last
-       sampled cell ends. Each locking wait must be armed by then or it locks late. *)
+    (* Frames can run back to back, so the next frame's edge may arrive as soon as the
+       last sampled cell ends. Each locking wait must be armed by then or it locks late. *)
     let arms =
       List.concat_map t.rows ~f:(fun row ->
         if List.exists row.events ~f:(function
@@ -911,8 +911,8 @@ let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
   { key with levels }
 ;;
 
-(* How many cycles an instruction may stall: [None] if never, [Some None] if unbounded.
-   An autopull [out] stalls for a cycle on an empty OSR even if the FIFO keeps up, for
+(* How many cycles an instruction may stall: [None] if never, [Some None] if unbounded. An
+   autopull [out] stalls for a cycle on an empty OSR even if the FIFO keeps up, for
    example at restart (datasheet 3.5.4.2). *)
 let stall ctx (op : Pioasm.Op.t) =
   let fifo_ready = ctx.config.fifo_ready in
@@ -1063,7 +1063,8 @@ and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : T
   | Set { destination = Y; value } -> finish { key with y = Some value } timing Next
   | In _ | Push _ | Pull _ | Irq _ | Set _ -> finish key timing Next
 
-(* The executed instruction runs on the next cycle, and the [out] or [mov] delay is ignored. *)
+(* The executed instruction runs on the next cycle, and the [out] or [mov] delay is
+   ignored. *)
 and exec ctx ~(row : Row_id.t) (key : Key.t) timing =
   let timing = advance key timing 1 in
   let sequences =

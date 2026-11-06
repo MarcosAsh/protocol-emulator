@@ -1,6 +1,6 @@
 open! Core
 
-(* pio_import's verdict lines and exit code: 0 certified, 2 refused or not certified. *)
+(* Checks pio_import's verdict lines and exit code: 0 if certified, 2 if refused or not. *)
 let run args =
   let command =
     String.concat

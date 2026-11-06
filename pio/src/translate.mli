@@ -69,21 +69,23 @@ module Setup : sig
   [@@deriving sexp_of]
 
   (** pico-sdk's defaults (shift right, thresholds 32, no autopull or autopush, entry 0).
-      Each pin group gets its own pins: OUT pins for outputs written by level, IO pins
-      for outputs written by direction, IN pins for inputs. *)
+      Each pin group gets its own pins: OUT pins for outputs written by level, IO pins for
+      outputs written by direction, IN pins for inputs. *)
   val default : Pioasm.Program.t -> period:int -> t
 end
 
 module Refusal : sig
   type t =
-    { pc : int option (** [None] when it applies to the whole program, the exec table or init. *)
+    { pc : int option
+    (** [None] when it applies to the whole program, the exec table or init. *)
     ; feature : string
     }
   [@@deriving sexp_of, compare]
 end
 
 type t =
-  { source : string (** Assembly, with a comment holding the PIO line on each step's marker. *)
+  { source : string
+  (** Assembly, with a comment holding the PIO line on each step's marker. *)
   ; words : Isa.t list
   ; config : Program_config.t
   ; relation : Relation.t

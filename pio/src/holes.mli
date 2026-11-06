@@ -1,7 +1,7 @@
-(** A [.pio] file with holes for the timing check to fill: [[?]] in a delay field, [side ?]
-    for a side-set value. A hole can take any value pioasm accepts there. Its cost is the
-    distance from a reference program: [|d - d0|] for a delay, the number of differing
-    bits for a side-set value. *)
+(** A [.pio] file with holes for the timing check to fill: [[?]] in a delay field,
+    [side ?] for a side-set value. A hole can take any value pioasm accepts there. Its
+    cost is the distance from a reference program: [|d - d0|] for a delay, the number of
+    differing bits for a side-set value. *)
 
 open! Core
 
@@ -15,8 +15,8 @@ module Hole : sig
     { line : int (** From 1. *)
     ; kind : kind
     ; reference : int option
-    (** The reference program's value. A missing delay counts as 0. A missing side-set
-        is [None], and every value costs 1 from there. [None] if there is no reference. *)
+    (** The reference program's value. A missing delay counts as 0. A missing side-set is
+        [None], and every value costs 1 from there. [None] if there is no reference. *)
     ; domain : int list
     }
   [@@deriving sexp_of]

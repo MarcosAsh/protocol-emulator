@@ -4,9 +4,9 @@
     - take [per_cycle] [wait t+]s for each PIO cycle of the step,
     - write or sample the step's pins one cycle after the marker (two cycles for a
       [jmp pin] after a side-set nop), and
-    - reach a marker of a step the PIO can go to next.
-    A stall re-anchors [t] at its release. So once the kernel certifies that every
-    [wait t+] releases on time, a PIO cycle takes [per_cycle] times [p] cycles here. *)
+    - reach a marker of a step the PIO can go to next. A stall re-anchors [t] at its
+      release. So once the kernel certifies that every [wait t+] releases on time, a PIO
+      cycle takes [per_cycle] times [p] cycles here. *)
 
 open! Core
 open Protocol_emulator

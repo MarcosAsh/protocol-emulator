@@ -1,6 +1,6 @@
 open! Core
 
-(* Exit 0 when every check passes, 1 on a usage error, 2 on any FAIL or ERROR. *)
+(* Exit code is 0 if every check passes, 1 on a usage error, 2 on any FAIL or ERROR. *)
 let run args =
   let command =
     String.concat

@@ -7,8 +7,8 @@ open Protocol_emulator
 (** The core's clock, 48 MHz. *)
 val clock_hz : int
 
-(** The configuration the C code gives a pico-examples program, including its state machine
-    clock if the example fixes one. Other programs get [Translate.Setup.default]. *)
+(** The configuration the C code gives a pico-examples program, including its state
+    machine clock if the example fixes one. Other programs get [Translate.Setup.default]. *)
 val setup : Pioasm.Program.t -> period:int -> Translate.Setup.t
 
 module Verdict : sig
@@ -39,7 +39,8 @@ val least : ?upto:int -> Pioasm.Program.t -> Verdict.t
 (** The [k] that gives the example's own rate at [clock_hz]. *)
 val real_time : Pioasm.Program.t -> float option
 
-(** A datasheet limit on an example's pins, compared with the kernel's bound at [clock_hz]. *)
+(** A datasheet limit on an example's pins, compared with the kernel's bound at
+    [clock_hz]. *)
 module Limit : sig
   type t =
     { parameter : string
@@ -77,8 +78,8 @@ val row : file:string -> Pioasm.Program.t -> Row.t
 val to_string : Row.t list -> string
 
 (** The largest gap, in cycles, that the kernel accepts on the certified rows between
-    [b]'s last edge and an edge of [a], where [apart] holds for the bits before it.
-    [None] if it accepts no gap. *)
+    [b]'s last edge and an edge of [a], where [apart] holds for the bits before it. [None]
+    if it accepts no gap. *)
 val least_apart
   :  Timed_program.t
   -> dirs:bool

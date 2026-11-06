@@ -1,17 +1,19 @@
 open! Core
 open Pio
 
-(* One state machine at an integer divider, from RP2040 datasheet chapter 3, after the
-   verifier's pioemu.py. Side-set lands on an instruction's first cycle, its data writes
-   on the cycle it completes, side-set winning a tie (3.2.4, 3.5.1, 3.5.6). The machine
-   reads its own outputs 4 system clocks late through the synchronisers (3.5.6.1). *)
+(* One state machine at an integer divider, following RP2040 datasheet chapter 3 and the
+   verifier's pioemu.py. Side-set lands on an instruction's first cycle and its data
+   writes on the cycle it completes, with side-set winning a tie (3.2.4, 3.5.1, 3.5.6).
+   The machine reads its own outputs 4 system clocks late, through the synchronisers
+   (3.5.6.1). *)
 
 module Edge = struct
   type t =
     { pin : string
     ; rising : bool
     ; time : int
-    ; own : bool (** The machine changed its drive, not another driver letting go. *)
+    ; own : bool
+    (** The machine changed its drive, as opposed to another driver letting go. *)
     }
 end
 
@@ -21,10 +23,11 @@ module Setup = struct
     ; push_threshold : int
     ; shift_left : bool
     ; exec : (int * Pioasm.Instruction.t) list (** What [out exec] runs, by word. *)
-    ; tx : int Sequence.t option (** The TX words, in order; random when [None]. *)
-    ; divider : int (** System clocks a machine cycle; edge times are in system clocks. *)
+    ; tx : int Sequence.t option (** The TX words in order, or random ones when [None]. *)
+    ; divider : int
+    (** System clocks per machine cycle. Edge times are in system clocks. *)
     ; tx_chance : float
-    (** Of a TX word arriving each system clock, unless [fifo_ready]. *)
+    (** Chance of a TX word arriving each system clock, unless [fifo_ready]. *)
     }
 
   let default =
@@ -163,8 +166,8 @@ let run
     Array.iteri irq ~f:(fun i flag -> if chance 0.02 then irq.(i) <- not flag);
     Hashtbl.map_inplace external_inputs ~f:(fun value ->
       if chance 0.05 then not value else value);
-    (* Another driver holds a released open-drain pin low only once it is low, as a
-       stretching slave does. *)
+    (* Another driver can only hold a released open-drain pin that is already low, like a
+       clock-stretching slave. *)
     Array.iteri outputs ~f:(fun i _ ->
       match kind.(i) with
       | Push_pull -> ()

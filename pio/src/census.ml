@@ -90,7 +90,8 @@ let configure (program : Pioasm.Program.t) (s : Translate.Setup.t) : Translate.S
     ; push_threshold = 8
     ; entry =
         Some "entry_point"
-        (* START, RSTART and STOP from pio_i2c.c: the four set_scl_sda values and a clear of isr *)
+        (* START, RSTART and STOP from pio_i2c.c: the four set_scl_sda values and a clear
+           of isr *)
     ; exec =
         (* SCL low, SDA high only happens with SCL already low, as at the start of RSTART *)
         List.map

@@ -183,16 +183,17 @@ let%expect_test "the source printed assembles to the words translated" =
   [%expect {| (agree (programs 25)) |}]
 ;;
 
-(* pico-examples#796: the START holds SDA low 10 PIO cycles before SCL falls, 3.125 us at
-   the 3.2 MHz pio_i2c.c runs, where UM10204 table 11 asks 4.0 us. At 48 MHz that rate is
-   k = 15, the deadlines certify, and the kernel bounds the hold below 192 cycles. *)
+(* pico-examples#796: the START holds SDA low for 10 PIO cycles before SCL falls. That is
+   3.125 us at the 3.2 MHz pio_i2c.c runs, but UM10204 table 11 asks for 4.0 us. At 48 MHz
+   that rate is k = 15, the deadlines certify, and the kernel bounds the hold below 192
+   cycles. *)
 let%expect_test "i2c certifies at its own rate, and the kernel refuses its START hold" =
   let i2c = program "i2c.pio" "i2c" in
   let _, timed = certify i2c ~k:(Option.value_exn (Census.real_time i2c)) in
   let config = Timed_program.config timed in
   let scl = config.side_set_base
   and sda = config.set_base in
-  (* SCL falling while SDA is held low, since SDA's last edge *)
+  (* time from SDA's last edge to SCL falling, while SDA is held low *)
   let bound =
     Census.least_apart timed ~dirs:true ~a:scl ~b:sda ~apart:(fun ~own ~other ->
       (not own) && other)
@@ -209,7 +210,7 @@ let%expect_test "i2c certifies at its own rate, and the kernel refuses its START
   [%expect {| ((bound (150)) (us (3.125)) (needed 192)) |}]
 ;;
 
-(* the limit is on time, so a slower clock divider clears it *)
+(* the limit is in time, so a slower clock divider meets it *)
 let%expect_test "Census.limits refuses that hold at its own rate, and not at k = 20" =
   let i2c = program "i2c.pio" "i2c" in
   List.iter [ 15.; 20. ] ~f:(fun k ->
@@ -278,7 +279,8 @@ let%expect_test "refused features are named" =
     |}]
 ;;
 
-(* The checker's teeth: spi_cpha0's [in pins, 1 side 1 [1]] with one word changed. *)
+(* Checks the checker catches mistakes: spi_cpha0's [in pins, 1 side 1 [1]] with one word
+   changed. *)
 let%expect_test "the relation check refuses a dropped wait, a late sample and a wrong \
                  side-set"
   =

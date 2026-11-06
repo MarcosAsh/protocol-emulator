@@ -151,9 +151,9 @@ let%expect_test "ws2812: T1 = 3 high for a 0, T1 + T2 = 6 for a 1, low at least 
     |}]
 ;;
 
-(* 1 us a cycle as onewire_library.c sets it; Maxim's standard-speed slot is A = 6, C =
-   60, D = 10, E = 9, H = 480, I = 70 us. These are the master's own times, so the slave
-   is taken not to hold dq low past them. *)
+(* 1 us per cycle, as onewire_library.c sets it. Maxim's standard-speed slot is A = 6, C =
+   60, D = 10, E = 9, H = 480, I = 70 us. These are the master's own times, so we assume
+   the slave doesn't hold dq low past them. *)
 let%expect_test "onewire: the slots match Maxim's recommended timings" =
   vendored "onewire_library.pio" "onewire"
   |> check
@@ -211,8 +211,8 @@ let%expect_test "manchester_rx samples a third of a bit in, not the quarter its 
     |}]
 ;;
 
-(* The escape sequences pio_i2c.c sends, each after an instruction count of its length
-   less one, which [out x, 6] takes; [scl] is the side-set pin, [sda] the set pin. *)
+(* The escape sequences pio_i2c.c sends, each after an instruction count equal to its
+   length - 1, which [out x, 6] takes. [scl] is the side-set pin and [sda] the set pin. *)
 let i2c_sequences ~hold =
   let sc0_sd0 = "set pindirs, 0 side 0 [7]" in
   let sc0_sd1 = "set pindirs, 1 side 0 [7]" in
@@ -232,7 +232,7 @@ let i2c_sequences ~hold =
 ;;
 
 (* UM10204 table 11, Standard-mode, at the 100 kHz pio_i2c.pio sets on a 125 MHz clock. A
-   slave drives sda only where the machine does not time it; it may stretch scl unless
+   slave only drives sda where the machine doesn't time it. It may stretch scl unless
    [no_stretch]. *)
 let check_i2c ?(no_stretch = []) ~hold program =
   check
@@ -631,8 +631,8 @@ let%expect_test "a rule that never fires is never checked, and fails" =
     |}]
 ;;
 
-(* Another driver may hold [scl] low past the side-set, so it may rise just before the
-   wait releases; the high time counts from there. *)
+(* Another driver may hold [scl] low past the side-set, so scl may rise just before the
+   wait releases. The high time counts from there. *)
 let%expect_test "a wait on an output's own pin may see a later edge from another driver" =
   programs
     {|
@@ -660,9 +660,9 @@ let%expect_test "a wait on an output's own pin may see a later edge from another
     |}]
 ;;
 
-(* Side-set lands on an instruction's first cycle, a stalled [out]'s data on its last, so
-   the data wins a shared pin once the [out] stalls. Even with the FIFO kept full, an
-   [out] stalls a cycle on the OSR left empty at restart. *)
+(* Side-set lands on an instruction's first cycle and a stalled [out]'s data on its last,
+   so the data wins a shared pin once the [out] stalls. Even with the FIFO kept full, an
+   [out] stalls for a cycle on the empty OSR left at restart. *)
 let%expect_test "a stalled out writes its pins after its side-set, and wins them" =
   let program =
     programs
@@ -704,8 +704,8 @@ let%expect_test "a stalled out writes its pins after its side-set, and wins them
     |}]
 ;;
 
-(* Our own edges reach a wait 4 system clocks late through the synchronisers (datasheet
-   3.5.6.1), so a wait just after its own side-set sees the old level. *)
+(* Our own edges reach a wait 4 system clocks late, through the synchronisers (datasheet
+   3.5.6.1), so a wait right after its own side-set sees the old level. *)
 let%expect_test "a wait within the synchroniser delay of our own edge may see the old \
                  level"
   =
@@ -772,8 +772,8 @@ let%expect_test "a wait on an irq locks to no input edge" =
     |}]
 ;;
 
-(* A slave may hold SCL low past our release, so the rise is late by an unknown time until
-   a wait sees it; a pin nobody else pulls low rises at once. *)
+(* A slave may hold SCL low past our release, so the rise is late by an unknown amount
+   until a wait sees it. A pin nobody else pulls low rises at once. *)
 let%expect_test "an open-drain release with no wait after it rises at an unknown time" =
   let program =
     programs
@@ -985,8 +985,8 @@ hang:
     |}]
 ;;
 
-(* A wait that sees a released pin low, or high before our own low has reached it, leaves
-   another driver free to hold it, so its rise stays late. *)
+(* If a wait sees a released pin low, or sees it high before our own low has reached it,
+   another driver may still be holding it, so its rise stays late. *)
 let%expect_test "a wait keeps a released pin stretchable unless it sees it high" =
   List.iter
     [ {|
@@ -1091,8 +1091,8 @@ let%expect_test "a pin released at the start of a stall may rise late during it"
     |}]
 ;;
 
-(* The phase-10 sample reads the pin within 15 system clocks of the edge, 0.6 before its
-   cell ends, and the metastability allowance of one clock takes more than that. *)
+(* The phase-10 sample reads the pin within 15 system clocks of the edge, which is 0.6
+   before its cell ends, and the one-clock metastability allowance takes more than that. *)
 let%expect_test "manchester_rx at clkdiv 1.3021 fails only by the metastability allowance"
   =
   vendored "manchester_encoding.pio" "manchester_rx"

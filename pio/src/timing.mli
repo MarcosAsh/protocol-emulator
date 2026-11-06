@@ -2,8 +2,8 @@
     gets a lower bound on the pulse it ends and each rule gets its worst case. [phase]
     counts from the last [wait] on a pin, which is where a receiver locks. Times are at
     the pin driver, not at the bus's 30% and 70% levels, so the caller has to subtract
-    rise and fall times. On an open-drain pin another driver may stretch a low we
-    release, unless [no_stretch] is set. *)
+    rise and fall times. On an open-drain pin another driver may stretch a low we release,
+    unless [no_stretch] is set. *)
 
 open! Core
 
@@ -40,8 +40,9 @@ module Pin : sig
     }
   [@@deriving sexp_of]
 
-  (** Parses a name followed by bindings, like ["sda=set0:dir,out0:dir,in0,jmp"]. A binding
-      is [side|set|out]N with an optional [:dir] or [:!dir], or [inN], [gpioN] or [jmp]. *)
+  (** Parses a name followed by bindings, like ["sda=set0:dir,out0:dir,in0,jmp"]. A
+      binding is [side|set|out]N with an optional [:dir] or [:!dir], or [inN], [gpioN] or
+      [jmp]. *)
   val of_string : string -> t Or_error.t
 end
 
@@ -98,14 +99,16 @@ module Exec_sequence : sig
     }
   [@@deriving sexp_of]
 
-  (** Parses a sequence like ["x=1,scl=1: set pindirs, 0 side 1 [7] | set pindirs, 0 side 0 [7]"].
-      The guard is optional. *)
+  (** Parses a sequence like
+      ["x=1,scl=1: set pindirs, 0 side 1 [7] | set pindirs, 0 side 0 [7]"]. The guard is
+      optional. *)
   val of_string : Pioasm.Program.t -> string -> t Or_error.t
 end
 
 module Config : sig
   type t =
-    { pins : Pin.t list (** When empty, uses [side0], [set0], [out0] and the inputs by position. *)
+    { pins : Pin.t list
+    (** When empty, uses [side0], [set0], [out0] and the inputs by position. *)
     ; autopull : bool
     ; autopush : bool
     ; fifo_ready : bool
@@ -116,10 +119,10 @@ module Config : sig
     ; set_count : int
     ; out_count : int
     ; exec : Exec_sequence.t list
-    (** The sequences that [out exec] and [mov exec] run. Each runs whole and in order, and
-        any sequence whose guard the pins may meet can follow any other. It is an error
-        if no guard can hold for an exec, or if a guard names anything but [x], [y] or an
-        output. *)
+    (** The sequences that [out exec] and [mov exec] run. Each runs whole and in order,
+        and any sequence whose guard the pins may meet can follow any other. It is an
+        error if no guard can hold for an exec, or if a guard names anything but [x], [y]
+        or an output. *)
     ; clock : Clock.t option
     ; rules : Rule.t list
     ; cell : int option

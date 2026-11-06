@@ -93,7 +93,7 @@ let print_search (search : Holes.Search.t) =
   print_s [%message "" ~minimal:(search.minimal : (int * int list list) option)]
 ;;
 
-(* The reference's lines the fix changes, before and after. *)
+(* Prints the reference lines the fix changes, before and after. *)
 let print_changes ~reference text =
   List.zip_exn (String.split_lines reference) (String.split_lines text)
   |> List.iteri ~f:(fun i (before, after) ->
@@ -101,7 +101,7 @@ let print_changes ~reference text =
     then printf "%d\n  - %s\n  + %s\n" (i + 1) before after)
 ;;
 
-(* Writes [text] and runs pio_check on it with [spec], as a user would, printing its
+(* Writes [text] and runs pio_check on it with [spec], like a user would, then prints the
    verdicts and exit code. *)
 let certify ~spec text =
   Out_channel.write_all "certify.pio" ~data:text;
@@ -115,9 +115,9 @@ let certify ~spec text =
   printf "pio_check exit %d\n" status
 ;;
 
-(* With all 18 of the program's delays as holes (970,442 assignments up to cost 7, about
-   12 minutes), every minimal fix is [jmp x-- do_exec [6]] plus one cycle on one of the
-   five instructions between an ACK's scl fall and the next scl rise, this one among them. *)
+(* With all 18 delays as holes (970,442 assignments up to cost 7, about 12 minutes), every
+   minimal fix is [jmp x-- do_exec [6]] plus one cycle on one of the five instructions
+   between an ACK's scl fall and the next scl rise. This test uses one of them. *)
 let%expect_test "#796: the fewest delay cycles that meet Standard-mode at the pin" =
   List.iter (Holes.holes i2c_holes) ~f:(fun hole -> print_s [%sexp (hole : Holes.Hole.t)]);
   let search = Holes.solve i2c_holes ~passes:(Holes.meets [ i2c_spec ]) |> ok_exn in
@@ -162,8 +162,8 @@ let%expect_test "#796: the fewest delay cycles that meet Standard-mode at the pi
 let%expect_test "#796 with a full 1000 ns Standard-mode rise on scl: no delay fix" =
   (* SCL reaches 0.7 VDD 1.42 us after its release, so t_SU;STA needs 4.7 + 1.42 us at the
      pin. Between two START or STOP steps only the step, [out exec] and [jmp x-- do_exec]
-     run, and all four holes together fail, so the sequences in pio_i2c.c must change, as
-     the issue's fix does. *)
+     run. All four holes together still fail, so the sequences in pio_i2c.c have to
+     change, which is what the issue's fix does. *)
   let rise = Spec.of_string ~base:i2c_spec "rule t_su_sta_rise: scl+ -> sda- >= 6.12us" in
   let search = Holes.solve i2c_holes ~passes:(Holes.meets [ ok_exn rise ]) |> ok_exn in
   print_s

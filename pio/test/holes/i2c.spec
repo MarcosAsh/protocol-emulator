@@ -1,5 +1,5 @@
-# pico-examples pio/i2c (issue #796) as playground/i2c.spec checks it, at the pin, with no
-# slave stretching scl, as the issue's fix was checked.
+# pico-examples pio/i2c (issue #796), checked like playground/i2c.spec does: at the pin,
+# with no slave stretching scl, the same way the issue's fix was checked.
 program i2c
 pin sda=set0:dir,out0:dir,in0,jmp
 pin scl=side0:dir,in1

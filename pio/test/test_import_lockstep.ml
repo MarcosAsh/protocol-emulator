@@ -3,9 +3,10 @@ open Protocol_emulator
 open Protocol_emulator_test
 open Pio
 
-(* A translated pico-examples program on the RTL, in lockstep with the [Machine] every
-   cycle, and its pin edges against the PIO emulator's, each [k] cycles a PIO cycle plus
-   one latency for the run. The host keeps both tx fifos fed until the words run out. *)
+(* Runs a translated pico-examples program on the RTL in lockstep with the [Machine],
+   checking every cycle. Its pin edges are compared with the PIO emulator's, allowing [k]
+   cycles per PIO cycle plus one latency for the run. The host keeps both tx fifos fed
+   until the words run out. *)
 
 let program file name =
   In_channel.read_all ("pico_examples/" ^ file)
@@ -112,7 +113,7 @@ let lockstep
       ()
   in
   let pio = List.filter pio ~f:(fun (time, _, _) -> time < pio_cycles - 1) in
-  (* ours over the same window, from the first edge on both *)
+  (* our edges over the same window, starting at the first edge on both *)
   let ours =
     let ours = Queue.to_list edges in
     match ours, pio with
@@ -238,8 +239,8 @@ let%expect_test "spi_cpha0 shifts bytes at k times its PIO edges" =
     |}]
 ;;
 
-(* k = 6.25, the example's 800 kHz at 50 MHz: each edge within a cycle of 6.25 times its
-   PIO cycle. At 48 MHz its rate is the k = 6 above. *)
+(* k = 6.25 is the example's 800 kHz at 50 MHz. Each edge must land within a cycle of 6.25
+   times its PIO cycle. At 48 MHz the example's rate is the k = 6 above. *)
 let%expect_test "ws2812 at a fractional k" =
   lockstep
     ~k:6.25

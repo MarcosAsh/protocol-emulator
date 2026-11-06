@@ -1,8 +1,8 @@
 open! Core
 open Pio
 
-(* Every rule between two output edges, checked by [Timing] and then against emulated
-   runs: no run may bring two edges closer than the bound, or make a pair the bound says
+(* Checks every rule between two output edges with [Timing], then against emulated runs.
+   No run may bring two edges closer than the bound, or produce a pair the bound says
    never happens. *)
 let compare_with_runs
   ?(setup = Emulator.Setup.default)
@@ -240,8 +240,9 @@ let%expect_test "pico-examples programs" =
     |}]
 ;;
 
-(* pio_i2c.c's words: an escape of its step count then one step a word, or a byte with the
-   final bit set so a NAK never halts the machine. Halfword writes fill both halves. *)
+(* pio_i2c.c's words: an escape of its step count and then one step per word, or a byte
+   with the final bit set so a NAK never halts the machine. Halfword writes fill both
+   halves. *)
 let%expect_test "pico-examples i2c, with a slave that stretches scl" =
   let program = vendored "i2c.pio" "i2c" in
   let sc0_sd0 = "set pindirs, 0 side 0 [7]" in
