@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Both roles on one chip (MicroPython, Pico A): engine 0 a controller and engine 1 a target,
-# each the library's firmware, on wires no pin shows, so only the host sees them: I2C in
-# Standard-mode and Fast-mode, SPI in modes 0 to 3, UART at 9600 to 230400 baud. Each case
-# holds both engines to what they pushed on the RTL (both_roles_firmware.py).
-# demo/both_roles.sh runs it.
+# Both roles on one chip (MicroPython, Pico A): engine 0 is a controller and engine 1 a
+# target, each running the library's firmware on wires no pin shows, so only the host sees
+# them. Covers I2C in Standard-mode and Fast-mode, SPI modes 0 to 3 and UART at 9600 to
+# 230400 baud. Each case checks both engines against what they pushed on the RTL
+# (both_roles_firmware.py). demo/both_roles.sh runs it.
 
 import bench
 import both_roles_firmware
@@ -13,14 +13,14 @@ DEPTH = bench.DEPTH
 
 
 def levels(host):
-    """The selected engine's tx and rx fifo levels."""
+    """Return the selected engine's (tx, rx) fifo levels."""
     status = host.read(pe.STATUS)[0]
     return (status >> 6) & 15, (status >> 10) & 15
 
 
 def load(host, case):
-    """Both engines stopped and flushed, the controller on engine 0 and the target on 1,
-    each certified."""
+    """Stop and flush both engines, then load and certify the controller on engine 0 and
+    the target on engine 1."""
     bench.load(host, case["controller"], engine=0)
     target = case["target"]
     host.select(1)
@@ -34,9 +34,9 @@ def load(host, case):
 
 
 def run_case(host, case, polls=20_000):
-    """The target started first with its words queued, then the controller with a fifo's
-    worth and the rest as it has room, both engines' pushes popped until each has as many
-    as on the RTL. Returns what each pushed, and their status words."""
+    """Start the target first with its words queued, then the controller with one fifo's
+    worth and the rest as room appears. Pops both engines' pushes until each matches the
+    RTL's count. Returns what each pushed and their status words."""
     load(host, case)
     host.select(1)
     host.push(case["target_words"])
@@ -81,8 +81,8 @@ def check(case, got, status, log):
 
 
 def run(transfer, log=print, only=None):
-    """Every case, or those whose name holds only. Stops at the first that leaves a fault,
-    which holds until reset."""
+    """Run every case, or only those whose name contains `only`. Stops at the first case
+    that leaves a fault, since faults stick until reset."""
     host = pe.Host(transfer)
     passed = True
     for case in both_roles_firmware.CASES:

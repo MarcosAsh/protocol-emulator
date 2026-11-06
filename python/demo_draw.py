@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# A mouse draws the die (MicroPython). demo/draw.py writes draw.bin, a byte of seconds
-# to wait once the laptop has configured the chip, then three bytes a report: buttons, dx,
-# dy. This serves them through demo_usb.serve on Pico A while engine 1 sends each report's
-# three bytes, once taken, to pico_listener. Ctrl-C on the console releases the button, and
-# how that went is left in `ended` for demo/draw.py to read back.
+# A mouse draws the die (MicroPython). demo/draw.py writes draw.bin: a byte for how many
+# seconds to wait after the laptop configures the chip, then three bytes per report
+# (buttons, dx, dy). This serves them through demo_usb.serve on Pico A, and engine 1 sends
+# each report's three bytes to pico_listener once the laptop has taken it. Ctrl-C on the
+# console releases the button and leaves the outcome in `ended` for demo/draw.py to read.
 
 import time
 
@@ -12,21 +12,21 @@ import usb_board
 
 MOUSE = 2
 LIMIT = 127
-# how long the laptop has after a Ctrl-C to take the reports already handed out
+# time the laptop gets after a Ctrl-C to take the reports already handed out
 RELEASE_MS = 1000
-# how often the console is checked for a Ctrl-C
+# how often to check the console for a Ctrl-C
 POLL_MS = 20
 
 ticks_diff = getattr(time, "ticks_diff", lambda a, b: a - b)
 
 
 def line(dx, dy, buttons):
-    """(buttons, dx, dy) steps along a move, each within LIMIT and each point the nearest
-    to the line, the deltas as bytes."""
+    """Return (buttons, dx, dy) steps along a move. Each delta is within LIMIT, each point
+    is the nearest to the line, and the deltas are bytes."""
     n = max(1, (max(abs(dx), abs(dy)) + LIMIT - 1) // LIMIT)
     steps, x, y = [], 0, 0
     for i in range(1, n + 1):
-        # the nearest integer, halves up
+        # round to nearest, halves up
         nx, ny = (2 * dx * i + n) // (2 * n), (2 * dy * i + n) // (2 * n)
         steps.append((buttons, (nx - x) & 0xFF, (ny - y) & 0xFF))
         x, y = nx, ny
@@ -34,9 +34,9 @@ def line(dx, dy, buttons):
 
 
 def encode(strokes, wait_s):
-    """draw.bin for strokes, polylines in pixels from where the pointer starts: a move to
-    each with the button up, a press, its segments with it held, a release, and a move
-    back to the start at the end."""
+    """Build draw.bin for strokes (polylines in pixels, relative to where the pointer
+    starts). Each stroke is a move with the button up, a press, its segments with the
+    button held, and a release. A final move goes back to the start."""
     steps, pen = [], (0, 0)
     for stroke in strokes:
         if stroke[0] != pen:
@@ -56,9 +56,9 @@ def signed(byte):
 
 
 class Reports:
-    """demo_usb.serve's queue over draw.bin's reports. Empty until `start`, and the reports
-    serve puts back come out first. `stop` drops the rest, but for a release if the last
-    report handed out held a button."""
+    """demo_usb.serve's queue, fed from draw.bin's reports. Empty until `start`; reports
+    that serve puts back come out first. `stop` drops the rest, except for a release if
+    the last report handed out held a button."""
 
     def __init__(self, data, ms):
         self.data, self.ms = data, ms
@@ -96,12 +96,12 @@ class Reports:
 
 
 class Stopped(Exception):
-    """Ends `serve` at the top of a round; args[0] is whether the laptop took everything."""
+    """Ends `serve` at the top of a round. args[0] says whether the laptop took everything."""
 
 
 def stopping(bus_reset, board, queue, interrupted, ms):
-    """bus_reset for serve that also ends it once interrupted(): when the laptop has taken
-    every report handed out, the release included, or after RELEASE_MS."""
+    """bus_reset for serve that also ends it once interrupted(), when the laptop has taken
+    every report handed out (the release included) or RELEASE_MS has passed."""
     since, polled = None, None
 
     def check():
@@ -122,7 +122,7 @@ def stopping(bus_reset, board, queue, interrupted, ms):
 
 
 def console_ctrl_c():
-    """True once a Ctrl-C has come in on the console, which kbd_intr(-1) leaves to stdin."""
+    """True once a Ctrl-C has arrived on the console (kbd_intr(-1) leaves it in stdin)."""
     import select
     import sys
 
@@ -142,8 +142,8 @@ def console_ctrl_c():
 
 
 def logger(host, queue, total, ms, say):
-    """Engine 1 sends each report's three bytes once the laptop has taken it, and the
-    console hears when drawing starts and ends."""
+    """Engine 1 sends each report's three bytes once the laptop has taken it. The console
+    hears when drawing starts and ends."""
     taken, first = [0], [None]
 
     def log(report):
@@ -162,8 +162,8 @@ def logger(host, queue, total, ms, say):
 
 
 def run(path="draw.bin", say=print):
-    """On the Icepi Zero, from the host Pico, with draw.bin beside this. Returns what it
-    said on stopping."""
+    """Run on the Icepi Zero from the host Pico, with draw.bin next to this file. Returns
+    the message it printed on stopping."""
     import micropython
 
     with open(path, "rb") as f:

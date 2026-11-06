@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# Bring-up check for the Tiny Tapeout demo board (MicroPython), nothing attached and every
-# ui DIP switch off: status, register readback, the chip's clock against the RP2's, and
-# uart_tx_host_rate on uo[1] read back by a PIO. Prints a line a check, then PASS or FAIL.
+# Bring-up check for the Tiny Tapeout demo board (MicroPython). Nothing attached, every ui
+# DIP switch off. Checks status, register readback, the chip's clock against the RP2's,
+# and uart_tx_host_rate on uo[1] read back by a PIO. Prints a line per check, then PASS or
+# FAIL.
 #   mpremote cp python/protocol_emulator.py python/demo_board.py :
 #   mpremote run python/demo_board_check.py
-# Untested on a board; test/test_demo_board.py runs it on the RTL.
+# Not tried on a board yet, only on the RTL (test/test_demo_board.py).
 
 import rp2
 import time
@@ -13,13 +14,14 @@ from machine import Pin
 import demo_board
 import protocol_emulator as pe
 
-# test/uart_tx_host_rate.hex: the bit period first, then a frame a word, on OUT0
+# test/uart_tx_host_rate.hex: send the bit period first, then one word per frame, on OUT0
 UART_TX = [
     0x20E0, 0xE004, 0x80C5, 0xA001, 0x20E0, 0xE004, 0xA027, 0x80E6, 0xA000,
     0xC0CA, 0x20C0, 0x6001, 0x020A, 0x20C0, 0xA001, 0x2040, 0x0004,
 ]
 
-# test/uart_tx_host_rate.cert.hex: what the chip checks UART_TX against, from a period of 4
+# test/uart_tx_host_rate.cert.hex: the certificate the chip checks UART_TX against, for a
+# period of 4
 UART_TX_CERTIFICATE = [
     0x0002, 0x0001, 0x0200, 0x0001, 0x0000, 0x0500, 0x4001, 0x0400,
     0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
@@ -28,15 +30,15 @@ UART_TX_CERTIFICATE = [
 BAUD = 115_200
 BYTES = [0x55, 0xA3, 0x00, 0xFF]
 FAULTS = pe.FAULTS
-# the 24-bit counter wraps in 349 ms at 48 MHz. A stamp's three reads take ~1.4 ms on an
-# RP2 at 96 MHz, which put 100 ms off by up to 1.1% on Pico A
+# the 24-bit counter wraps after 349 ms at 48 MHz. A stamp takes three reads, ~1.4 ms on
+# an RP2 at 96 MHz, which made 100 ms read up to 1.1% off on Pico A
 WINDOW_MS = 300
 
 
 @rp2.asm_pio(in_shiftdir=rp2.PIO.SHIFT_RIGHT, autopush=True, push_thresh=8)
 def uart_rx():
-    # eight cycles a bit, each read mid-bit; idle first, so a line low from reset is no
-    # start bit
+    # 8 cycles per bit, sampled mid-bit; wait for idle first so a line that's low from
+    # reset isn't taken as a start bit
     wait(1, pin, 0)  # noqa: F821
     wait(0, pin, 0)  # noqa: F821
     set(x, 7)[10]  # noqa: F821
@@ -51,8 +53,8 @@ def report(say, name, ok, detail):
 
 
 def status(host, say):
-    """Both engines halted, as reset leaves them, with no fault and empty fifos. A chip
-    that never answers reads 0, MISO's pull-down."""
+    """Check both engines are halted with no fault and empty fifos, as reset leaves them.
+    A chip that never answers reads 0 (MISO's pull-down)."""
     ok = True
     for engine in (0, 1):
         host.select(engine)
@@ -75,7 +77,8 @@ def readback(host, say):
 
 
 def clock(host, clock_hz, window_ms, say):
-    """now against the RP2's microseconds, each read stamped halfway through its frames."""
+    """Compare the chip's now counter with the RP2's microseconds, stamping each read
+    halfway through its frames."""
 
     def stamp():
         before = time.ticks_us()
@@ -91,8 +94,8 @@ def clock(host, clock_hz, window_ms, say):
 
 
 def uart(spi, host, clock_hz, say):
-    """uart_tx_host_rate on engine 0 at 115200 baud, read on uo[1] by the PIO beside the
-    host's. A 512-word load leaves the program address back at 0."""
+    """Run uart_tx_host_rate on engine 0 at 115200 baud and read uo[1] with the PIO next to
+    the host's. The 512-word load leaves the program address back at 0."""
     period = (clock_hz + BAUD // 2) // BAUD
     sm = rp2.StateMachine(
         demo_board.STATE_MACHINE + 1, uart_rx, freq=8 * clock_hz // period,

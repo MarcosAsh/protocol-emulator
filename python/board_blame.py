@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The board-blame meter (CPython and MicroPython). Engine 0 runs test/i2c_master_marked,
-# whose every SCL release is a proved cycle it copies onto wire 20; engine 1 runs
-# test/scl_rise and pushes, per release, the cycles until the SCL pad reads high. What is
-# left after the chip's own fixed latency is the pull-up charging the bus: the board.
+# Board-blame meter (CPython and MicroPython). Engine 0 runs test/i2c_master_marked and
+# copies every SCL release onto wire 20. Engine 1 runs test/scl_rise and pushes the cycles
+# until the SCL pad reads high after each release. Once you subtract the chip's fixed
+# latency, what's left is the pull-up charging the bus, i.e. the board.
 
 import math
 
@@ -19,12 +19,11 @@ MASTER_CONFIG = dict(
 )
 METER_CONFIG = dict(DEFAULT_CONFIG, capture_pin=SCL, capture_rising=1, autopush=1)
 
-# What a line that rises at once reads: the pad's synchroniser less the issue [mov x, now]
-# waits after the wire. Measured in RTL simulation (test/test_board_blame.py).
+# What a line that rises instantly reads: the pad synchroniser's delay minus the issue
+# slot of [mov x, now] after the wire. Measured in RTL sim (test/test_board_blame.py).
 ZERO_LOAD = 1
 
-# The high time is two quarters; a rise that takes longer is not seen before SCL is
-# driven low again.
+# SCL is high for two quarters, so a slower rise is never seen
 HIGH = 2 * QUARTER
 
 # rise time limits, 30 % to 70 % of VDD, from the I2C specification (UM10204 table 11)
@@ -68,11 +67,11 @@ def release_pcs(words, names):
 
 
 def verdict(cycles, clock_hz=48_000_000, mode="fast", threshold=0.5, pull_up=None):
-    """One release, from engine 1's word. [cycles] counts sync flop samples, so the pad
-    crossed the input threshold in [n, n + 1) cycles after the release, n = cycles less
-    ZERO_LOAD; in silicon metastability can add one more at the low end. The 30-70 % rise
-    time and R C follow from an exponential charge through [threshold] (VIH / VDD), which
-    is the part not proved."""
+    """Decode one release from engine 1's word. [cycles] counts sync flop samples, so the
+    pad crossed the input threshold between n and n + 1 cycles after the release, with
+    n = cycles - ZERO_LOAD (in silicon metastability can add one more at the low end).
+    The 30-70 % rise time and R C assume an exponential charge through [threshold]
+    (VIH / VDD); that part is not proved."""
     period = 1e9 / clock_hz
     n = cycles - ZERO_LOAD
     v = {"cycles": cycles, "n": n, "limit_ns": LIMITS_NS[mode]}
@@ -113,8 +112,9 @@ def load(host, engine, config, words, certificate):
 
 
 def start(host, master, meter):
-    """master and meter are (words, certificate). Both halted for the certificates' writes;
-    then engine 0 first: its first instruction releases SCL, which the meter must not see."""
+    """master and meter are (words, certificate). Both stay halted while the certificates
+    are written, then engine 0 starts first, since its first instruction releases SCL
+    and the meter must not see that."""
     for engine in (1, 0):
         host.select(engine)
         host.stop()
@@ -132,8 +132,8 @@ def hex_file(path):
 
 
 def run(host, words, names, tries=200, **kwargs):
-    """Sends [words] to the master and, once it has pushed a word per byte, prints a line
-    per release the meter measured: the first eight. Returns the verdicts."""
+    """Send [words] to the master, wait for a word per byte, and print a line for each of
+    the first eight releases the meter measured. Returns the verdicts."""
     host.select(0)
     host.push(words)
     for _ in range(tries):
@@ -154,8 +154,8 @@ def run(host, words, names, tries=200, **kwargs):
 
 
 def pico(pull_up=47_000, mode="fast", clock_hz=48_000_000):
-    """On the bare-Pico bench: the host port on GP2-5 (python/pico_board.py), and
-    i2c_master_marked.asm, .hex, .cert.hex and scl_rise.hex, .cert.hex copied to the Pico."""
+    """Run on the bare-Pico bench: needs the host port on GP2-5 (python/pico_board.py) and
+    i2c_master_marked.{asm,hex,cert.hex} and scl_rise.{hex,cert.hex} copied to the Pico."""
     import pico_board
 
     host = pico_board.host()

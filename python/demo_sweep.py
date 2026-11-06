@@ -60,7 +60,7 @@ def setup(host, firmware, dirty):
 
 
 def polls(cycles, pause):
-    """Polls to wait for edges cycles after a push."""
+    """How many polls to wait for edges that are `cycles` long."""
     return 100_000 if pause is None else cycles // sf.POLL + 8
 
 

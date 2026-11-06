@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-# A DS18B20 on the library's 1-Wire master (MicroPython, Pico A): DQ on IO4 pulled up by
-# 4.7 k, VDD at 3.3 V. Reset and presence, READ ROM with its CRC, CONVERT T polled to its
-# end, then READ SCRATCHPAD with its CRC and the temperature. demo/outside.sh ds18b20
-# copies what it needs and runs it.
+# A DS18B20 on the library's 1-Wire master (MicroPython, Pico A): DQ on IO4 with a 4.7 k
+# pull-up, VDD at 3.3 V. Does reset and presence, READ ROM with its CRC, CONVERT T polled
+# until done, then READ SCRATCHPAD with its CRC and the temperature. demo/outside.sh
+# ds18b20 copies what it needs and runs it.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# 6 us at 48 MHz, the One_wire.firmware unit
+# 6 us at 48 MHz, the One_wire.firmware time unit
 UNIT = 288
 RESET = 1
 READ_ROM = 0x33
@@ -16,17 +16,18 @@ SKIP_ROM = 0xCC
 CONVERT_T = 0x44
 READ_SCRATCHPAD = 0xBE
 FAMILY = 0x28
-# 750 ms at 12 bits, and a poll is eight read slots and the Pico's overhead, about a millisecond
+# a conversion takes 750 ms at 12 bits and a poll (eight read slots plus Pico overhead)
+# about 1 ms
 POLLS = 3000
-# the power-on value of the temperature register, which a conversion replaces
+# power-on value of the temperature register; a conversion replaces it
 POWER_ON = 0x0550
-# the configuration register's fixed bits, which a line held low would not read as
+# the configuration register's fixed bits, which a line held low wouldn't read back as
 CONFIG_MASK = 0x9F
 CONFIG_FIXED = 0x1F
 
 
 def crc8(data):
-    """Dallas CRC-8, x^8 + x^5 + x^4 + 1 over bytes LSB first: zero over a whole ROM or
+    """Dallas CRC-8 (x^8 + x^5 + x^4 + 1, bytes LSB first). It is zero over a whole ROM or
     scratchpad."""
     crc = 0
     for byte in data:
@@ -44,11 +45,11 @@ class Wire:
         self.host = host
 
     def reset(self):
-        """Whether a device answered the reset with a presence pulse."""
+        """True if a device answered the reset with a presence pulse."""
         return bench.exchange(self.host, [RESET]) == [0]
 
     def write(self, data):
-        """Each byte as it was seen on the line: itself unless a device held it low."""
+        """Return each byte as seen on the line: unchanged unless a device held it low."""
         return bench.exchange(self.host, [(b & 0xFF) << 1 for b in data])
 
     def read(self, count):
@@ -64,7 +65,7 @@ def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.ONE_WIRE)
     host.start()
-    # the unit comes first and is not answered
+    # the unit goes first and gets no reply
     host.push([UNIT])
     wire = Wire(host)
     if not wire.reset():
@@ -81,7 +82,7 @@ def run(transfer, log=print):
     wire.reset()
     wire.write([SKIP_ROM, CONVERT_T])
     for polls in range(POLLS):
-        # a converting DS18B20 holds read slots low, and lets them go once it is done
+        # a converting DS18B20 holds read slots low until it's done
         if wire.read(1)[0]:
             break
     else:

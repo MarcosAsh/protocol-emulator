@@ -1,41 +1,41 @@
 # SPDX-License-Identifier: Apache-2.0
-# A W25Q64 on the SPI master with chip select in mode 0 (MicroPython, Pico A): MOSI on
-# OUT4, SCK on OUT5, CS on OUT6 and MISO on IN0, the chip driving the whole bus. JEDEC ID,
-# then the last sector erased, a page programmed and read back, and the sector erased
-# again. demo/outside.sh flash copies what it needs and runs it.
+# A W25Q64 on the SPI master with chip select, mode 0 (MicroPython, Pico A): MOSI on OUT4,
+# SCK on OUT5, CS on OUT6 and MISO on IN0, so the chip drives the whole bus. Reads the
+# JEDEC ID, erases the last sector, programs a page and reads it back, then erases the
+# sector again. demo/outside.sh flash copies what it needs and runs it.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# in a host word, CS rises after its byte
+# in a host word, CS rises after that byte
 LAST = 0x100
-# Winbond, SPI NOR, then the capacity: the 128 Mbit part has the same commands
+# Winbond, SPI NOR, then the capacity (the 128 Mbit part takes the same commands)
 PARTS = {(0xEF, 0x40, 0x17): "W25Q64JV", (0xEF, 0x40, 0x18): "W25Q128JV"}
 SECTOR = 0x7FF000
 PAGE = 256
-# W25Q64JV datasheet maxima: 3 ms a page program, 400 ms a sector erase
+# W25Q64JV datasheet maxima: 3 ms per page program, 400 ms per sector erase
 PROGRAM_MS = 3
 ERASE_MS = 400
 
 
 class Flash:
-    """pause_ms(n) waits."""
+    """pause_ms(n) waits n milliseconds."""
 
     def __init__(self, host, pause_ms):
         self.host = host
         self.pause_ms = pause_ms
 
     def command(self, data, reply=0):
-        """The bytes of data, then reply bytes more, in one frame of CS low, and what came
-        back during those."""
+        """Send data, then clock out reply more bytes, all in one CS-low frame. Returns what
+        came back."""
         words = list(data) + [0] * reply
         words[-1] |= LAST
         got = bench.exchange(self.host, words)
         return [b & 0xFF for b in got[len(data):]]
 
     def wake(self):
-        """Release from power down, which a W25Q64 needs 3 us after."""
+        """Release from power down. A W25Q64 needs 3 us before the next command."""
         self.command([0xAB])
         self.pause_ms(1)
 
@@ -46,7 +46,7 @@ class Flash:
         return self.command([0x05], 1)[0]
 
     def wait_ready(self, limit_ms):
-        """Milliseconds until BUSY clears, polling every one."""
+        """Poll every millisecond until BUSY clears. Returns the milliseconds waited."""
         for ms in range(limit_ms + 2):
             if not self.status() & 1:
                 return ms

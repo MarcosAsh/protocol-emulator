@@ -1,26 +1,26 @@
 # SPDX-License-Identifier: Apache-2.0
-# A 24LC256 on the library's I2C master (MicroPython, Pico A): SCL on IO2, SDA on IO3, each
-# pulled up to 3.3 V. Finds the chip, then a byte write and a page write, each ACK polled to
-# the end of its write cycle and read back. The old contents seed what is written, so a run
-# that writes nothing cannot pass. Pico B shares the bus for the start hold demo, so the run
-# first listens and refuses if Pico B is mastering it. demo/outside.sh eeprom copies what it
+# A 24LC256 on the library's I2C master (MicroPython, Pico A): SCL on IO2, SDA on IO3, both
+# pulled up to 3.3 V. Finds the chip, writes a byte and a page (ACK-polling each write
+# cycle to its end) and reads them back. The old contents seed the new data, so a run that
+# writes nothing can't pass. Pico B shares the bus for the start hold demo, so we listen
+# first and refuse to run if Pico B is mastering it. demo/outside.sh eeprom copies what it
 # needs and runs it.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# A repeated START's setup is a quarter less SCL's rise, and Fast-mode wants 600 ns. A
-# quarter of 31 cycles, the most `set` makes, leaves about 400 ns behind 4.7 k and 45 pF,
-# so the host sends 48, 1 us: SCL at 250 kHz.
+# A repeated START's setup time is a quarter minus SCL's rise, and Fast-mode wants 600 ns.
+# With 4.7 k and 45 pF, a 31-cycle quarter (the most `set` can make) leaves about 400 ns,
+# so the host sends 48 cycles per 1 us: SCL at 250 kHz.
 QUARTER = 48
 PAGE = 64
-# the last page, and the byte before it
+# the last page, and the byte just before it
 PAGE_ADDRESS = 0x7FC0
 BYTE_ADDRESS = 0x7FBF
-# twice the 5 ms a write cycle takes at most
+# 2 x the 5 ms maximum write cycle
 WRITE_LIMIT_MS = 10
-# demo/start_hold_master starts a read, two STARTs, every 20 ms
+# demo/start_hold_master does a read (two STARTs) every 20 ms
 GUARD_MS = 25
 
 
@@ -30,7 +30,7 @@ def word(data=0, start=False, read=False, stop=False):
 
 
 class Eeprom:
-    """clock() is milliseconds from any start."""
+    """clock() returns milliseconds from an arbitrary start."""
 
     def __init__(self, host, device, clock=None):
         self.host = host
@@ -38,12 +38,12 @@ class Eeprom:
         self.clock = clock
 
     def acked(self):
-        """START, the address for a write and STOP: whether the chip answered."""
+        """Send START, the write address and STOP. Returns whether the chip ACKed."""
         return bench.exchange(self.host, [word(self.device << 1, start=True, stop=True)]) == [0]
 
     def poll(self):
-        """NACKs before the chip answers again, which it does once its write cycle ends,
-        and the milliseconds that took."""
+        """Poll until the chip ACKs again, which happens when its write cycle ends. Returns
+        the NACK count and the milliseconds it took."""
         start = self.clock()
         nacks = 0
         while not self.acked():
@@ -61,8 +61,8 @@ class Eeprom:
         return self.poll()
 
     def read(self, address, count):
-        """A random read, sequential past the first byte: a dummy write sets the address,
-        then a repeated START reads, ACKing every byte but the last."""
+        """Random read followed by sequential reads: a dummy write sets the address, then a
+        repeated START reads, ACKing every byte except the last."""
         words = [word(self.device << 1, start=True), word(address >> 8), word(address)]
         words += [word((self.device << 1) | 1, start=True)]
         words += [word(read=True)] * (count - 1) + [word(read=True, stop=True)]
@@ -73,8 +73,8 @@ class Eeprom:
 
 
 def bus_free(host, pause_ms):
-    """Whether engine 1's START_HOLD, which drives neither line, heard no START in
-    GUARD_MS. Its fifo outlasts the STARTs Pico B makes in that time."""
+    """True if engine 1's START_HOLD (which drives neither line) heard no START within
+    GUARD_MS. Its fifo is deep enough for the STARTs Pico B makes in that time."""
     bench.load(host, bench_firmware.START_HOLD, engine=1)
     host.start()
     pause_ms(GUARD_MS)
@@ -89,14 +89,14 @@ def find(host):
 
 
 def run(transfer, clock, pause_ms, log=print, firmware=bench_firmware.I2C_MASTER):
-    """firmware is I2C_MASTER or I2C_MASTER_STRETCH, which take the same words."""
+    """firmware is I2C_MASTER or I2C_MASTER_STRETCH; both take the same words."""
     host = pe.Host(transfer)
     if not bus_free(host, pause_ms):
         log("Pico B is mastering the bus: load MicroPython or can_node")
         return False
     bench.load(host, firmware)
     host.start()
-    # the quarter comes first and is not answered
+    # the quarter goes first and gets no reply
     host.push([QUARTER])
     device = find(host)
     if device is None:

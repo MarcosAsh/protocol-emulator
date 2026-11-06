@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B's SWD port for a debugger on the laptop (MicroPython, Pico A), wired as demo_swd.py
-# says: every edge comes from the chip's SWD firmware, through demo_swd's Swd. A line of
-# ops in, a line of replies out, ASCII so Ctrl-C still reaches the REPL. demo/swd_probe.py
-# speaks it.
+# Pico B's SWD port for a debugger on the laptop (MicroPython, Pico A), wired as in
+# demo_swd.py. Every edge comes from the chip's SWD firmware via demo_swd's Swd. It reads
+# a line of ops and prints a line of replies, in ASCII so Ctrl-C still reaches the REPL.
+# demo/swd_probe.py is the client.
 #
 # Ops, separated by ";", fields hex:
-#   h HALF       load the SWD firmware at that half period: SWDIO's level let go
+#   h HALF       load the SWD firmware with that half period, and release SWDIO
 #   a            selection alert and SW-DP activation
 #   l            line reset
 #   t TARGET     TARGETSEL
 #   r AP A       read: the status (ACK, 8 for a parity error) and RDATA
 #   w AP A V     write: the status
 #   x            let both lines go and stop serving
-# A transfer WAITed is retried, as many as demo_swd.POLLS times. The ops after one that ends
-# other than OK are not run, so the reply is shorter than the request.
+# A transfer that gets WAIT is retried up to demo_swd.POLLS times. Ops after one that
+# doesn't end OK are skipped, so the reply can be shorter than the request.
 
 import bench
 import bench_firmware
@@ -43,7 +43,7 @@ class Bridge:
         return status, data
 
     def handle(self, line):
-        """The replies to one line of ops, and whether to go on serving."""
+        """Run one line of ops. Returns the reply and whether to keep serving."""
         replies = []
         for op in line.split(";"):
             fields = op.split()

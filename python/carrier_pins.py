@@ -1,25 +1,25 @@
 # SPDX-License-Identifier: Apache-2.0
-# The bench carrier's self-test on its Picos (MicroPython and CPython). Pins drives and reads
-# the Icepi's header through icepi/carrier_check.v over Pico A's host port, and bit-bangs a
-# flash's JEDEC ID, an I2C address, a 1-Wire ROM and an SWD DPIDR through it, each a frame
-# a step. Gpio is a Pico's own pins. demo/carrier_check.py runs both over the REPL.
+# Self-test for the bench carrier, run on its Picos (MicroPython and CPython). Pins drives
+# and reads the Icepi's header through icepi/carrier_check.v over Pico A's host port, and
+# bit-bangs a flash JEDEC ID, an I2C address, a 1-Wire ROM and an SWD DPIDR through it, one
+# frame per step. Gpio is a Pico's own pins. demo/carrier_check.py runs both over the REPL.
 
 SIGNATURE = b"pin"
 FRAME = 11
-# the header pin of each of carrier_check.v's pins, in its order
+# header pin for each of carrier_check.v's pins, in order
 HEADER = (3, 5, 7, 11, 13, 8, 10, 12, 18, 22, 26, 28, 29, 31, 35, 33, 37, 36, 38, 40, 15)
 PIN = {h: i for i, h in enumerate(HEADER)}
-# carrier_check.v's idle: header 10 (CAN's D) and 28 (the flash's CS) driven high
+# carrier_check.v's idle state: header 10 (CAN's D) and 28 (the flash's CS) driven high
 IDLE = (1 << PIN[10]) | (1 << PIN[28])
-# the parts' pins, by header
+# the parts' pins, by header number
 SDA, SCL, DQ = 33, 35, 37
 FLASH_CS, FLASH_CLK, FLASH_DI, FLASH_DO = 28, 26, 22, 3
 SWCLK, SWDIO = 12, 36
 
 
 def encode(oe, out, slot=None):
-    """A frame: oe and out as masks of pins, and slot (header, level, length, sample),
-    microseconds from the frame's end."""
+    """Build a frame: oe and out are pin masks, slot is (header, level, length, sample)
+    with times in microseconds from the end of the frame."""
     words = [oe >> 16, oe >> 8, oe, out >> 16, out >> 8, out, 0, 0, 0, 0, 0]
     if slot:
         header, level, length, sample = slot
@@ -29,8 +29,8 @@ def encode(oe, out, slot=None):
 
 
 def decode(reply):
-    """The signature, the pins as the frame began, and the last slot's sample, None until
-    taken."""
+    """Return the signature, the pins as they were when the frame began, and the last
+    slot's sample (None until it's taken)."""
     levels = (reply[3] << 16) | (reply[4] << 8) | reply[5]
     sample = reply[6] & 1 if reply[6] & 2 else None
     return bytes(reply[0:3]), levels, sample
@@ -50,8 +50,8 @@ def _wait_us():
 
 
 class Pins:
-    """carrier_check.v through transfer, a frame of bytes out and its reply back. A header
-    pin is driven to 0 or 1 or let go (None), and the levels are a mask of PIN."""
+    """Talk to carrier_check.v through transfer: send a frame of bytes, get a reply. A
+    header pin is driven to 0 or 1, or released (None). Levels are a mask of PIN."""
 
     def __init__(self, transfer, wait_us=None):
         self.transfer = transfer
@@ -68,8 +68,8 @@ class Pins:
         return decode(self.transfer(encode(self.oe, self.out)))[0]
 
     def put(self, changes):
-        """One frame with changes, {header: 0, 1 or None}. The levels it returns are from
-        before them."""
+        """Send one frame applying changes ({header: 0, 1 or None}). The levels returned
+        are from before the changes."""
         for header, level in changes.items():
             mask = 1 << PIN[header]
             self.oe = self.oe | mask if level is not None else self.oe & ~mask
@@ -77,7 +77,7 @@ class Pins:
         return self.frame()[0]
 
     def apply(self, changes):
-        """The levels once changes have settled, a millisecond on."""
+        """Return the levels a millisecond after changes, once they've settled."""
         self.put(changes)
         self.wait_us(1000)
         return self.frame()[0]
@@ -87,15 +87,15 @@ class Pins:
         return self.apply({})
 
     def slot(self, header, level, length, sample, after=0):
-        """header driven to level for length us, then as before, and its level at sample
-        us. The next frame waits for both and after more."""
+        """Drive header to level for length us, then restore it, and read its level at
+        sample us. The next frame waits for both, plus a bit more."""
         self.frame((header, level, length, sample))
         self.wait_us(max(length, sample) + after + 2)
         return self.frame()[1]
 
     def pulses(self, plan, trains=1, gap_us=0):
-        """trains times, gap_us apart: for each (header, count, level), count pulses of
-        20 us to level, each in a frame of its own."""
+        """Send trains of pulses, gap_us apart. Each (header, count, level) gives count
+        20 us pulses to level, one frame per pulse."""
         for train in range(trains):
             if train:
                 self.wait_us(gap_us)
@@ -103,7 +103,7 @@ class Pins:
                 for _ in range(count):
                     self.slot(header, level, 20, 0, 40)
 
-    # SPI mode 0 on the flash's pins, all driven by the chip's side
+    # SPI mode 0 on the flash's pins, all driven from the chip's side
     def spi(self, data, read=0):
         self.put({FLASH_CS: 0, FLASH_CLK: 0})
         got = []
@@ -118,14 +118,14 @@ class Pins:
         return got[len(data):]
 
     def jedec(self):
-        """Release from power-down, then JEDEC ID."""
+        """Wake the flash from power-down, then read its JEDEC ID."""
         self.spi([0xAB])
         self.wait_us(5)
         return self.spi([0x9F], 3)
 
     # I2C, open drain: 0 drives low, None lets the pull-up have it
     def i2c_probe(self, address):
-        """START, the address to write, whether it ACKs, STOP."""
+        """Send START, the write address and STOP. Returns whether the address was ACKed."""
         self.put({SDA: None, SCL: None})
         self.put({SDA: 0})
         self.put({SCL: 0})
@@ -142,9 +142,9 @@ class Pins:
         self.put({SDA: None})
         return acked
 
-    # 1-Wire on DQ, its slots timed by carrier_check.v (DS18B20 datasheet's numbers)
+    # 1-Wire on DQ, with slot times set by carrier_check.v (DS18B20 datasheet numbers)
     def one_wire_reset(self):
-        """Whether a presence pulse answered a 480 us reset."""
+        """Send a 480 us reset. Returns True if a presence pulse answered."""
         return self.slot(DQ, 0, 480, 550, 410) == 0
 
     def one_wire_write(self, byte):
@@ -155,21 +155,21 @@ class Pins:
         return sum(self.slot(DQ, 0, 2, 12, 50) << i for i in range(8))
 
     def read_rom(self):
-        """READ ROM's eight bytes, or None with no presence pulse."""
+        """Return READ ROM's eight bytes, or None if there's no presence pulse."""
         self.put({DQ: None})
         if not self.one_wire_reset():
             return None
         self.one_wire_write(0x33)
         return [self.one_wire_read() for _ in range(8)]
 
-    # SWD: the host moves SWDIO with SWCLK low, the target on SWCLK's rise
+    # SWD: the host changes SWDIO while SWCLK is low, the target after SWCLK rises
     def swd_write(self, bits):
         for b in bits:
             self.put({SWDIO: b, SWCLK: 0})
             self.put({SWCLK: 1})
 
     def swd_read(self, n):
-        """n bits as the target drives them, each after its rise."""
+        """Read n bits as the target drives them, each after the clock rises."""
         got = []
         self.put({SWDIO: None, SWCLK: 0})
         for _ in range(n):
@@ -178,9 +178,9 @@ class Pins:
         return got
 
     def swd_dpidr(self, wake, line_reset, targetsel, target):
-        """DPIDR's ACK, value and parity bit after the words of wake and line_reset, LSB
-        first, and a TARGETSEL write of target, demo_swd's words for an RP2040. SWCLK is
-        left low and SWDIO let go."""
+        """Return DPIDR's ACK, value and parity bit. Sends the wake and line_reset words
+        (LSB first) and a TARGETSEL write of target, using demo_swd's words for an RP2040.
+        Leaves SWCLK low and releases SWDIO."""
         words = lambda ws: [(w >> i) & 1 for w in ws for i in range(16)]  # noqa: E731
         self.swd_write(words(wake) + words(line_reset))
         self.swd_write([(targetsel >> i) & 1 for i in range(8)])
@@ -188,7 +188,7 @@ class Pins:
         self.swd_write([(target >> i) & 1 for i in range(32)] + [bin(target).count("1") & 1])
         self.swd_write([1, 0, 1, 0, 0, 1, 0, 1])
         bits = self.swd_read(3 + 33)
-        # the turnaround back to the host
+        # turnaround back to the host
         self.swd_read(1)
         self.swd_write([0] * 8)
         self.put({SWDIO: None, SWCLK: 0})
@@ -198,7 +198,7 @@ class Pins:
 
 
 def pico_a(baudrate=1_000_000):
-    """Pins over Pico A's host port: SPI0, GP2 SCK, GP3 MOSI, GP4 MISO, GP5 CS_N."""
+    """Pins over Pico A's host port: SPI0 with GP2 SCK, GP3 MOSI, GP4 MISO, GP5 CS_N."""
     from machine import SPI, Pin
 
     spi = SPI(0, baudrate=baudrate, polarity=0, phase=0, bits=8, firstbit=SPI.MSB,
@@ -216,7 +216,7 @@ def pico_a(baudrate=1_000_000):
 
 
 class Gpio:
-    """A Pico's own pins by GP number."""
+    """A Pico's own pins, by GP number."""
 
     def __init__(self, pin=None):
         if pin is None:
@@ -235,8 +235,7 @@ class Gpio:
         return self.pin(gp).value()
 
     def pressed(self, gp, ms):
-        """Whether gp, pulled up, is low now or goes low within ms, as a button to ground
-        does."""
+        """True if gp, pulled up, is low now or goes low within ms (a button to ground)."""
         import time
 
         self.let_go(gp, "up")
@@ -249,8 +248,8 @@ class Gpio:
         return True
 
     def vsys(self):
-        """VSYS in volts, a third of it on GP29 (ADC 3), eight reads averaged after the
-        first, which reads low after boot."""
+        """VSYS in volts, read as a third of it on GP29 (ADC 3). Averages eight reads after
+        discarding the first, which reads low after boot."""
         from machine import ADC
 
         adc = ADC(29)
@@ -258,7 +257,7 @@ class Gpio:
         return round(sum(adc.read_u16() for _ in range(8)) / 8 * 3 * 3.3 / 65535, 2)
 
     def i2c_scan(self, sda, scl):
-        """The addresses that ACK on I2C1 at 100 kHz, the pins let go after."""
+        """Return the addresses that ACK on I2C1 at 100 kHz, then release the pins."""
         from machine import I2C
 
         found = I2C(1, sda=self.pin(sda), scl=self.pin(scl), freq=100_000).scan()
