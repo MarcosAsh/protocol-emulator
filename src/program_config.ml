@@ -82,6 +82,10 @@ let default =
 let validate t =
   let range = Isa.in_range in
   let pin name value = range name value ~lo:0 ~hi:(Isa.pin_space - 1) in
+  (* in the browser an int has 32 bits, so 1 lsl 32 wraps; cap a CRC's top there *)
+  let crc_top =
+    if Crc.max_width >= Int.num_bits - 1 then Int.max_value else (1 lsl Crc.max_width) - 1
+  in
   Or_error.all_unit
     [ range "side_set_count" t.side_set_count ~lo:0 ~hi:Isa.max_side_set
     ; pin "side_set_base" t.side_set_base
@@ -96,8 +100,8 @@ let validate t =
     ; range "push_threshold" t.push_threshold ~lo:1 ~hi:Isa.data_bits
     ; range "pull_threshold" t.pull_threshold ~lo:1 ~hi:Isa.data_bits
     ; range "crc_width" t.crc_width ~lo:1 ~hi:Crc.max_width
-    ; range "crc_poly" t.crc_poly ~lo:0 ~hi:((1 lsl Crc.max_width) - 1)
-    ; range "crc_init" t.crc_init ~lo:0 ~hi:((1 lsl Crc.max_width) - 1)
+    ; range "crc_poly" t.crc_poly ~lo:0 ~hi:crc_top
+    ; range "crc_init" t.crc_init ~lo:0 ~hi:crc_top
     ; range "stuff_threshold" t.stuff_threshold ~lo:0 ~hi:31
     ; range "wrap_bottom" t.wrap_bottom ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ; range "wrap_top" t.wrap_top ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
