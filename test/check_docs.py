@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Fails when README.md or a docs/ page cites a path, make target, job, commit or run that
-# is not there, or quotes a number the code, the tests or the cited run disagree with,
-# naming the line, or links to a page that is gone. Board results and gds runs older than
-# CI keeps are read from the releases test/evidence.sha256 pins. --teeth checks that wrong
-# READMEs made from this one fail. --offline skips the runs, evidence and links.
+# Fails (naming the line) when README.md or a docs/ page cites a path, make target, job,
+# commit or run that doesn't exist, quotes a number that the code, tests or cited run
+# disagree with, or links to a page that is gone. Board results and gds runs older than CI
+# keeps are read from the releases pinned in test/evidence.sha256. --teeth checks that
+# deliberately wrong READMEs made from this one fail. --offline skips runs, evidence and links.
 # Usage: python3 test/check_docs.py [--offline] [--teeth] [--external-links]
 import argparse
 import contextlib
@@ -25,10 +25,10 @@ from pathlib import Path
 import evidence
 
 ROOT = Path(__file__).resolve().parent.parent
-# the README and every page of the site, info.md among them
+# the README and every page of the site, including info.md
 DOCS = ["README.md"] + sorted(
     str(p.relative_to(ROOT)) for p in (ROOT / "docs").glob("*.md"))
-# what has to be quoted somewhere, and where, so a check cannot pass by the quote moving
+# what must be quoted, and where, so a check can't pass by the quote moving
 QUOTED_IN = {"library firmwares": "README.md", "tiles": "README.md",
              "valid mutants": "docs/verification.md", "equivalent mutants": "docs/verification.md"}
 REPO = "MarcosAsh/protocol-emulator"
@@ -36,36 +36,36 @@ ONLINE = True
 EXTERNAL = False
 # links checked unless --external-links asks for every host
 OWN_HOSTS = ("github.com", "marcosash.github.io")
-LINK_TTL = 24 * 3600  # how long a link that answered is not asked again
+LINK_TTL = 24 * 3600  # how long a link that answered isn't asked again
 WORDS = dict(zip("one two three four five six seven eight nine ten".split(),
                  map(str, range(1, 11))))
 WARNINGS = []
 DEADLINE = "2027-01-18"  # the competition's submission date
 
-# cited for the reader to make: tt-support-tools is cloned into tt/
+# cited for the reader to create; tt-support-tools is cloned into tt/
 NOT_IN_REPO = ("tt/",)
 
-# what a gds run hardens, as gds.yaml's paths filter has it
+# what a gds run hardens, matching gds.yaml's paths filter
 HARDENED = ["src", "macro", "info.yaml", "librelane_plugin_sram_pdn.py", "odb_sram_stripes.py",
             "librelane_plugin_sram_inputs.py", "openroad_sram_inputs.tcl",
             "librelane_plugin_die_art.py", "die_art.py", ":!*.ml", ":!*.mli", ":!**/dune"]
 
 EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|lpf|mk"
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")
-# and any backticked token with a slash, whatever its extension
+# plus any backticked token containing a slash, whatever its extension
 BACKTICKED = re.compile(r"`(?![^`]*://)([^`\s*]*/[^`\s*]*)`")
-# a url ends at a toctree entry's > and an html attribute's quote too
+# a url also ends at a toctree entry's > and an html attribute's quote
 URL = re.compile(r"https?://[^\s)<>\"]+")
 FENCE = re.compile(r"^```[^`\n]*\n(.*?)^```", re.M | re.S)
 MAKE = re.compile(r"make -C ([\w./-]+)([^#\n]*)")
 JOB = re.compile(r"`([\w-]+)` job")
-# a run id is all digits and longer, a word such as "defaced" has no digit, and an all-digit
-# token of 7 or 8 counts only if git knows it (check_commits)
+# a run id is all digits and longer, a word like "defaced" has no digit, and an all-digit
+# token of 7 or 8 counts only if git knows it (see check_commits)
 COMMIT = re.compile(r"(?<![\w/#.-])(?=[0-9a-f]*\d)([0-9a-f]{7,8}|(?=[0-9]*[a-f])[0-9a-f]{9,12})"
                     r"(?![\w.-])")
-# a run is cited by its link, or as "run N", never by a bare number such as a job id
+# a run is cited by its link or as "run N", never by a bare number like a job id
 RUN = re.compile(r"actions/runs/(\d+)|\bruns?,? \[?(\d{9,})")
-# what follows "run N, ", which has to be a date in ISO form if it looks like one at all
+# what follows "run N, ": it must be an ISO date if it looks like a date at all
 DATED_RUN = re.compile(r"\bruns?,? \[?(\d{9,})\]?(?:\([^)]*\))?, ([^,;)]*)")
 LOOKS_DATED = re.compile(r"\d|\b(?:jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)", re.I)
 
@@ -75,15 +75,15 @@ def git(*args):
 
 
 def gh(*args):
-    """gh's output, or None when GitHub has no such thing, or no longer has it."""
-    # the API drops the odd request, so try again before giving up
+    """gh's output, or None when GitHub has no such thing or no longer has it."""
+    # the API occasionally drops a request, so retry before giving up
     for attempt in range(4):
         done = subprocess.run(["gh", *args], capture_output=True, text=True)
         if done.returncode == 0:
             return done.stdout
         if "HTTP 404" in done.stderr or "HTTP 410" in done.stderr:
             return None
-        # newer gh refuses logs with colour codes unless told, older gh has no such flag
+        # newer gh rejects logs with colour codes unless told otherwise; older gh lacks the flag
         if "--allow-escape-sequences" in done.stderr and args[0] == "api":
             args = ("api", "--allow-escape-sequences", *args[1:])
             continue
@@ -94,7 +94,7 @@ def gh(*args):
 # What the repo and CI say
 
 class Unreadable(Exception):
-    """A source no longer says what a check reads from it."""
+    """A source no longer says what a check expects to read from it."""
 
 
 def read(path):
@@ -124,7 +124,7 @@ def pdk():
 
 
 def pinout():
-    """How many pins info.yaml gives the host, and inputs, outputs and bidirectional IO."""
+    """How many pins info.yaml gives the host, inputs, outputs and bidirectional IO."""
     names = re.findall(r'^\s*u(?:i|o|io)\[\d\]:\s*"([^"]*)"', read("info.yaml"), re.M)
     kinds = {"host": r"host ", "in": r"IN\d", "out": r"OUT\d", "bidirectional": r"IO\d"}
     return {k: sum(1 for n in names if re.match(p, n)) for k, p in kinds.items()}
@@ -136,10 +136,10 @@ def isa(name):
 
 @cache
 def instances():
-    """How many of each module the generated chip holds, counted down from its top."""
+    """How many of each module the generated chip holds, counted from the top down."""
     children = {}
     for module in re.split(r"^module ", read("src/protocol_emulator.v"), flags=re.M)[1:]:
-        # Hardcaml writes an instance as its module, its name, then its ports
+        # Hardcaml writes an instance as its module, then its name, then its ports
         children[re.match(r"\w+", module)[0]] = re.findall(
             r"^    (\w+)\n        \w+\n        \( \.", module, re.M)
 
@@ -164,8 +164,8 @@ def sram():
 
 
 def library_firmwares():
-    """The library firmwares the kernel accepts in test_kernel.ml, which dune runtest keeps
-    current."""
+    """The library firmwares the kernel accepts in test_kernel.ml (dune runtest keeps that
+    list current)."""
     test = find(r'^let%expect_test "the kernel on the firmware library[^"]*" =(.*?)\|\}\]',
                 "test/test_kernel.ml", re.M | re.S)[1]
     return re.findall(r"^\s*\((\w+) \(verdict \(Ok \(\)\)\)\)$", test, re.M)
@@ -173,7 +173,7 @@ def library_firmwares():
 
 @cache
 def engine_scope():
-    """The files of test/mutate.py's engine scope, whose score the docs quote."""
+    """The files in test/mutate.py's engine scope, whose score the docs quote."""
     files = find(r'"engine": \{\s*"files": \[([^]]*)\]', "test/mutate.py")[1]
     return re.findall(r'"([^"]+)"', files)
 
@@ -185,7 +185,7 @@ def equivalent_mutants():
 
 @cache
 def make_targets(directory):
-    """Every target a rule names in [directory]'s Makefile or a file it includes."""
+    """Every target named by a rule in directory's Makefile or a file it includes."""
     targets, files = set(), [ROOT / directory / "Makefile"]
     while files:
         for line in files.pop().read_text().replace("\\\n", " ").splitlines():
@@ -209,7 +209,7 @@ def workflow_jobs():
 
 @cache
 def not_ours(commit):
-    """Why HEAD does not descend from [commit], or None if it does."""
+    """Why HEAD doesn't descend from commit, or None if it does."""
     full = git("rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}").stdout.strip()
     if not full:
         return "is not a commit"
@@ -229,8 +229,8 @@ def same_chip(sha):
 
 
 def branches():
-    """main, and the branch checked out if it is another, such as the 8x4 line, whose own
-    runs cover what it changed."""
+    """main, plus the checked-out branch if it is another one (such as the 8x4 line), whose
+    own runs cover what it changed."""
     here = (os.environ.get("GITHUB_HEAD_REF")
             or (os.environ.get("GITHUB_REF_NAME") if os.environ.get("GITHUB_EVENT_NAME") == "push"
                 else None)
@@ -240,7 +240,7 @@ def branches():
 
 @cache
 def green_runs(workflow):
-    """The green runs of [workflow] on main or this branch that HEAD descends from, newest
+    """The green runs of workflow on main or this branch that HEAD descends from, newest
     first."""
     runs = []
     for branch in branches():
@@ -258,13 +258,13 @@ def chip_gds_runs():
 
 
 def current_gds_run():
-    """The newest of them, or None."""
+    """The newest of those, or None."""
     return next(iter(chip_gds_runs()), None)
 
 
 @cache
 def gds_metrics(run_id):
-    """The metrics.csv row gds.yaml uploads, or None and why not."""
+    """The metrics.csv row gds.yaml uploads, or None and the reason."""
     out = gh("api", f"repos/{REPO}/actions/runs/{run_id}/artifacts?name=metrics")
     artifacts = json.loads(out or '{"artifacts": []}')["artifacts"]
     if not artifacts:
@@ -281,14 +281,14 @@ def gds_metrics(run_id):
 
 @cache
 def gds_numbers(run_id):
-    """The run's metrics row from a pinned release that keeps it, else from its artifact,
-    or None and why not."""
+    """The run's metrics row from a pinned release that keeps it, else from its artifact.
+    Returns None and the reason if neither exists."""
     kept = evidence.gds_kept(run_id)
     return (kept, None) if kept else gds_metrics(run_id)
 
 
 def said_gds(m):
-    """A metrics row as the docs word it."""
+    """A metrics row worded the way the docs word it."""
     return (f"{int(m['std_cells']):,} standard cells, "
             f"{round(float(m['utilisation']) * 100, 6):g}% utilisation, "
             f"setup slack {float(m['setup_slow_ns']):+.3f} ns at the slow corner")
@@ -296,15 +296,15 @@ def said_gds(m):
 
 def best_gds_run():
     """The run the docs should cite: the newest green gds run of the chip as it is now that
-    a pinned release keeps, else the newest, or None."""
+    a pinned release keeps, else the newest green one, or None."""
     runs = chip_gds_runs()
     return next((r for r in runs if evidence.gds_kept(r)), next(iter(runs), None))
 
 
 @cache
 def fresh_gds():
-    """What to cite instead: a green gds run of the chip as it is now, one a pinned release
-    keeps if there is one, and its numbers."""
+    """What to cite instead: a green gds run of the chip as it is now (preferably one a
+    pinned release keeps), and its numbers."""
     best = best_gds_run()
     if best is None:
         return "no green gds run on main has hardened the chip as it is now"
@@ -316,7 +316,7 @@ def fresh_gds():
 
 @cache
 def failed_jobs(run_id, name):
-    """The conclusions of [run_id]'s jobs called [name] that did not succeed."""
+    """The conclusions of run_id's jobs called name that did not succeed."""
     jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
                       or '{"jobs": []}')["jobs"]
     found = [j["conclusion"] for j in jobs if j["name"] == name]
@@ -329,8 +329,8 @@ def changed_since(sha, paths):
 
 @cache
 def fresh_mutation():
-    """What to cite instead: the newest green mutation run on main of the files as they
-    are, and its score."""
+    """What to cite instead: the newest green mutation run on main of the files as they are
+    now, and its score."""
     for r in green_runs("mutation.yaml"):
         if not changed_since(r["head_sha"], engine_scope()):
             score, _ = mutation_score(str(r["id"]))
@@ -343,10 +343,10 @@ def fresh_mutation():
 
 @cache
 def mutation_score(run_id):
-    """(killed, valid) from the run's log, or None and why not."""
+    """(killed, valid) from the run's log, or None and the reason."""
     url = f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"
     jobs = json.loads(gh("api", url) or '{"jobs": []}')["jobs"]
-    # a sharded run's score is its score job's; each shard logs only its own part
+    # a sharded run's score comes from its score job; each shard logs only its own part
     jobs = [job for job in jobs if job["name"] == "score"] or jobs
     logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs]
     if not any(logs):
@@ -359,8 +359,8 @@ def mutation_score(run_id):
 
 @cache
 def link_status(url):
-    """The status [url] answers with after redirects, or None if it does not answer. An
-    answer under 400 is cached for LINK_TTL, so CI asks GitHub once a day."""
+    """The status url answers with after redirects, or None if it doesn't answer. An answer
+    under 400 is cached for LINK_TTL, so CI asks GitHub once a day."""
     path = evidence.CACHE / "links.json"
     try:
         seen = json.loads(path.read_text())
@@ -388,8 +388,8 @@ def link_status(url):
 
 
 def warn(message):
-    """For evidence that checks now but will not for long, or a link GitHub would not
-    answer."""
+    """Record a warning, for evidence that checks out now but won't for long, or a link
+    GitHub didn't answer."""
     if message not in WARNINGS:
         WARNINGS.append(message)
 
@@ -397,8 +397,9 @@ def warn(message):
 # What the docs say
 
 def line_of(text, needle):
-    """The line [needle] starts on in [text], however the text wraps it, or None. A needle
-    (unit, n) is n's first line from where the paragraph or row [unit] starts."""
+    """The line that needle starts on in text, however the text wraps it, or None. A needle
+    of the form (unit, n) means n's first line, counting from where the paragraph or row
+    unit starts."""
     def at(needle, start=0):
         words = str(needle).split()[:12]
         m = words and re.compile(r"\s+".join(map(re.escape, words))).search(text, start)
@@ -409,12 +410,12 @@ def line_of(text, needle):
 
 
 def flat(text):
-    """[text] on one line, so a sentence reads the same however it wraps."""
+    """text on one line, so a sentence reads the same however it wraps."""
     return " ".join(text.split())
 
 
 def units(text):
-    """Paragraphs and table rows, the span a number shares with the run it came from."""
+    """Paragraphs and table rows: the span a number shares with the run it came from."""
     for block in re.split(r"\n\s*\n", text):
         if block.lstrip().startswith("|"):
             yield from block.splitlines()
@@ -430,7 +431,7 @@ def glance(text):
 
 
 def row_numbers(text):
-    """Every number in [text], sorted: 23,883 and +4.009 count, the 5 of ECP5 does not."""
+    """Every number in text, sorted. 23,883 and +4.009 count, but the 5 in ECP5 does not."""
     found = re.findall(r"(?<![\w.,+-])([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)(?!\w)", text)
     return sorted(round(float(n.replace(",", "")), 6) for n in found)
 
@@ -450,8 +451,8 @@ def check_paths(doc, text):
 
 
 def make_commands(text):
-    """(directory, targets) of each make -C, whole in code, and in prose only when it ends
-    at punctuation or the line's end, so the words after it are not read as targets."""
+    """(directory, targets) of each make -C. In code it is read whole; in prose only when it
+    ends at punctuation or the end of the line, so following words aren't read as targets."""
     fences = FENCE.findall(text)
     rest = FENCE.sub("", text)
     for code in fences + re.findall(r"`([^`\n]+)`", rest):
@@ -512,8 +513,9 @@ def check_runs(doc, text):
 
 
 def check_gds(doc, text):
-    """Numbers beside a gds run are that run's, it hardened the chip as it is now, and it is
-    the newest green one on main or a release pinned in test/evidence.sha256 keeps it."""
+    """Numbers beside a gds run must be that run's, the run must have hardened the chip as
+    it is now, and it must be the newest green one on main or kept by a release pinned in
+    test/evidence.sha256."""
     for unit in units(text):
         runs = set(re.findall(r"[Gg]ds run \[?(\d{10,12})", unit))
         if len(runs) > 1:
@@ -558,8 +560,8 @@ def check_gds(doc, text):
 
 
 def check_mutation(doc, text):
-    """A mutation score beside a mutation run is that run's, and the run mutated the files
-    as they are now."""
+    """A mutation score beside a mutation run must be that run's, and the run must have
+    mutated the files as they are now."""
     for unit in units(text):
         for run_id in re.findall(r"mutation run \[?(\d{10,12})", unit):
             if not run(run_id):
@@ -581,8 +583,9 @@ def check_mutation(doc, text):
 
 
 def check_board(doc, text):
-    """A demo the docs say passed on a date passed that day in a hashed ledger a release
-    pinned in test/evidence.sha256 keeps, with the edges and baud the docs give it."""
+    """A demo the docs say passed on a date must have passed that day in a hashed ledger
+    kept by a release pinned in test/evidence.sha256, with the edges and baud the docs
+    give."""
     for unit in units(text):
         for m in re.finditer(r"passed (?:there |the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)",
                              unit):
@@ -618,8 +621,8 @@ def check_board(doc, text):
 
 
 def check_links(doc, text):
-    """Every link to GitHub or the Pages site answers, and a 404 or 410 fails. Runs are
-    check_runs', and other hosts are asked only with --external-links."""
+    """Every link to GitHub or the Pages site must answer, and a 404 or 410 fails. Runs are
+    check_runs' job, and other hosts are only asked with --external-links."""
     for url in sorted({u.rstrip(".,;:") for u in URL.findall(text)}):
         host = urllib.parse.urlparse(url).hostname or ""
         if "/actions/runs/" in url or not (EXTERNAL or host in OWN_HOSTS):
@@ -633,7 +636,7 @@ def check_links(doc, text):
 
 @cache
 def cocotb_seconds(run_id, module):
-    """{test: real seconds} for [module]'s cocotb tests that passed in [run_id]'s logs."""
+    """{test: real seconds} for module's cocotb tests that passed in run_id's logs."""
     jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
                       or '{"jobs": []}')["jobs"]
     logs = "".join(gh("api", f"repos/{REPO}/actions/jobs/{j['id']}/logs") or "" for j in jobs)
@@ -642,8 +645,8 @@ def cocotb_seconds(run_id, module):
 
 
 def check_demo_time(doc, text):
-    """How long the docs say a cocotb module takes, against its last three green test runs
-    on main, give or take a third."""
+    """Compare how long the docs say a cocotb module takes against its last three green
+    test runs on main, within a third either way."""
     for module, said in re.findall(r"COCOTB_TEST_MODULES=(\w+)`[^.]*? in about (\d+) minutes",
                                    flat(text)):
         runs = [str(r["id"]) for r in green_runs("test.yaml")][:3]
@@ -660,7 +663,7 @@ def check_demo_time(doc, text):
 
 
 def check_counts(doc, text):
-    """Counts the code and the tests hold, wherever the docs quote them."""
+    """Counts the code and tests hold, checked wherever the docs quote them."""
     text = flat(text)
     quoted = {
         "library firmwares": numbers(r"(\d+) library firmwares", text),
@@ -723,8 +726,8 @@ def check_counts(doc, text):
 
 
 def check_transcripts(doc, text):
-    """What a transcript shows the assembler print, a test in test/assemble/ diffs
-    against what it does print, after the same edit."""
+    """What a transcript shows the assembler printing must match what it really prints,
+    after the same edit, as diffed by a test in test/assemble/."""
     printed = {line for f in (ROOT / "test/assemble").glob("*.expected")
                for line in f.read_text().splitlines()}
     for block in FENCE.findall(text):
@@ -740,7 +743,7 @@ def check_transcripts(doc, text):
 
 def check_glance(doc, text):
     """The table at the top of the README: each row's numbers, in any order and wording,
-    are exactly the ones its sources give."""
+    must be exactly the ones its sources give."""
     if doc != "README.md":
         return
     table = glance(text)
@@ -787,7 +790,7 @@ ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board, check_links
 
 
 def failures(docs):
-    """{check: [what is wrong]} over every doc."""
+    """{check: [what is wrong]} across every doc."""
     def wrong(check, doc, text):
         def say(why):
             needle, why = why if isinstance(why, tuple) else (None, why)
@@ -808,7 +811,7 @@ def read_docs():
 
 
 def first(pattern, change):
-    """The README with the first match of [pattern]'s group changed, or None."""
+    """The README with the first match of pattern's group changed, or None."""
     def tooth(text):
         m = re.search(pattern, text)
         return m and text[:m.start(1)] + change(m[1]) + text[m.end(1):]
@@ -816,13 +819,13 @@ def first(pattern, change):
 
 
 def bump(s):
-    """[s] with its last digit one more, a count, date or id the docs did not mean."""
+    """s with its last digit incremented: a count, date or id the docs did not mean."""
     i = max(i for i, c in enumerate(s) if c.isdigit())
     return s[:i] + str((int(s[i]) + 1) % 10) + s[i + 1:]
 
 
 # Wrong docs, made from what they say now: (what is wrong, how, what it needs: gh, or
-# the metrics of the cited gds run, which expire), and the doc if not the README
+# the metrics of the cited gds run, which expire), plus the doc if it isn't the README
 TEETH = [
     ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), None),
     ("a directory", first(r"`((?:[\w.-]+/)+)`", lambda d: d[:-1] + "x/"), None),
@@ -880,7 +883,7 @@ TEETH = [
 
 
 def every(text, pattern, change):
-    """[text] with the token [pattern]'s first match groups changed everywhere it is."""
+    """text with the token that pattern's first match captures changed everywhere it appears."""
     m = re.search(pattern, text)
     return m and change(m[1]) and re.sub(rf"\b{m[1]}\b", change(m[1]), text)
 
@@ -898,7 +901,7 @@ def clear_caches():
 
 
 def tampered_pin(docs):
-    """What fails with the board evidence pinned to another asset's hash."""
+    """What fails when the board evidence is pinned to another asset's hash."""
     real = evidence.pins
     pinned = real()
     board = next(k for k in pinned if k[1].startswith("board-evidence-"))
@@ -953,7 +956,7 @@ def teeth():
               f"{', '.join(caught) or 'nothing'}")
         if not caught:
             missed.append("a tampered evidence pin")
-        # not a tooth: the table the generator writes has to pass
+        # not a tooth: the table the generator writes must pass
         wrong = generated_table(docs)
         print(f"{'FAIL' if wrong else 'ok  '} test/results.py --readme-table writes a table "
               "that passes")

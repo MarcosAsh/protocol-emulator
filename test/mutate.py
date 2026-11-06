@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Mutation score of the OCaml tests: one textual mutation at a time, in copies under
-# _mutation/. A survivor not in test/mutation_allow.txt exits 1, at --report with --json.
-# --prove takes each survivor of the trusted checker to the proofs (prove() below), and
-# --prove-only every mutant, without the tests.
+# Mutation score of the OCaml tests: applies one textual mutation at a time, in copies
+# under _mutation/. A survivor that isn't in test/mutation_allow.txt exits 1 (at --report
+# with --json). --prove sends each survivor of the trusted checker to the proofs (see
+# prove() below), and --prove-only does that for every mutant without running the tests.
 # Usage: python3 test/mutate.py [--scope engine|wide|kernel] [--file F ...] [--operator NAME ...]
 #        [--id ID ...] [--shard I/N] [--seed S] [--jobs N] [--timeout S] [--json OUT] [--list]
 #        [--prove | --prove-only] [--proof-timeout S] [--proofs NAME ...]
@@ -25,22 +25,22 @@ from pathlib import Path
 from queue import Queue
 
 ALLOW = Path(__file__).with_name("mutation_allow.txt")
-# file ## operator ## line ## formula ## why it holds: the inputs where a survivor of the
-# checker is compared with the original, for one that differs only outside them
+# file ## operator ## line ## formula ## why it holds: the inputs over which a checker
+# survivor is compared with the original, for mutants that differ only outside them
 ASSUME = Path(__file__).with_name("mutation_assume.txt")
-# test_provenance prints counts of the chip's verilog, which any mutant changes, so mutants
-# run without it; the committed verilog is still copied, as test/dune depends on it
+# test_provenance prints counts from the chip's verilog, which any mutant changes, so
+# mutants run without it. The committed verilog is still copied because test/dune needs it
 COPIED = ["src", "test", "bin", "ppx", "python", "pio", "formal/Makefile", "dune-project", ".ocamlformat",
           "demo/paths.py", "demo/outline.py", "demo/draw.py", "demo/kernel_vs_board.py",
           "demo/glitch_map.py", "demo/clock_sweep.py", "demo/margins.py", "demo/sigrok.py", "demo/corpus_draw.py",
           "demo/corpus_decoders.tsv", "demo/extract.py", "pages/die/die.bin", "test/paths/cells.json",
           "test/python/corpus_beacon_33000000.json", "src/protocol_emulator.v", "icepi/Makefile"]
-# json the tests read, which SKIPPED drops from the test/ copy above
+# json that the tests read; SKIPPED drops it from the test/ copy above
 COPIED_JSON = ["test/diagrams", "test/lab", "test/board"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json",
                                  "test_provenance.ml*")
 
-# the operators of the published score; its scope keeps exactly these
+# the operators of the published score; its scope uses exactly these
 HARDWARE = [
     ("increment", r"\+:\. 1\b", "+:. 2"),
     ("decrement", r"-:\. 1\b", "-:. 2"),
@@ -82,8 +82,8 @@ MORE_HARDWARE = [
     ("signed at least", r" >=\+ ", " >+ "),
 ]
 
-# OCaml, for the code that elaborates the circuits and the analyser; the mutants that do
-# not parse (a binding's [=]) are dropped before the run
+# OCaml operators, for the code that elaborates the circuits and the analyser. Mutants
+# that don't parse (such as a binding's [=]) are dropped before the run
 SOFTWARE = [
     ("int plus one", r" \+ 1\b", " + 2"),
     ("int minus one", r" - 1\b", " - 2"),
@@ -106,7 +106,7 @@ SOFTWARE = [
 ]
 PARSED = {name for name, _, _ in SOFTWARE}
 
-# what each file is mutated with and the Verilog a mutant must still elaborate to
+# how each file is mutated, and which Verilog a mutant must still elaborate to
 CHIP = [["top"], ["top", "-sram", "-engines", "2"]]
 RTL = [
     "src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/deadline.ml", "src/crc.ml",
@@ -114,8 +114,8 @@ RTL = [
     "src/program_memory.ml", "src/sram_macro.ml", "src/engines.ml", "src/top.ml",
     "src/isa.ml", "src/program_config.ml",
 ]
-# the files the chip does not instantiate, each with the generators that elaborate it alone;
-# the kernel's step is in both of its circuits, its table in neither
+# files the chip doesn't instantiate, each with the generators that elaborate it alone.
+# The kernel's step is in both of its circuits and its table is in neither
 KERNEL = [["kernel"], ["kernel-accepts"]]
 APART = {
     "src/kernel.ml": KERNEL,
@@ -130,8 +130,8 @@ APART = {
     ],
 }
 ELABORATE = {f: CHIP for f in RTL} | APART
-# engine is the published score's four files, five mutants an operator each; wide is
-# every file that makes RTL, the kernel and the analyser, every match
+# engine is the published score's four files, with five mutants per operator. wide is
+# every file that makes RTL, plus the kernel and the analyser, with every match
 SCOPES = {
     "engine": {
         "files": ["src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/host_port.ml"],
@@ -154,11 +154,11 @@ SCOPES = {
     },
 }
 
-# The trusted checker: the generator of its check of a row, as Kernel.check and
-# Osr_kernel.check decide it, the outputs that must match and the groups whose and
-# accepts; the lines where it is software the gates leave out; and the proofs a mutant
-# that accepts more must pass, fastest first: an sby run each, or a task of a task list
-# of formal/Makefile, the second list's, the slowest, last.
+# The trusted checker. Each entry gives the generator of its check of a row (as
+# Kernel.check and Osr_kernel.check decide it), the outputs that must match, the groups
+# whose "and" accepts, the lines that are software the gates leave out, and the proofs a
+# mutant that accepts more must pass, fastest first. Each proof is an sby run or a task
+# from a task list in formal/Makefile; the second list's tasks are the slowest, so last.
 KERNEL_PROVED = {
     "check": ["check-gates"],
     "equal": ["next_pc", "target_pc"],
@@ -177,7 +177,7 @@ KERNEL_PROVED = {
     ],
 }
 
-# the files that make the kernel's check: its software outside the gates is what only a test kills
+# the files that make the kernel's check; only a test can kill mutants in their software outside the gates
 PROVED = {
     "src/kernel.ml": KERNEL_PROVED,
     "src/kernel_types.ml": KERNEL_PROVED | {"outside": [(r"^  let of_spec", r"^end")]},
@@ -201,7 +201,7 @@ CHAR = re.compile(r"'(\\.|[^\\'])'")
 
 
 def mask(source):
-    # comments and string literals as spaces, so no operator matches inside them
+    # blank out comments and string literals so no operator matches inside them
     out = list(source)
     i, depth, n = 0, 0, len(source)
 
@@ -272,7 +272,7 @@ def mutants(scope, file, source):
 
 
 def plan(scope, files, seed, held_out):
-    # a mutant's id and whether it is held out follow from its line, not where it is
+    # a mutant's id and whether it is held out depend on its line, not on where it falls
     todo, count = [], {}
     root = Path(__file__).resolve().parent.parent
     for file in files:
@@ -287,7 +287,7 @@ def plan(scope, files, seed, held_out):
 
 
 def dune(cwd, command, *args, jobs=None, timeout=None, keep=False):
-    # with keep, what the command prints too
+    # with keep, also return what the command prints
     flags = ["-j", str(jobs)] if jobs else []
     p = subprocess.Popen(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
                          stdout=subprocess.PIPE if keep else subprocess.DEVNULL,
@@ -302,20 +302,20 @@ def dune(cwd, command, *args, jobs=None, timeout=None, keep=False):
 
 
 def digest(outputs):
-    # the Verilog of each of a file's generators, as one hash
+    # one hash over the Verilog from each of a file's generators
     return hashlib.sha256("\0".join(outputs).encode()).hexdigest()
 
 
-# dune names the file of each test that fails; CI forces colour, so codes are stripped first
+# dune names the file of each failing test; CI forces colour, so strip the codes first
 FAILED = re.compile(r'^File "([^"]+)", line', re.M)
 COLOUR = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def verdict(cwd, file, jobs, timeout):
-    # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant;
-    # one whose generator loops would hang the tests too. A kill comes with the files of the
-    # tests that failed; each result with the digest of the Verilog the mutant elaborates to,
-    # if its file makes any.
+    # a mutant that doesn't compile, or that Hardcaml refuses to elaborate, isn't a mutant,
+    # and one whose generator loops would hang the tests too. A kill comes with the files
+    # of the tests that failed. Each result also carries the digest of the Verilog the
+    # mutant elaborates to, if its file makes any.
     verilog = None
     try:
         if dune(cwd, "build", "./bin/generate.exe", jobs=jobs, timeout=timeout)[0] != 0:
@@ -328,8 +328,8 @@ def verdict(cwd, file, jobs, timeout):
                 return "invalid", [], verilog
             outputs.append(out)
         verilog = digest(outputs) if outputs else None
-        # the first failing test is kill enough, and stopping there keeps a mutant that also
-        # hangs some other test from running out the clock as a timeout
+        # the first failing test is kill enough, and stopping there keeps a mutant that
+        # also hangs another test from being counted as a timeout
         code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
                          timeout=timeout)
         if code == 0:
@@ -340,7 +340,7 @@ def verdict(cwd, file, jobs, timeout):
 
 
 def makefile_tasks(root, name):
-    # a task list of formal/Makefile, its lines continued with a backslash
+    # a task list from formal/Makefile (lines continue with a backslash)
     text = (root / "formal" / "Makefile").read_text().replace("\\\n", " ")
     return re.search(rf"^{name} = (.*)$", text, re.M).group(1).split()
 
@@ -359,7 +359,7 @@ def proof_runs(root, spec):
 
 
 def outside(file, line):
-    # a line of the checker's software that its gates leave out
+    # a line of the checker's software that the gates leave out
     lines = (Path(__file__).resolve().parent.parent / file).read_text().split("\n")
     for start, end in PROVED[file]["outside"]:
         first = next(i for i, text in enumerate(lines) if re.match(start, text))
@@ -391,12 +391,12 @@ def run_logged(command, cwd, log, timeout):
 
 
 def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
-    # A survivor of the checker, by its gates against the original's, under the formula of
-    # test/mutation_assume.txt if any: EQUIVALENT if the decision is the same for every
-    # input, STRICT if it accepts only what the original does. Else it accepts more: LAX
-    # if the SAT lemma or a proof fails on it, SOUND if every one holds, TESTED if,
-    # untested before, a test of the lemma's file fails but every proof holds. OUTSIDE:
-    # software the gates leave out, which only a test can kill.
+    # Classify a checker survivor by comparing its gates with the original's, under the
+    # formula from test/mutation_assume.txt if there is one. EQUIVALENT: the decision is the
+    # same for every input. STRICT: it accepts only what the original does. Otherwise it
+    # accepts more: LAX if the SAT lemma or a proof fails on it, SOUND if every one holds,
+    # TESTED if (untested before) a test of the lemma's file fails but every proof holds.
+    # OUTSIDE: software the gates leave out, which only a test can kill.
     spec = PROVED[m["file"]]
     logs = cwd / "_prove"
     logs.mkdir(exist_ok=True)
@@ -421,7 +421,7 @@ def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
             p = subprocess.run(compare + ["-assume", assumed[0]], capture_output=True, text=True,
                                timeout=proof_timeout)
             evidence += [f"assume {assumed[0]}, as {assumed[1]}"] + p.stdout.splitlines()
-        # rows of another width are another interface, which only the proofs can judge
+        # rows of another width are a different interface, which only the proofs can judge
         if p.returncode not in (0, 3) and "differ" not in p.stderr:
             return {"class": "unproved", "evidence": evidence + p.stderr.splitlines()[-20:]}
         evidence += [line for line in p.stderr.splitlines() if "differ" in line]
@@ -429,12 +429,12 @@ def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
             decided = "STRICT" if "accepts only" in evidence[-1] else "EQUIVALENT"
     if decided:
         return {"class": "OUTSIDE" if outside(m["file"], m["line"]) else decided, "evidence": evidence}
-    # it accepts more: the SAT lemma, then the proofs, each until one fails. A failed base
-    # case is a run the mutant lets miss: LAX. A failed induction step is only unproved.
+    # it accepts more: try the SAT lemma, then the proofs, until one fails. A failed base
+    # case is a run the mutant lets miss (LAX). A failed induction step is only unproved.
     log = logs / "lemma.log"
     tested = False
     if run_logged(["sh", "test/only.sh", spec["lemma"]], cwd, log, proof_timeout) != 0:
-        # LAX only where a QED of the lemma's became a counterexample
+        # LAX only when a QED of the lemma turned into a counterexample
         lines = log.read_text().splitlines()
         lost = {m.group(1) for line in lines if (m := re.match(r'^-.*\(QED "([^"]*)"', line))}
         lax = any(re.match(rf'^\+.*\(counterexample "{re.escape(name)}"', line) for line in lines
@@ -442,7 +442,7 @@ def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
         verdicts = [line for line in lines if re.match(r'^[-+ ].*\((QED|counterexample) "', line)]
         if lax:
             return {"class": "LAX", "evidence": evidence + [f"{spec['lemma']} fails:"] + verdicts + lines[-40:]}
-        # untested, a test of the lemma's file that fails kills it, but the proofs still run
+        # if untested before, a failing test of the lemma's file kills it, but the proofs still run
         if not untested:
             return {"class": "TESTED", "evidence": evidence + [f"{spec['lemma']} fails:"] + lines[-40:]}
         tested = True
@@ -460,7 +460,7 @@ def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
             return {"class": "unproved", "evidence": evidence + [f"{name} timed out"]}
         if code != 0:
             lines = (logs / f"{name}.log").read_text().splitlines()
-            # the failed assertion and the counterexample's constants: the program, the rows
+            # the failed assertion and the counterexample's constants (the program, the rows)
             failed = [line for line in lines if re.search(r"Assert failed|anyconst|summary", line)]
             lax = any("FAIL for basecase" in line or "returned FAIL" in line and "induction" not in line
                       for line in lines)
@@ -490,15 +490,16 @@ def wilson(k, n, z=1.96):
     return f"{100 * p:.2f}% [{100 * max(0, centre - half):.2f}, {100 * min(1, centre + half):.2f}]"
 
 
-# a survivor's class from prove(): explained by a proof, or killed by one
+# survivor classes from prove() that a proof explains or kills
 PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 
 
 def report(results, planned):
-    # a timeout counts as killed, as the suite does not pass, and is listed apart; so does a
-    # survivor a proof kills. An allowed mutant's timeout is no kill: an equivalent one runs
-    # as the original does, until the timeout stops it. Nor is a mutant the tests do not kill
-    # whose Verilog is the original's: it changes no gate, and is left out of the score.
+    # A timeout counts as killed (the suite doesn't pass) and is listed separately, and so
+    # is a survivor a proof kills. An allowed mutant's timeout isn't a kill, because an
+    # equivalent mutant runs like the original until the timeout stops it. Neither is a
+    # surviving mutant whose Verilog equals the original's: it changes no gate and is left
+    # out of the score.
     allowed = read_allowed()
 
     def same(r):
@@ -595,7 +596,7 @@ def main():
     todo = plan(args.scope, files, args.seed, args.held_out)
     todo = [m for m in todo if not args.operator or m["operator"] in args.operator]
     todo = [m for m in todo if not args.id or m["id"] in args.id]
-    # a mistyped id would leave a run of nothing, which passes
+    # a mistyped id would leave an empty run, which passes
     if missing := set(args.id or []) - {m["id"] for m in todo}:
         sys.exit(f"no mutant {' '.join(sorted(missing))} in this scope")
     todo = todo[shard::shards]
@@ -646,7 +647,7 @@ def main():
         return row
 
     try:
-        # results land as they come, so a shard cut short still reports what it ran
+        # write results as they arrive, so a shard cut short still reports what it ran
         if out:
             out.write(json.dumps({"scope": args.scope, "shard": args.shard, "seed": args.seed,
                                   "planned": len(todo)}) + "\n")
@@ -661,7 +662,7 @@ def main():
         for item in COPIED_JSON:
             shutil.copytree(root / item, work / "0" / item, dirs_exist_ok=True)
         if proving:
-            # the proofs' files, and the original's check and the prover, made once
+            # the proofs' files, plus the original's check and the prover, built once
             tracked = subprocess.run(["git", "ls-files", "formal"], cwd=root, capture_output=True,
                                      text=True, check=True).stdout.split()
             for item in tracked:
@@ -678,7 +679,7 @@ def main():
                     subprocess.run(["_build/default/bin/generate.exe", *spec["check"]], cwd=work / "0",
                                    stdout=aag, check=True)
                 # teeth: the original equals itself, and with its first output's and gate
-                # flipped it neither equals the original nor accepts only what it does
+                # flipped it neither equals the original nor accepts only what it accepts
                 flipped = gates.with_suffix(".flipped")
                 with open(flipped, "w") as aag:
                     subprocess.run(["awk", "-f", "formal/kernel_equiv/flip.awk", str(gates)], cwd=root,
@@ -690,7 +691,7 @@ def main():
                                         str(mutant), *flags], capture_output=True, text=True)
                     if p.returncode != code:
                         sys.exit(f"the prover on {mutant.name} exits {p.returncode}\n{p.stdout}{p.stderr}")
-        # a copy that cannot build or elaborate the design would count every mutant invalid
+        # a copy that can't build or elaborate the design would make every mutant invalid
         elaborate = sorted({tuple(a) for m in todo for a in ELABORATE.get(m["file"], [])})
         if dune(work / "0", "build", "./bin/generate.exe", jobs=args.dune_jobs)[0] != 0:
             sys.exit("the unmutated copy fails dune build ./bin/generate.exe")
@@ -701,7 +702,7 @@ def main():
             if code != 0:
                 sys.exit(f"the unmutated copy fails dune exec -- ./bin/generate.exe {' '.join(a)}")
             elaborated[a] = verilog
-        # trivial compiler equivalence: a mutant whose Verilog is the original's changes no gate
+        # trivial equivalence: a mutant whose Verilog equals the original's changes no gate
         original_verilog = {f: digest([elaborated[tuple(a)] for a in ELABORATE[f]])
                             for f in {m["file"] for m in todo} if ELABORATE.get(f)}
         start = time.monotonic()
@@ -711,7 +712,7 @@ def main():
             code, err = dune(work / "0", "build", "@runtest", jobs=args.dune_jobs)
             if code != 0:
                 sys.exit("the unmutated suite fails\n" + err[-4000:])
-            # suites run side by side share the cores
+            # suites running side by side share the cores
             timeout = timeout or 3 * args.jobs * round(time.monotonic() - start)
             print(f"the unmutated suite passes in {round(time.monotonic() - start)} s;"
                   f" {len(todo)} mutants, {timeout} s each at most", flush=True)
@@ -724,7 +725,7 @@ def main():
     finally:
         shutil.rmtree(work, ignore_errors=True)
     code = report(results, len(todo))
-    # a shard's survivors are judged at --report, beside every other shard's
+    # a shard's survivors are judged at --report, together with every other shard's
     sys.exit(0 if args.json else code)
 
 
