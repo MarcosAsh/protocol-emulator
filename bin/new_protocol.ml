@@ -1,7 +1,7 @@
 open! Core
 open Protocol_emulator
 
-(* What sigrok-cli prints, or nothing when it is missing or fails. *)
+(* Runs sigrok-cli and returns its output, or None if it is missing or fails. *)
 let sigrok_cli args =
   let command =
     String.concat ~sep:" " ("sigrok-cli" :: List.map args ~f:Filename.quote)
@@ -16,7 +16,7 @@ let sigrok_cli args =
      | Error _ -> None)
 ;;
 
-(* The lines under a heading of sigrok-cli's, up to the next line without an indent. *)
+(* The indented lines under [heading] in sigrok-cli's output. *)
 let section output ~heading =
   String.split_lines output
   |> List.drop_while ~f:(fun line -> not (String.equal line heading))
@@ -27,8 +27,7 @@ let section output ~heading =
 
 let alphanumeric s = String.filter (String.lowercase s) ~f:Char.is_alphanum
 
-(* sigrok's decoders whose id or name holds a word of the protocol's name, or the other
-   way round, those that match more of it first *)
+(* sigrok decoders whose id or name shares a word with [name], best match first *)
 let candidates name =
   let words =
     String.split name ~on:'_'
@@ -66,7 +65,7 @@ module Decoder = struct
     ; classes : string list
     }
 
-  (* the id before the first space or colon of each "- id ..." line *)
+  (* takes the id off each "- id ..." line, up to the first space or colon *)
   let ids lines =
     List.filter_map lines ~f:(fun line ->
       String.chop_prefix line ~prefix:"- "
@@ -97,7 +96,7 @@ module Decoder = struct
   ;;
 end
 
-(* [protocol_ml]'s [pin], OUT0, and the pins its decoder's channels take, one on from it *)
+(* The template's [pin] is OUT0 (5). The decoder's other channels use the pins after it. *)
 let default_pin = 5
 
 let channels_of (decoder : Decoder.t) =
@@ -115,8 +114,8 @@ let pin_name pin =
   | None -> [%string "IO%{pin - Isa.first_bidir_pin#Int}"]
 ;;
 
-(* The analyser and each channel's Dn from Bench_wiring, "TODO" where there is none or the
-   pins reach both analysers, and why for the line under the outside: one. *)
+(* Looks up the analyser and each channel's Dn in Bench_wiring. Gives "TODO" where there
+   is none or the pins span both analysers, plus the reasons for the note under outside. *)
 let wiring channels =
   let found =
     List.mapi channels ~f:(fun i _ -> Bench_wiring.find ~pin:(default_pin + i))
@@ -154,7 +153,7 @@ let wiring channels =
 ;;
 
 let substitute template ~name ~(decoder : Decoder.t) =
-  (* a decoder whose channels are all optional, as uart's, gets its first *)
+  (* a decoder with only optional channels (uart) gets its first one *)
   let channels = channels_of decoder in
   let analyser, wired, why = wiring channels in
   let outside =
@@ -414,7 +413,7 @@ if __name__ == "__main__":
 |}
 ;;
 
-(* [name] at the end of [Library.protocols], before the bracket that closes it *)
+(* Appends [name] to [Library.protocols]. *)
 let add_to_library ~root name =
   let path = root ^/ "test/library.ml" in
   let text = In_channel.read_all path in
@@ -435,8 +434,8 @@ let add_to_library ~root name =
         (String.prefix text at ^ [%string "\n  ; %{entry}"] ^ String.drop_prefix text at)
 ;;
 
-(* a row for [name] in test_tables.ml's table of which protocols the table interpreter
-   runs, which has to name every protocol; false if the table is not where it was *)
+(* Adds a row for [name] to test_tables.ml, which has to list every protocol. Returns
+   false if the table isn't where we expect it. *)
 let add_to_tables ~root name =
   let path = root ^/ "test/test_tables.ml" in
   let text = In_channel.read_all path in
@@ -456,8 +455,7 @@ let add_to_tables ~root name =
     true
 ;;
 
-(* the files written, formatted as the repository's .ocamlformat asks, if ocamlformat is
-   on the PATH *)
+(* Runs ocamlformat on the written files, if it is on the PATH. *)
 let format ~root files =
   let files =
     List.filter files ~f:(fun file ->
@@ -471,7 +469,7 @@ let format ~root files =
   | Ok () | Error _ -> ()
 ;;
 
-(* the spec stage of demo/speed.tsv, if the repository has demo/speed.py *)
+(* Marks the spec stage in demo/speed.tsv, if the repository has demo/speed.py. *)
 let start_clock ~root name =
   if Sys_unix.file_exists_exn (root ^/ "demo/speed.py")
   then (
@@ -485,7 +483,7 @@ let start_clock ~root name =
     | Ok () | Error _ -> ())
 ;;
 
-(* modules a test file opens or names, which a protocol of that name would shadow *)
+(* modules the tests open or name, which a protocol of the same name would shadow *)
 let taken =
   [ "array"
   ; "bench"
@@ -532,8 +530,7 @@ let check_name ~root name =
       then raise_s [%message "already there" file])
 ;;
 
-(* each pin the scaffold's firmware and decoder use, with its analyser channel and the
-   rest of its net, for step 10 *)
+(* The pins the scaffold uses, with their analyser channel and net, for step 10. *)
 let nets ~channels =
   List.mapi channels ~f:(fun i channel ->
     let pin = default_pin + i in

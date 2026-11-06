@@ -34,7 +34,7 @@ let clocked_arg =
     | _ -> raise_s [%message "CLOCK,DATA"])
 ;;
 
-(* The firmware, run on the model and read back, then the files the host takes. *)
+(* Runs the firmware on the model, reads it back, then writes the files the host uses. *)
 let speak ~clock_hz ~pins ~value ~repeat ~out (learned : Learn.t) =
   let open Or_error.Let_syntax in
   let%bind field, message = Learn.new_message ?value learned in
@@ -67,7 +67,7 @@ let speak ~clock_hz ~pins ~value ~repeat ~out (learned : Learn.t) =
   let got = List.map read ~f:(fun (f : Learn.Frame.t) -> f.kind, f.bits) in
   let show l = List.map l ~f:(fun (k, b) -> k, bits_string b) in
   let timed = firmware.timed in
-  (* what the chip checks the firmware against before it starts it *)
+  (* the certificate the chip checks before it starts the firmware *)
   let%bind certificate =
     Load_check.of_table
       ~config:(Timed_program.config timed)

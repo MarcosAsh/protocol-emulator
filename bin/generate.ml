@@ -149,7 +149,7 @@ let kernel_rtl_command =
           C.create_exn ~name (Kernel.hierarchical scope))]
 ;;
 
-(* The same wiring as [Kernel.hierarchical] and [Kernel.Accepts.hierarchical], over gates. *)
+(* Wired like [Kernel.hierarchical] and [Kernel.Accepts.hierarchical], but over gates. *)
 let kernel_gates_command =
   Command.basic
     ~summary:
@@ -239,8 +239,8 @@ let kernel_gates_command =
         print_string (A.to_aiger outputs)]
 ;;
 
-(* What [Kernel.check] and [Osr_kernel.check] decide of a row, over gates, a port a field,
-   so a mutant whose rows change width differs in its ports. *)
+(* What [Kernel.check] and [Osr_kernel.check] decide about a row, over gates. Every field
+   gets its own port, so a mutant that changes a row's width shows up as a port change. *)
 let check_gates_command =
   Command.basic
     ~summary:
@@ -435,7 +435,7 @@ let load_check_step_rtl_command =
           C.create_exn ~name (Load_check.Step.hierarchical scope))]
 ;;
 
-(* [FIELD=VALUE] over the record's sexp, so every field goes by its own name *)
+(* Parses [FIELD=VALUE], going through the record's sexp so fields keep their names. *)
 let config_field =
   Command.Arg_type.create (fun text ->
     match String.lsplit2 text ~on:'=' with
@@ -443,7 +443,7 @@ let config_field =
     | None -> raise_s [%message "expected FIELD=VALUE" (text : string)])
 ;;
 
-(* [Asm.Program.configure] takes these from the source, so a flag could not set them. *)
+(* [Asm.Program.configure] reads these from the source, so a flag can't set them. *)
 let from_source = [ "side_set_count"; "wrap_bottom"; "wrap_top" ]
 
 let set_fields config fields =
@@ -470,8 +470,8 @@ let set_fields config fields =
     |> Program_config.t_of_sexp
 ;;
 
-(* The capture pin and autopull belong to the configuration, which the host loads and a
-   source file does not carry. *)
+(* The capture pin and autopull live in the configuration the host loads, not in the
+   source file. *)
 let program_config =
   [%map_open.Command
     let fields =
@@ -504,8 +504,8 @@ let program_config =
       fields]
 ;;
 
-(* The assumptions are the analyser's, under its names. Gives the analyser's rows under
-   them, checked unless [-no-timing-check], the verdicts going to [verdicts]. *)
+(* The flags are the analyser's assumptions under the analyser's names. Checks the rows
+   against them unless [-no-timing-check] is set, and writes the verdicts to [verdicts]. *)
 let timing_check =
   [%map_open.Command
     let period =
@@ -737,10 +737,10 @@ let self_check_command =
           exit 1]
 ;;
 
-(* What the host loads beside the words, and the window it may check the verdicts against,
-   one [name value] per line for the cocotb test to read. *)
+(* Prints what the host loads besides the words, and the window it may check verdicts
+   against, as one [name value] per line for the cocotb test. *)
 let predicate_settings (firmware : Predicate.Firmware.t) =
-  (* every field, named as the host's config registers are, so none falls back *)
+  (* destructure every field so a new one fails to compile here *)
   let { Program_config.side_set_count
       ; side_set_base
       ; side_set_pindirs

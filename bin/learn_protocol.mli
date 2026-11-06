@@ -1,5 +1,5 @@
-(** [learn RECORDING]: the protocol a recording's transmitter speaks, as [Learn] finds it,
-    or why it cannot say. *)
+(** [learn RECORDING] prints the protocol the recording's transmitter speaks, or says why
+    it can't tell. *)
 
 open! Core
 
