@@ -1,16 +1,19 @@
 // Value lemma, beside edge_step.sv: at every issue of a word the ISA decodes, the ISA's
-// value (ISA.md and machine.ml, restated here, not taken from the core) reaches the osr,
+// value (ISA.md and machine.ml, restated here and not taken from the core) reaches the osr,
 // isr, their counts, the data pointer, the CRC's send flag, underflow, overflow, the fifo
-// pops and pushes, and the pins, pindirs, x, y, p or t the word writes, as does a
-// Manchester bit's second half at the next issue. Pins.write of that value on the pins
-// holds only for a config written while halted, which edge_step.sv takes; one changed
-// mid-run the host port never makes (host_spacing.sv). Trusted: x, y, now, capture and
-// crc where read (their other updates are left to the engine's tests); the fifos' head,
-// empty and full (fifo_order.sv);
-// data_word as the memory's word at data_ptr; and when the core issues, and that these
-// registers move at no other time (phase_step.sv, edge_step.sv, config written while
-// halted); and, under a line code, the table's bit, level and drop (test_line_code.ml). A
-// routed push goes to the next engine, whose fifo's full the core reads instead. Host,
+// pops and pushes, and whichever of pins, pindirs, x, y, p or t the word writes. A
+// Manchester bit's second half gets its value at the next issue. Pins.write of that value
+// on the pins only holds for a config written while halted, which edge_step.sv takes; the
+// host port never changes one mid-run (host_spacing.sv).
+// Trusted:
+//   - x, y, now, capture and crc where they are read (their other updates are left to the
+//     engine's tests)
+//   - the fifos' head, empty and full (fifo_order.sv)
+//   - data_word as the memory's word at data_ptr
+//   - when the core issues, and that these registers move at no other time (phase_step.sv,
+//     edge_step.sv, config written while halted)
+//   - under a line code, the table's bit, level and drop (test_line_code.ml)
+// A routed push goes to the next engine, whose fifo's full the core reads instead. Host,
 // pins, clear, config, the line table, premises and the next engine are otherwise free
 // every cycle, and the chip has no debugger. A count above 16 acts as 16, as in Pins.
 
@@ -48,7 +51,7 @@ module value_step (input clk);
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
 
-  // the top clears the engine at power-on and whenever its reset comes again
+  // the top clears the engine at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -118,8 +121,8 @@ module value_step (input clk);
     .eng_data_moved(data_moved), .eng_line_bit(line_bit), .eng_line_drop(line_drop),
     .eng_line_level(line_level));
 
-  // an issue, as the model's step has it: running, the delay run out, no start in flight,
-  // which the core takes only while halted
+  // an issue, as the model's step has it: running, the delay run out, and no start in
+  // flight (the core only takes one while halted)
   wire start_taken = start && halted;
   reg started = 0;
   always @(posedge clk) started <= !clear && start_taken;
@@ -202,7 +205,7 @@ module value_step (input clk);
 `else
   wire pull_due = autopull && osr_count >= pull_threshold;
 `endif
-  // the data memory is time-sliced, so a pointer moved last cycle has no word yet
+  // the data memory is time-sliced, so a pointer that moved last cycle has no word yet
   // (the model's data_age below data_settle)
   reg moved = 0;
 `ifdef DATA_NEVER_REFUSED
@@ -213,7 +216,7 @@ module value_step (input clk);
   wire pull_misses = autopull_data ? refused : tx_empty;
   wire [15:0] osr_from = !pull_due || pull_misses ? osr : autopull_data ? data_word : tx_head;
   wire [4:0] count_from = pull_due ? 5'd0 : osr_count;
-  // a single bit out of a sending CRC: its LSB if reflected, else its top bit
+  // a single-bit out of a sending CRC: its LSB if reflected, else its top bit
   wire [5:0] crc_top = crc_width - 6'd1;
   wire crc_bit = crc_reflect ? crc[0] : crc_top >= 31 ? crc[31] : crc[crc_top[4:0]];
   wire crc_sends = crc_sending && n == 1;
@@ -332,7 +335,7 @@ module value_step (input clk);
   // Pins.write takes only pins that drive (5 and up) or turn around (12 to 19)
   localparam [31:0] OUTPUTS = 32'h0fffffe0;
   wire manchester_bit = outs && target == 0 && manchester && n == 1;
-  // a line-coded bit drives the table's level and its complement, out_count wide to 2
+  // a line-coded bit drives the table's level and its complement, out_count wide, up to 2
   wire line_out = outs && target == 0 && line_code && !manchester && n == 1;
   wire [4:0] line_width = out_count >= 2 ? 5'd2 : out_count;
   wire [31:0] run_out =
@@ -350,7 +353,7 @@ module value_step (input clk);
     : line_out ? {14'd0, !line_level, line_level}
     : value, out_base);
 
-  // a Manchester bit's second half, owed from the out to the next issue
+  // a Manchester bit's second half, owed from the out until the next issue
   reg owed = 0, owed_bit = 0;
   reg [4:0] owed_base = 0;
   always @(posedge clk)
@@ -360,7 +363,7 @@ module value_step (input clk);
       owed_bit <= out_bits[0];
       owed_base <= out_base;
     end else if (issue) owed <= 0;
-  // the flip lands at the out_base of the issue that shows it, not of the out
+  // the flip lands at the out_base of the issue that shows it, not the out's
 `ifdef FLIP_AT_OUTS_BASE
   wire [4:0] flip_base = owed_base;
 `else
@@ -371,7 +374,7 @@ module value_step (input clk);
 `else
   wire [15:0] second_half = {14'd0, !owed_bit, owed_bit};
 `endif
-  // the flip yields to side-set (none on a jump or undecoded word), set and the run
+  // the flip gives way to side-set (none on a jump or undecoded word), set and the run
   wire [31:0] side_run =
       go && opcode != 0 && !side_set_pindirs
     ? place(mask({3'd0, side_set_count}), side_set_base) : 32'd0;
@@ -487,7 +490,7 @@ module value_step (input clk);
     last_pin_out <= pin_out;
     last_pin_dir <= pin_dir;
   end
-  // a pin of the word's own run moved, not one its side-set or a Manchester flip moved
+  // a pin of the word's own run moved, not one that its side-set or a Manchester flip moved
   wire moved_out = ((pin_out ^ last_pin_out) & last_run_out) != 0;
   wire moved_dir = ((pin_dir ^ last_pin_dir) & last_run_dir) != 0;
   wire out_pins = last_outs && last_target == 0 && !last_manchester_bit;

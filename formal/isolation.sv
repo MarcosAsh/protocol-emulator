@@ -1,18 +1,20 @@
 // Engine 0 cannot tell what engine 1 or engine 1's host does. Two copies of the two-engine
-// chip as built, starts gated, share the clear, the pads and all of engine 0's inputs;
-// engine 1's are free in each. From the first clear on, engine 0's pins and what the host
-// reads of it, its check's verdict too, agree, by induction on engine 0's flops
-// (isolation.tcl), the frame receivers' when engine 0 owns them, and the load checker's
-// while neither copy has walked engine 1 since engine 0's last check. The data memory's
-// turns are proved to hide engine 1's reads, and the checker's fixed
-// turns its checks; the assumptions below close the other channels, and a tooth drops
-// each. Five are premises on how the chip is used, not channels it closes: no routed
-// pushes between the two (ROUTED), no start of every engine at once (START_ALL), the
-// receivers' words above engine 0's region while engine 1 owns them (FRAME_IN_REGION),
-// no load by engine 1's host while a word engine 0's receiver took waits to land
-// (LOAD_PENDING), and engine 0's certificate in its region (CERT_OUTSIDE). The owner is
-// fixed. The teeth that need engine 0 running drop the gate, as a certified start takes a
-// full walk.
+// chip as built, with starts gated, share the clear, the pads and all of engine 0's inputs;
+// engine 1's inputs are free in each. From the first clear on, engine 0's pins and what the
+// host reads of it (its check's verdict too) agree. This is by induction on engine 0's
+// flops (isolation.tcl), the frame receivers' when engine 0 owns them, and the load
+// checker's while neither copy has walked engine 1 since engine 0's last check. The data
+// memory's turns are proved to hide engine 1's reads, and the checker's fixed turns fix its
+// checks. The assumptions below close the other channels, and a tooth drops each.
+// Five of them are premises on how the chip is used, not channels it closes:
+//   - no routed pushes between the two (ROUTED)
+//   - no start of every engine at once (START_ALL)
+//   - the receivers' words above engine 0's region while engine 1 owns them (FRAME_IN_REGION)
+//   - no load by engine 1's host while a word engine 0's receiver took waits to land
+//     (LOAD_PENDING)
+//   - engine 0's certificate in its region (CERT_OUTSIDE)
+// The owner is fixed. The teeth that need engine 0 running drop the gate, because a
+// certified start takes a full walk.
 
 `include "pairs.sv"
 
@@ -54,7 +56,7 @@ typedef struct packed {
   logic [15:0] line_data;
 } host_t;
 
-// the load checker's settings, the chip's and not an engine's
+// the load checker's settings, which belong to the chip, not an engine
 typedef struct packed {
   logic [8:0] base;
   logic loaded_valid;
@@ -99,7 +101,7 @@ typedef struct packed {
   logic [4:0] reason;
 } verdict_t;
 
-// One copy, its macros pulled out, and what the miter reads of it.
+// One copy, with its macros pulled out, and what the miter reads of it.
 module isolation_copy (
   input clk, clear,
   input [19:0] pads,
@@ -227,10 +229,10 @@ module isolation_copy (
   assign pending = frame_pending || usb_pending;
 endmodule
 
-// The data memory of each copy, as the register its reads fill. Both read the same word
-// alike where it is engine 0's region, whose words agree in both copies since each write
-// into it lands in both alike, which the miter asserts. One word, at probe, is held as
-// each copy has it, so a write landing in one copy alone can reach engine 0's pins.
+// The data memory of each copy, as the register its reads fill. Both copies read the same
+// word where it is in engine 0's region. Its words agree in both copies, because each write
+// into it lands in both alike, which the miter asserts. One word, at probe, is held as each
+// copy has it, so a write that lands in one copy alone can reach engine 0's pins.
 module data_pair (
   input clk,
   input first,
@@ -354,13 +356,13 @@ module isolation (input clk);
   `COPY(a)
   `COPY(b)
 
-  // engine 0's walk, and the words from its base it has read past, as a rotated mask
+  // engine 0's walk, and the words from its base that it has read past, as a rotated mask
   wire walk_0_a = checking_a && !checked_a, walk_0_b = checking_b && !checked_b;
   wire [1023:0] below_span = (1024'd1 << walk_span_a) - 1'd1;
   wire [1023:0] walked = {below_span[511:0], below_span[511:0]} << walk_base_a;
 
-  // engine 0's program is the same in both (powerup.sv's premise); engine 1's words are
-  // free in each
+  // engine 0's program is the same in both (powerup.sv's premise), while engine 1's words
+  // are free in each
   sram_pair program_0 (
     .clk(clk), .first(!cleared),
     .ports_a({port_0_a.men, port_0_a.wen, port_0_a.ren, port_0_a.addr == port_0_b.addr,
@@ -398,8 +400,8 @@ module isolation (input clk);
   wire arms = opcode == 7 && instruction_a[3:0] == 7;
 
   always @* if (cleared) begin
-    // Engine 0 reads only pins in listens: each word it runs, and its capture pin as it
-    // arms, while armed, and while it watches a single-edge premise.
+    // Engine 0 only reads pins in listens: for each word it runs, for its capture pin as it
+    // arms and while armed, and while it watches a single-edge premise.
     if (waits_on_pin) assume (((32'd1 << instruction_a[4:0]) & ~listens) == 0);
     if (jumps_on_pin) assume ((pin(config_0.jmp_pin) & ~listens) == 0);
     if (ins_pins) assume ((window(config_0.in_base, instruction_a[4:0]) & ~listens) == 0);
@@ -409,7 +411,7 @@ module isolation (input clk);
     if (movs_pins) assume ((window(config_0.in_base, config_0.in_count) & ~listens) == 0);
     if (capture_armed_a || arms || holding_a)
       assume ((pin(config_0.capture_pin) & ~listens) == 0);
-    // Engine 1 is not heard there: it drives no pad direction and no wire level among
+    // Engine 1 is not heard there. It drives no pad direction and no wire level among
     // them, which the frame lemma gives when its footprint misses them.
 `ifndef HEARD
     assume (((pin_out_1_a | pin_out_1_b) & WIRES & listens) == 0);
@@ -425,34 +427,35 @@ module isolation (input clk);
     if (host_1_a.data_valid) assume (!region[host_1_a.data_addr]);
     if (host_1_b.data_valid) assume (!region[host_1_b.data_addr]);
 `endif
-    // Data writes land only while both engines are halted and the checker walks no other
-    // engine, so the host writes engine 0's only while engine 1 is halted and not walked.
+    // Data writes only land while both engines are halted and the checker is walking no
+    // other engine, so the host only writes engine 0's while engine 1 is halted and not
+    // being walked.
 `ifndef LOAD_ANYTIME
     if (host_0.data_valid)
       assume (halted_1_a && halted_1_b && !(checking_a && checked_a)
               && !(checking_b && checked_b));
 `endif
-    // No data write lands in the cycle engine 0 starts or the next, while its pointer
-    // waits for the word at 0.
+    // No data write lands in the cycle engine 0 starts or the next, while its pointer waits
+    // for the word at 0.
 `ifndef START_WRITE
     if (host_0.start || started_a) assume (!port_data_a.wen && !port_data_b.wen);
 `endif
-    // Neither engine routes its pushes to the other, a channel by design.
+    // Neither engine routes its pushes to the other, which would be a channel by design.
 `ifndef ROUTED
     assume (!config_0.route && !config_1_a.route && !config_1_b.route);
 `endif
-    // No start of every engine at once, which waits for engine 1 to halt.
+    // No start of every engine at once, since that waits for engine 1 to halt.
 `ifndef START_ALL
     assume (!start_all);
 `endif
-    // The receivers' words land from their base up, so a base above engine 0's region
-    // keeps every word of a frame, of any length, out of it. Engine 0's own receivers land
-    // their words in both copies alike, anywhere.
+    // The receivers' words land from their base up, so a base above engine 0's region keeps
+    // every word of a frame, of any length, out of it. Engine 0's own receivers land their
+    // words in both copies alike, anywhere.
 `ifndef FRAME_IN_REGION
     if (owner) assume ((region >> frame.base) == 0);
 `endif
-    // A host load takes the data memory's port, so engine 1's would put off a word engine
-    // 0's receiver has waiting.
+    // A host load takes the data memory's port, so engine 1's would delay a word that
+    // engine 0's receiver has waiting.
 `ifndef LOAD_PENDING
     if (!owner && pending_a) assume (!host_1_a.data_valid && !host_1_b.data_valid);
 `endif
@@ -464,7 +467,7 @@ module isolation (input clk);
       assume ((walked[1023:512] & ~region) == 0);
     end
 `endif
-    // Engine 0's config changes only while it is halted, as the host port writes it.
+    // Engine 0's config only changes while it is halted, as the host port writes it.
     if (!status_a.halted) assume (config_0 == last_config_0);
   end
 
@@ -505,8 +508,9 @@ module isolation (input clk);
       if (port_data_a.wen && region[port_data_a.addr])
         assert (port_data_a.addr == port_data_b.addr && port_data_a.din == port_data_b.din
                 && port_data_a.bm == port_data_b.bm);
-      // the word engine 0 streams agrees while it runs pulling data, as a write takes its
-      // turn only where it keeps its word and skips the read, and as it starts once read
+      // the word engine 0 streams agrees while it runs pulling data, because a write only
+      // takes its turn where it keeps its word and skips the read, and because it starts
+      // once read
       if (!status_a.halted && config_0.autopull_data) begin
         assert (data_word_a == data_word_b);
         // and whether it keeps a word, and where, so a write takes its turn in both alike
@@ -518,16 +522,16 @@ module isolation (input clk);
         assert (data_mine_a == data_mine_b);
         if (data_mine_a) assert (data_word_a == data_word_b);
       end
-      // The checker runs engine 0's walks alike in both, engine 1's as each copy has them:
-      // a walk runs in its engine's turn, and none at a turn's start.
+      // The checker runs engine 0's walks alike in both, and engine 1's as each copy has
+      // them. A walk runs in its engine's turn, and none runs at a turn's start.
       if (checking_a) assert (checked_a == chosen_a);
       if (checking_b) assert (checked_b == chosen_b);
       if (turn_starts_a) assert (!checking_a && !checking_b);
       assert (walk_0_a == walk_0_b);
       if (finished_a && !checked_a || finished_b && !checked_b)
         assert (finished_a && finished_b && !checked_a && !checked_b);
-      // the checker's flops alike while neither copy has walked engine 1 since engine 0's
-      // check, its words and rows from its write of them (load_checker_pair)
+      // the checker's flops agree while neither copy has walked engine 1 since engine 0's
+      // check, along with its words and rows from the point it writes them (load_checker_pair)
       if (!checked_a && !checked_b) begin
         assert (checker_a == checker_b);
         if (load_checker_a.sm > 3) assert (word_class_a == word_class_b);
@@ -541,10 +545,10 @@ module isolation (input clk);
     .check(cleared && !checked_a && !checked_b), .a(load_checker_a), .b(load_checker_b));
 `endif
 
-  // Engine 0 moves a pin while engine 1 drives differently in the copies, and ten cycles
-  // into a run; reads pins while engine 1 drives other pads differently; pulls a data word
-  // while engine 1 runs in one copy alone; and runs on after a data write landed in one
-  // copy alone.
+  // Covers: engine 0 moves a pin while engine 1 drives differently in the copies, ten cycles
+  // into a run; engine 0 reads pins while engine 1 drives other pads differently; it pulls a
+  // data word while engine 1 runs in one copy alone; and it runs on after a data write
+  // landed in one copy alone.
   reg [31:0] last_pin_out;
   reg [8:0] last_data_addr;
   reg written_apart = 0;
