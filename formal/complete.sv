@@ -1,9 +1,10 @@
 // The load checker's verdict is Load_check.walk's, for any program, configuration, setup
-// and certificate: the walk, a pc at a time over load_check_step (the kernel's conjuncts on
-// whole rows), steps as the checker leaves each pc; when the checker finishes, it has its
-// verdict, reject pc and reason; and while it walks, a rank falls every cycle, so it ends.
-// Program and data memory hold still; a data word is free until its address has held two
-// cycles (data_memory.mli). No abort: gate.sv covers a walk cut short.
+// and certificate. The walk goes a pc at a time over load_check_step (the kernel's
+// conjuncts on whole rows), and steps as the checker leaves each pc. When the checker
+// finishes, it has the walk's verdict, reject pc and reason. While it walks, a rank falls
+// every cycle, so it ends. Program and data memory hold still, and a data word is free until
+// its address has held two cycles (data_memory.mli). There is no abort; gate.sv covers a
+// walk cut short.
 
 module complete (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -60,9 +61,9 @@ module complete (input clk);
   wire [15:0] fell_period_lo, fell_period_hi, fell_x_lo, fell_x_hi, fell_y_lo, fell_y_hi;
   wire fell_captured, fell_awaiting;
 
-  // Rows as Kernel.Row packs them, its first field at the top: the phase, the slope, the
-  // offset, the period, x, y, the arm, the captured and awaiting bits, then the pins. The
-  // checker keeps no slope and no pins, as every row it holds has them the full row's.
+  // Rows as Kernel.Row packs them, first field at the top: the phase, slope, offset, period,
+  // x, y, arm, the captured and awaiting bits, then the pins. The checker keeps no slope and
+  // no pins, because every row it holds has the full row's.
   localparam [439:0] FULL = 440'h8000007fffff0000008000007fffff0000ffff0000ffff0000ffff000000ffffff20001000000400020000004000200000080004000000;
   localparam [439:0] EMPTY = 440'h10000000000008000007fffff00000000000000000000000000000000000020001000000400020000004000200000080004000000;
   localparam [47:0] WHOLE_PHASE = 48'h8000007fffff, WHOLE_ARM = 48'h000000ffffff;
@@ -87,10 +88,11 @@ module complete (input clk);
       : f == 3 ? {16'h0, r[287:256]} : {16'h0, r[255:224]};
   endfunction
 
-  // The program, and the certificate in the data memory, as the checker reads them: a
-  // program word a cycle after its address; a data word anything until its address has
-  // held two cycles, then the memory's. No read of the data memory takes its address from
-  // another: each comes from a register (smt2 sees a loop through the memory otherwise).
+  // The program, and the certificate in the data memory, as the checker reads them. A
+  // program word arrives a cycle after its address. A data word is anything until its
+  // address has held two cycles, then the memory's. No read of the data memory takes its
+  // address from another one; each comes from a register (smt2 would see a loop through the
+  // memory otherwise).
   reg [15:0] prog [0:511];
   reg [15:0] data [0:511];
   (* anyseq *) wire [15:0] any_data;
@@ -153,11 +155,11 @@ module complete (input clk);
     .fell_x_lo(fell_x_lo), .fell_x_hi(fell_x_hi), .fell_y_lo(fell_y_lo),
     .fell_y_hi(fell_y_hi), .fell_captured(fell_captured), .fell_awaiting(fell_awaiting));
 
-  // The certificate's layout, as load_check.mli gives it and Load_check.walk reads it: from
-  // the base, the counts, three words an entry, the wide dictionary, three words an
-  // interval, then the narrow one, two words an interval. An entry packs its pc, the
-  // captured and awaiting bits and indices for the phase, arm, period, x and y, index 0 the
-  // whole range.
+  // The certificate's layout, as load_check.mli gives it and Load_check.walk reads it. From
+  // the base: the counts, then the entries (three words each), the wide dictionary (three
+  // words an interval), and the narrow one (two words an interval). An entry packs its pc,
+  // the captured and awaiting bits, and indices for the phase, arm, period, x and y, where
+  // index 0 is the whole range.
   wire [15:0] count_word = data[base], wide_count_word = data[base + 9'd1];
   reg [7:0] r_count, r_wide_count;
   wire [8:0] entries_at = base + 9'd2;
@@ -179,7 +181,7 @@ module complete (input clk);
       narrow_of = index == 0 ? WHOLE_NARROW : {data[at], data[at + 9'd1]};
     end
   endfunction
-  // an entry's row, its fields from f on still whole: Load_check.walk's decode at f = 5
+  // an entry's row with its fields from f on still whole: Load_check.walk's decode at f = 5
   function [439:0] decode(input [47:0] e, input [2:0] f);
     decode = pack(f > 0 ? wide_of(e[36:30], WHOLE_PHASE) : WHOLE_PHASE,
       f > 1 ? wide_of(e[29:23], WHOLE_ARM) : WHOLE_ARM,
@@ -190,7 +192,7 @@ module complete (input clk);
   reg [8:0] r_pc;
   reg [439:0] r_row;
   reg [7:0] r_ptr;
-  // the walk's verdict, once it has one: accepted, the pc it refuses at and why
+  // the walk's verdict, once it has one: accepted, the pc it refuses at, and why
   reg r_has_verdict, r_accepted;
   reg [9:0] r_reject_pc;
   reg [4:0] r_why;
@@ -204,10 +206,11 @@ module complete (input clk);
   wire [15:0] r_word = prog[r_pc];
   wire [439:0] r_stored_row = decode(r_entry, 3'd5);
   wire [8:0] r_next_pc, r_target_pc;
-  // The walk's lookups at r_pc, of its successor (n) and target (t): its binary search
-  // over the entries, a probe as the checker makes one, the walk being the same whenever
-  // it probes. The full row at pc 0, the entry's row on a hit, the empty row once the
-  // search ends with none; a lookup not made is any row, which the walk must not need.
+  // The walk's lookups at r_pc, of its successor (n) and target (t). Each is a binary search
+  // over the entries, with a probe made as the checker makes one; the walk is the same
+  // whenever it probes. The result is the full row at pc 0, the entry's row on a hit, or the
+  // empty row once the search ends with none. A lookup that isn't made gives any row, which
+  // the walk must not need.
   reg [7:0] r_t_lo, r_t_hi, r_t_sel, r_n_lo, r_n_hi, r_n_sel;
   reg r_t_hit, r_n_hit;
   reg [47:0] r_t_entry, r_n_entry;
@@ -259,9 +262,9 @@ module complete (input clk);
   // the checker leaves a pc it passed, with the next pc's row
   wire leaves = passes && !stored || sm == FIELD && field == 5 && purpose == RELOADING;
   // The walk decides as the checker does: an entry out of order at the head, then the
-  // conjuncts once the lookups are made; past the last pc, accepted with every entry
-  // consumed, else refused at pc 512. Reasons: the first failing conjunct's index in
-  // Kernel.Conjuncts.to_list, an entry out of order 30, one left over 31.
+  // conjuncts once the lookups are made. Past the last pc it accepts if every entry was
+  // consumed, and otherwise refuses at pc 512. The reason is the first failing conjunct's
+  // index in Kernel.Conjuncts.to_list, 30 for an entry out of order and 31 for one left over.
   wire heads = sm == HEAD && (ptr >= count || read_done);
   wire decides = heads && r_out_of_order || sm == CHECK_NEXT && (r_out_of_order || r_fails);
 
@@ -326,9 +329,9 @@ module complete (input clk);
               && (accepted || reject_pc == r_reject_pc && reason == r_why));
   end
 
-  // And it ends: a rank falls every cycle of a walk. From the top, the pcs left, the stage
-  // at a pc, the part of a lookup, the probes, words or fields left in it, the words left
-  // in a field, and the cycles left of a read.
+  // And it ends, because a rank falls every cycle of a walk. From the top, the rank is: the
+  // pcs left, the stage at a pc, the part of a lookup, the probes, words or fields left in
+  // it, the words left in a field, and the cycles left of a read.
   wire [3:0] stage = sm == HEADER ? 4'd15 : sm == WORD ? 4'd14 : sm == HEAD ? 4'd13
     : sm == TARGET ? 4'd12 : sm == FOLLOWING ? 4'd10 : sm == CHECK_NEXT ? 4'd8
     : sm == FINISH ? 4'd0 : purpose == FOR_TARGET ? 4'd11 : purpose == RELOADING ? 4'd7
@@ -365,7 +368,7 @@ module complete (input clk);
   wire [9:0] way_holds = purpose == FOR_TARGET ? r_target : r_next;
   wire [9:0] failed_way = purpose == FOR_TARGET ? failed_target : failed_next;
   // the conjuncts each field checks, in Kernel.Holds order: phase, offset, period, x, y,
-  // arm, captured, awaiting, edge_a, edge_b; y's takes the rest
+  // arm, captured, awaiting, edge_a, edge_b. y's check takes the rest.
   function [9:0] checks(input [2:0] f);
     checks = f == 0 ? 10'b1000000000 : f == 1 ? 10'b0000010000 : f == 2 ? 10'b0010000000
       : f == 3 ? 10'b0001000000 : f == 4 ? 10'b0100101111 : 10'b0;
@@ -377,7 +380,7 @@ module complete (input clk);
       for (n = 0; n < 5; n = n + 1) if (n < f) checked_below = checked_below | checks(n);
     end
   endfunction
-  // whether a pc checks each way: the target where it jumps past pc 0, the next row
+  // whether a pc checks each way: the target where it jumps past pc 0, and the next row
   // where it falls through or goes past pc 0
   wire checks_target = is_jump && jump_target != 0;
   wire checks_next = falls_to_next || following != 0;
@@ -438,7 +441,7 @@ module complete (input clk);
     if (sm == SEARCH && purpose == FOR_TARGET) assert (lo == r_t_lo && hi == r_t_hi && !r_t_hit);
     if (sm == SEARCH && purpose == FOR_FOLLOWING)
       assert (lo == r_n_lo && hi == r_n_hi && !r_n_hit);
-    // before a way's lookup, the walk's search for it is where it starts
+    // before a way's lookup, the walk's search for it is at its start
     if (sm == HEADER || sm == WORD || sm == HEAD || sm == TARGET
         || purpose == FOR_TARGET && (sm == SEARCH || sm == ENTRY || looping) || sm == FOLLOWING)
       assert (r_n_lo == 0 && r_n_hi == r_count && !r_n_hit);
@@ -451,7 +454,7 @@ module complete (input clk);
                          && r_n_sel < r_count);
     if (busy) assert (r_t_lo <= r_t_hi && r_t_hi <= r_count
                                       && r_n_lo <= r_n_hi && r_n_hi <= r_count);
-    // after the target's lookup, and the successor's, each ended
+    // after the target's lookup and the successor's have each ended
     if (checks_target && (sm == FOLLOWING || sm == CHECK_NEXT || reloads || purpose != FOR_TARGET
         && purpose != RELOADING && (sm == SEARCH || sm == ENTRY || looping)))
       assert (r_t_hit || r_t_lo >= r_t_hi);
@@ -477,7 +480,7 @@ module complete (input clk);
     if (sm == ENTRY && k == 2'd2) assert (entry[31:0] == sel_entry[47:16]);
     if (looping && source == DICTIONARY) assert (entry == sel_entry);
     if (looping) assert (field <= (reloads ? 3'd5 : 3'd4));
-    // a field's words from the dictionary named, as the walk decodes them
+    // a field's words from the named dictionary, as the walk decodes them
     if (looping && source != DICTIONARY) assert (k == 0 && !reading);
     if (sm == CHECK) assert (!reading);
     if (sm == FIELD && source == DICTIONARY) begin

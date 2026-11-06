@@ -1,24 +1,24 @@
-// Power-up is deterministic. Two copies of the chip start from independent arbitrary states,
-// every flop and fifo word, and see the same pins every cycle, rst_n low at the first edge
-// and free after it. From the cycle after that edge on, their pins and their three SRAM
-// macros' inputs are equal, forever.
+// Power-up is deterministic. Two copies of the chip start from independent arbitrary states
+// (every flop and fifo word) and see the same pins every cycle, with rst_n low at the first
+// edge and free after it. From the cycle after that edge on, their pins and their three SRAM
+// macros' inputs are equal forever.
 //
 // Premise: the two copies' macros hold the same words after the first edge. A macro is its
-// output register: a read takes a value, the same in both copies when both read the same
-// way after the first edge, and a free one in each otherwise. The copies' writes are
-// equal from then on, which is asserted, so the premise holds after it if it holds then.
-// With COLD a program macro's words are its own in each copy until its engine is first
-// started or lent to the load checker: the cores reset halted, and Host.load fills all 512
-// words before a check or a start. The
-// data memory keeps the premise, as nothing fills it. The havoc tasks' RTL
-// (powerup_havoc.awk) gives the words and read buffers of the host fifos and the edge
-// stamps any value while the fifo is cleared.
+// output register. A read takes a value, which is the same in both copies when both read the
+// same way after the first edge, and a free one in each otherwise. The copies' writes are
+// equal from then on, which is asserted, so the premise holds afterwards if it holds then.
+// With COLD, a program macro's words are its own in each copy until its engine is first
+// started or lent to the load checker. The cores reset halted, and Host.load fills all 512
+// words before a check or a start. The data memory keeps the premise, because nothing fills
+// it. The havoc tasks' RTL (powerup_havoc.awk) gives the words and read buffers of the host
+// fifos and the edge stamps any value while the fifo is cleared.
 //
-// By induction on an invariant, also asserted: the copies agree on every flop outside the
-// fifos and the load checker, on each macro's output from the second edge on, on the
-// words each fifo holds, the host's and the edge stamps' (fifo_pair), on the checker's
-// state and the words its walk has written (load_checker_pair), and on Both_edges'
-// falling flops from the falling edge after the first, which the clear reaches.
+// By induction on an invariant, which is also asserted. The copies agree on:
+//   - every flop outside the fifos and the load checker
+//   - each macro's output from the second edge on
+//   - the words each fifo holds, the host's and the edge stamps' (fifo_pair)
+//   - the checker's state and the words its walk has written (load_checker_pair)
+//   - Both_edges' falling flops from the falling edge after the first, which the clear reaches
 // powerup.tcl brings the flops out. Each clock edge is a step (multiclock). The teeth set
 // NO_INVARIANT, so they fail on the claim alone, from reset.
 
@@ -103,17 +103,17 @@ module powerup (input clk);
   fifo_pair #(.WORD(STAMP), .ADDR(2), .USED(3), .NEARLY(4)) stamps (
     .check(!first), .a(stamps_a), .b(stamps_b));
   load_checker_pair load_checker (.check(!first), .a(load_checker_a), .b(load_checker_b));
-  // the classes registered from the word, a cycle behind it, so the same from Target on, as
-  // the word is from Head on and only Word moves it
+  // the classes registered from the word, a cycle behind it, so they are the same from
+  // Target on, just as the word is from Head on, and only Word moves it
   always @* if (!first && load_checker_a.sm > 3) assert (word_class_a == word_class_b);
 `endif
 
-  // which macros hold the host's words, the same in both copies: all of them, unless COLD,
+  // which macros hold the host's words, the same in both copies (all of them unless COLD),
   // and whether a macro's output holds a read of them
   reg [2:0] read_loaded = 0;
 `ifdef COLD
-  // started (ran, running) apart from lent to the checker (borrowed, read_by), as only a
-  // start lets an engine fetch
+  // started (ran, running) is tracked apart from lent to the checker (borrowed, read_by),
+  // because only a start lets an engine fetch
   reg [1:0] ran = 0, borrowed = 0;
   wire [1:0] running = ran | (first ? 2'b00 : start_a);
   wire [1:0] read_by = borrowed | (first ? 2'b00 : lent_a);
@@ -150,15 +150,15 @@ module powerup (input clk);
     assert (din_a[0] == din_b[0] && din_a[1] == din_b[1] && din_a[2] == din_b[2]);
     assert (bm_a[0] == bm_b[0] && bm_a[1] == bm_b[1] && bm_a[2] == bm_b[2]);
   end
-  // the model above is the macro's with BIST off, as the RTL ties it
+  // the model above is the macro with BIST off, as the RTL ties it
   always @* assert (bist_a == 0 && bist_b == 0);
 
 `ifndef NO_INVARIANT
-  // the invariant beside fifo_pair; each macro reads every cycle, so from the second edge
-  // on its output holds a word the premise makes the same
+  // the invariant beside fifo_pair. Each macro reads every cycle, so from the second edge
+  // on its output holds a word that the premise makes the same
   always @* if (!first) assert (state_a == state_b);
-  // the clear holds until the second edge, and the falling flops' own, a cycle behind it,
-  // from the first, so the falling edge between clears them in both
+  // the clear holds until the second edge, and the falling flops' own clear, a cycle behind
+  // it, holds from the first, so the falling edge between them clears the falling flops in both
   reg fell = 0;
   always @(negedge clk) if (!first) fell <= 1;
   always @* if (first) assert (!fell);
@@ -171,8 +171,8 @@ module powerup (input clk);
       always @* if (warm && read_loaded[n]) assert (dout_a[n] == dout_b[n]);
     end
   endgenerate
-  // the flags only ever rise, and read_loaded is loaded as of the last edge, which an
-  // induction over half cycles (multiclock) would otherwise take as anything
+  // the flags only ever rise, and read_loaded is loaded as of the last edge; otherwise an
+  // induction over half cycles (multiclock) would take it as anything
 `ifdef COLD
   always @* if (!first) assert (read_loaded == {1'b1, ran | borrowed});
 `else
@@ -182,7 +182,7 @@ module powerup (input clk);
     assert (!warm || !first);
     assert ((read_loaded | loaded) == loaded);
 `ifdef COLD
-    // an engine leaves halted, and fetches, only on a start
+    // an engine only leaves halted, and fetches, on a start
     if (!first) begin
       assert ((running | halted_a) == 2'b11);
       assert ((running | started_a | refill_a) == running);

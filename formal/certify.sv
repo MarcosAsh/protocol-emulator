@@ -1,10 +1,10 @@
-// The load checker's walk, for any program, configuration, setup and certificate: an
+// The load checker's walk, for any program, configuration, setup and certificate. An
 // accepted walk checked every pc, a field at a time, against the rows it then holds at the
-// pc's successor and target, the full row at pc 0, each entry decoding as the layout below
-// gives; a missed lookup's empty row and a skipped lookup's full row are test_kernel.ml's.
-// Program memory, and each data word from the walk's first read of it, hold still through
-// an accepted walk, and no write takes its read (gate.sv), so it reads the memory as it
-// ends; a data word is free until its address has held two cycles.
+// pc's successor and target, and the full row at pc 0, with each entry decoding as the
+// layout below gives. A missed lookup's empty row and a skipped lookup's full row are
+// test_kernel.ml's. Program memory, and each data word from the walk's first read of it,
+// hold still through an accepted walk, and no write takes its read (gate.sv), so the walk
+// reads the memory as it ends. A data word is free until its address has held two cycles.
 
 module certify (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -19,7 +19,7 @@ module certify (input clk);
   // the pc the claims are about, and its word
   (* anyconst *) wire [8:0] g;
   (* anyconst *) wire [15:0] word_g;
-  // a lookup at g, its purpose, the target it looks up and the entry it may find
+  // a lookup at g: its purpose, the target it looks up, and the entry it may find
   (* anyconst *) wire look;
   (* anyconst *) wire [8:0] t;
   (* anyconst *) wire [7:0] gi;
@@ -28,7 +28,7 @@ module certify (input clk);
   reg clear = 1;
   always @(posedge clk) clear <= 0;
 `ifdef SHORT_WALK
-  // the walk ended at pc 1, so only g up to 1 is walked
+  // the walk ends at pc 1, so only g up to 1 is walked
   always @* assume (g <= 9'd1);
 `endif
 
@@ -66,8 +66,8 @@ module certify (input clk);
   wire [23:0] fell_phase_lo, fell_phase_hi, fell_arm_lo, fell_arm_hi;
   wire [15:0] fell_period_lo, fell_period_hi, fell_x_lo, fell_x_hi, fell_y_lo, fell_y_hi;
   wire fell_captured, fell_awaiting;
-  // rows in one layout: the phase, the slope and offset, the arm, the period, x and y,
-  // the captured and awaiting bits; the walk holds no slope and checks the offset as full
+  // rows in one layout: the phase, slope, offset, arm, period, x, y, and the captured and
+  // awaiting bits. The walk holds no slope and checks the offset as full.
   localparam [47:0] WHOLE_PHASE = 48'h8000007fffff, WHOLE_ARM = 48'h000000ffffff;
   localparam [31:0] WHOLE_NARROW = 32'h0000ffff;
   localparam [71:0] FULL_SLOPE_OFFSET = 72'h000000_800000_7fffff;
@@ -82,10 +82,10 @@ module certify (input clk);
     fell_arm_hi, fell_period_lo, fell_period_hi, fell_x_lo, fell_x_hi, fell_y_lo,
     fell_y_hi, fell_captured, fell_awaiting};
 
-  // A program word a cycle after its address. A data word is anything until its address
-  // has held two cycles, the most either engine's turn takes (data_memory.mli); read_at is
-  // registered, the same as data[data_at], so the memory's other reads below make no loop
-  // through it.
+  // A program word arrives a cycle after its address. A data word is anything until its
+  // address has held two cycles, the most either engine's turn takes (data_memory.mli).
+  // read_at is registered, the same as data[data_at], so the memory's other reads below
+  // make no loop through it.
   (* anyseq *) wire [15:0] any_data;
   reg [8:0] program_at, data_at, data_before;
   reg [15:0] data [0:511];
@@ -138,10 +138,11 @@ module certify (input clk);
     .fell_x_lo(fell_x_lo), .fell_x_hi(fell_x_hi), .fell_y_lo(fell_y_lo),
     .fell_y_hi(fell_y_hi), .fell_captured(fell_captured), .fell_awaiting(fell_awaiting));
 
-  // The certificate's layout, as load_check.mli gives it: from the base, the counts, three
-  // words an entry, the wide dictionary, three words an interval, then the narrow one, two
-  // words an interval. An entry packs its pc, the captured and awaiting bits and seven
-  // bit indices for the phase, arm, period, x and y, index 0 the whole range.
+  // The certificate's layout, as load_check.mli gives it. From the base: the counts, then
+  // the entries (three words each), the wide dictionary (three words an interval), and the
+  // narrow one (two words an interval). An entry packs its pc, the captured and awaiting
+  // bits, and seven bit indices for the phase, arm, period, x and y, where index 0 is the
+  // whole range.
   wire [8:0] entries_at = base + 9'd2;
   wire [8:0] wide_at = entries_at + 9'd3 * count;
   wire [8:0] narrow_at = wide_at + 9'd3 * wide_count;
@@ -162,19 +163,19 @@ module certify (input clk);
       narrow_of = index == 0 ? WHOLE_NARROW : {data[at], data[at + 9'd1]};
     end
   endfunction
-  // [r] with its fields from [f] on whole, the marks [r]'s
+  // [r] with its fields from [f] on whole; the marks are [r]'s
   function [265:0] upto(input [265:0] r, input [2:0] f);
     upto = {f > 0 ? r[265:218] : WHOLE_PHASE, r[217:146], f > 1 ? r[145:98] : WHOLE_ARM,
       f > 2 ? r[97:66] : WHOLE_NARROW, f > 3 ? r[65:34] : WHOLE_NARROW,
       f > 4 ? r[33:2] : WHOLE_NARROW, r[1:0]};
   endfunction
-  // a row field by field as the spec gives it, those from field on still whole
+  // a row built field by field as the spec gives it, with the fields from field on still whole
   function [265:0] spec_row(input [47:0] e, input [2:0] f);
     spec_row = upto({wide_of(e[36:30], WHOLE_PHASE), FULL_SLOPE_OFFSET,
       wide_of(e[29:23], WHOLE_ARM), narrow_of(e[22:16]), narrow_of(e[15:9]),
       narrow_of(e[8:2]), e[38], e[37]}, f);
   endfunction
-  // a row's field as the checker's acc holds it, and the row with that field set from it
+  // a row's field as the checker's acc holds it, and the row with that field set from acc
   function [47:0] field_of(input [265:0] r, input [2:0] f);
     field_of = f == 0 ? r[265:218] : f == 1 ? r[145:98] : f == 2 ? {16'h0, r[97:66]}
       : f == 3 ? {16'h0, r[65:34]} : {16'h0, r[33:2]};
@@ -185,9 +186,9 @@ module certify (input clk);
       f == 4 ? v[31:0] : r[33:2], r[1:0]};
   endfunction
 
-  // the interval the field being read names, and where it starts
-  // read from the checker's entry, which the claims hold to spec_entry, so that no read of
-  // the data memory takes its address from another
+  // the interval the field being read names, and where it starts. It is read from the
+  // checker's entry, which the claims hold to spec_entry, so no read of the data memory
+  // takes its address from another
   wire [6:0] cur_index = field == 0 ? entry[36:30] : field == 1 ? entry[29:23]
     : field == 2 ? entry[22:16] : field == 3 ? entry[15:9] : entry[8:2];
   wire cur_wide = field < 2;
@@ -198,16 +199,16 @@ module certify (input clk);
     FIELD = 7, CHECK = 8, FOLLOWING = 9, CHECK_NEXT = 10, FINISH = 11;
   localparam FOR_TARGET = 0, FOR_FOLLOWING = 1, STORING = 2, FALLING = 3, RELOADING = 4;
   localparam DICTIONARY = 0, EMPTY = 1, FALLEN = 2;
-  // reading the next pc's row in place of this pc's, once this pc has passed
+  // reading the next pc's row instead of this pc's, once this pc has passed
   wire reloads = purpose == RELOADING && (sm == ENTRY || sm == FIELD);
   wire looping = sm == FIELD || sm == CHECK;
-  // past g's check: reloading the row for g + 1, or finishing
+  // past g's check: either reloading the row for g + 1, or finishing
   wire after_check = sm == FINISH || reloads;
   wire begins = sm == IDLE && check;
   wire passes = sm == CHECK_NEXT && !next_fails && !target_fails;
 
-  // What the walk checked of a way, field by field: a check takes the field in acc, and
-  // the fields not yet checked are whole. Every check on a way is of one row, from the
+  // What the walk checked of a way, field by field. A check takes the field in acc, and the
+  // fields not yet checked are whole. Every check on a way is of one row, built from the
   // dictionaries by an entry, the empty row, or the fall through image.
   reg [47:0] checked_phase, checked_arm;
   reg [31:0] checked_period, checked_x, checked_y;
@@ -229,9 +230,9 @@ module certify (input clk);
     end
   wire [265:0] checked = {checked_phase, FULL_SLOPE_OFFSET, checked_arm, checked_period,
     checked_x, checked_y, checked_captured, checked_awaiting};
-  // the row checked once the field in acc is
+  // the row as checked once the field in acc is
   wire [265:0] checked_now = sm == CHECK ? with_field(checked, field, acc) : checked;
-  // the row the way's checks are of, and so far
+  // the row the way's checks are of, so far
   wire [265:0] way_row = source == EMPTY ? EMPTY_ROW : source == FALLEN ? fell
     : spec_row(entry, 5);
   // the way's field being checked
@@ -251,8 +252,8 @@ module certify (input clk);
       else seen_next[field] <= 1;
     end
 
-  // whether this walk passed g, whether g fell through, and the next row it checked, from
-  // the entry it held
+  // whether this walk passed g, whether g fell through, and the next row it checked, built
+  // from the entry it held
   reg passed = 0, fell_g = 0;
   reg [265:0] next_of_g;
   reg [47:0] next_entry_of_g;
@@ -267,14 +268,14 @@ module certify (input clk);
       next_entry_of_g <= entry;
     end
 
-  // entry gi as the layout has it, and its pc; and the entry at ptr's pc
+  // entry gi as the layout has it, and its pc, and the pc of the entry at ptr
   wire [47:0] entry_gi = three(entries_at + 9'd3 * gi);
   wire [8:0] tag_gi = entry_gi[47:39];
   wire [8:0] tag_ptr = data[entries_at + 9'd3 * ptr][15:7];
 
   // g's lookup found entry gi for t (hit), and the row it checked (looked_up, from entry
-  // looked_entry); the walk consumed entry gi (consumed), holding the row it read from
-  // entry consumed_entry; and the row the walk held at t (at_t)
+  // looked_entry). The walk consumed entry gi (consumed), holding the row it read from
+  // entry consumed_entry, and the row the walk held at t (at_t).
   wire finds = sm == SEARCH && purpose == {2'b0, look} && pc == g && lo < hi && read_done
     && entry_tag == key && mid == gi && key == t;
   wire consumes = stored && ptr == gi && sm == FIELD && field == 5 && purpose == RELOADING;
@@ -305,8 +306,8 @@ module certify (input clk);
       end
     end
 
-  // A pc's checks are on one row and word, those it decides on; a way's on one purpose
-  // and source. The data address is the walk's from the cycle before.
+  // A pc's checks are all on one row and word, the ones it decides on. A way's checks are
+  // on one purpose and source. The data address is the walk's from the cycle before.
   reg [3:0] sm_before;
   reg [2:0] purpose_before;
   reg [1:0] source_before;
@@ -338,9 +339,9 @@ module certify (input clk);
     if (busy) assert ({row_offset_lo, row_offset_hi} == FULL_SLOPE_OFFSET[47:0]);
     // the walk holds the full row at pc 0, whose lookups it skips
     if (busy && sm != FINISH && pc == 0 && !reloads) assert (row == FULL_ROW);
-    // a check takes each field of the way's row once, and a pc decides with them all: the
-    // target's but where it is no jump or jumps to pc 0, the next row's but where it does
-    // not fall through and goes to pc 0
+    // a check takes each field of the way's row once, and a pc decides with them all. The
+    // target's are skipped where it is no jump or jumps to pc 0, and the next row's are
+    // skipped where it doesn't fall through and goes to pc 0
     if (sm == CHECK)
       assert (field <= 4
               && !(purpose == FOR_TARGET ? seen_target[field] : seen_next[field]));
@@ -353,7 +354,7 @@ module certify (input clk);
     if (finished && accepted && hit) assert (read_it && held_t && at_t == looked_up);
     if (finished && accepted) assert (passed);
     // each entry decodes to the row the layout gives; a missed lookup checks the empty row,
-    // and a pc falling through with nothing stored the fall through image
+    // and a pc that falls through with nothing stored checks the fall through image
     if (sm == CHECK && field == 4 && source == DICTIONARY)
       assert (entry == spec_entry && checked_now == spec_row(entry, 5));
     if (sm == CHECK && field == 4 && source == EMPTY) assert (checked_now == EMPTY_ROW);
@@ -367,7 +368,7 @@ module certify (input clk);
       assert (ptr == 0 && pc == 0 && !consumed && !hit && !read_it && !held_t);
     if (sm == SEARCH) assert (lo <= hi && hi <= count && k == 0 && reading == (lo < hi));
     if (sm == SEARCH && lo < hi) assert (walk_addr == entries_at + 9'd3 * mid);
-    // the word count is 0 but while words are read
+    // the word count is 0 except while words are read
     if (busy && !(sm == HEADER || sm == WORD || sm == ENTRY || sm == FIELD)) assert (k == 0);
     if (sm == HEAD && ptr < count)
       assert (reading && walk_addr == entries_at + 9'd3 * ptr);
@@ -379,8 +380,8 @@ module certify (input clk);
       assert (stored == (ptr < count && {1'b0, tag_ptr} == {1'b0, pc} + 10'd1));
       if (ptr < count) assert (tag_ptr > pc);
     end
-    // a successor is looked up only where the pc does not fall through; one that falls
-    // through to a stored entry decodes it, and one with nothing stored checks the image
+    // a successor is only looked up where the pc doesn't fall through. One that falls
+    // through to a stored entry decodes it, and one with nothing stored checks the image.
     if (purpose == FOR_FOLLOWING && (sm == SEARCH || sm == ENTRY || looping))
       assert (!falls_to_next);
     if (sm == SEARCH) assert (purpose == FOR_TARGET || purpose == FOR_FOLLOWING);
@@ -400,7 +401,7 @@ module certify (input clk);
     // the state machines are in their states
     assert (sm <= FINISH && purpose <= RELOADING && source <= FALLEN);
     // the fields each way has checked so far: the target's only where it jumps past pc 0,
-    // a field at a time, all of them before the successor's
+    // one field at a time, all of them before the successor's
     if (sm == HEAD || sm == TARGET)
       assert (seen_target == 0 && seen_next == 0 && failed_target == 0);
     if (purpose == FOR_TARGET && (sm == SEARCH || sm == ENTRY || looping)) begin
@@ -447,7 +448,7 @@ module certify (input clk);
 `ifndef NO_INVARIANT
     if (sm == FINISH) assert (pc == 9'd511);
     if (busy) assert (walk_base == base);
-    // an entry's words as they arrive, then its row field by field, each word read once
+    // an entry's words as they arrive, then its row field by field, with each word read once
     // its address has held; the other sources read nothing
     if (sm == ENTRY)
       assert (reading && k <= 2'd2 && walk_addr == entries_at + 9'd3 * sel + k);
@@ -470,7 +471,7 @@ module certify (input clk);
     if (looping) assert (field <= (reloads ? 3'd5 : 3'd4));
     // the checks so far are of the way's row, and so is the reloaded row so far
     if (looping && !reloads) assert (checked == upto(way_row, field));
-    // a narrow field's check reads acc's low half; the high words left over are ignored
+    // a narrow field's check reads acc's low half and ignores the leftover high words
     if (sm == CHECK)
       assert (field < 2 ? acc == way_field : acc[31:0] == way_field[31:0]);
     if (sm == FIELD && reloads) assert (row == spec_row(entry, field));
