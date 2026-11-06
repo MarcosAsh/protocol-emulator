@@ -269,9 +269,9 @@ let%expect_test "every bench firmware has its limits, or a reason it has none" =
   [%expect {| (Error ("no datasheet limits, and no reason why" new_demo)) |}]
 ;;
 
-(* A certificate is only as strong as the limits it is held to. Each firmware's tightest
-   limit, as the share of its bound the limit needs: one under a half leaves the firmware
-   free to run at twice its speed, or half, and still pass, so it is loose. *)
+(* A certificate is only as strong as the limits it is held to. For each firmware, its
+   tightest limit as a share of its bound: under a half means the firmware could run at
+   twice or half its speed and still pass, so the limit is loose. *)
 let%expect_test "firmware its limits do not hold within a factor of two" =
   let share (v : Datasheet.Verdict.t) =
     Option.map v.bound ~f:(fun bound ->
@@ -325,8 +325,8 @@ let undo (bench : Bench.t) ~fix ~was =
   { bench with source = String.substr_replace_first source ~pattern:fix ~with_:was }
 ;;
 
-(* The teeth: the firmware each fix replaced fails its limits, the DS18B20's zero for
-   sitting exactly on 60 us, the SK6812's T0L for missing 800 ns by less than a cycle. *)
+(* The teeth: the firmware each fix replaced fails its limits. The DS18B20's zero sat
+   exactly on 60 us, and the SK6812's T0L missed 800 ns by less than a cycle. *)
 let%expect_test "the firmware before each fix fails" =
   List.iter
     ~f:fails
@@ -370,8 +370,8 @@ let%expect_test "the firmware before each fix fails" =
     |}]
 ;;
 
-(* The tooth: 434 cycles, the bit at 115200 baud from the chip's rated 50 MHz, is outside
-   a receiver's 2% at the 48 MHz the firmware runs at, as the label from the clock says. *)
+(* The tooth: 434 cycles is the bit at 115200 baud from the chip's rated 50 MHz, and is
+   outside a receiver's 2% at the 48 MHz the firmware runs at, as the label says. *)
 let%expect_test "a rate comes from the clock it runs at" =
   let fifty_mhz = { Uart.log with load = Some (50_000_000 / 115_200) } in
   print_endline (Datasheet.to_string fifty_mhz (Datasheet.check Library.limits fifty_mhz));

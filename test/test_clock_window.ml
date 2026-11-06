@@ -72,8 +72,8 @@ let%expect_test "each cliff is exact" =
   [%expect {| () |}]
 ;;
 
-(* A least of 0 ns, as a hold some parts give, needs a cycle at any clock: it holds at
-   every clock from one cycle on and at none below. *)
+(* A minimum of 0 ns, as some parts give for a hold, still needs a cycle at any clock: it
+   holds at every clock from one cycle up and at none below. *)
 let%expect_test "a least of 0 ns" =
   let zero = { (List.hd_exn Library.limits) with limit = At_least 0.; margin = Cycle } in
   List.iter [ Some 0; Some 1; Some 7 ] ~f:(fun bound ->
@@ -92,8 +92,8 @@ let%expect_test "a least of 0 ns" =
     |}]
 ;;
 
-(* The receiver's ends put the sender's bit inside its certified m and a hertz past puts
-   it outside, where test_tolerance.ml shows the model losing a frame. *)
+(* At each end of the receiver's window the sender's bit is inside its certified m; a
+   hertz past it is outside, where test_tolerance.ml shows the model losing a frame. *)
 let%expect_test "the CAN receiver's window is its tolerance" =
   let r =
     Tolerance.Receiver.can_rx
@@ -123,8 +123,8 @@ let%expect_test "the CAN receiver's window is its tolerance" =
 ;;
 
 (* The diagrams' limits as [Wavedrom.compile] checks them at a clock: it compiles at each
-   end and refuses a hertz past, naming the edge. ws2812.json's 19, 19 and 22 cycles are a
-   1.25 us bit at the rated 48 MHz. *)
+   end and refuses a hertz past it, naming the edge. ws2812.json's 19, 19 and 22 cycles
+   add up to a 1.25 us bit at the rated 48 MHz. *)
 let%expect_test "the diagrams' windows" =
   let read name = In_channel.read_all [%string "diagrams/%{name}.json"] in
   List.iter (Clock_window.diagrams ~dir:"diagrams") ~f:(fun (t : Clock_window.t) ->

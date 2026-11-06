@@ -10,10 +10,10 @@ let ranges ks =
     | [], _ -> assert false)
 ;;
 
-(* Around both ends of the slack, the first four and the last seven: the kernel accepts a
-   variant exactly when its nops fit in the slack, and the model, under the sweep's
-   stimulus, runs late none it accepts. It runs late every one it refuses but CAN's, whose
-   tightest way into the wait the stimulus never takes. *)
+(* Around both ends of the slack (the first four and the last seven): the kernel accepts a
+   variant exactly when its nops fit in the slack, and under the sweep's stimulus the
+   model never runs late on a variant it accepts. It runs late on every variant the kernel
+   refuses except CAN's, whose tightest way into the wait the stimulus never takes. *)
 let%expect_test "the kernel's verdict on delay variants" =
   List.iter Library.swept ~f:(fun swept ->
     let t = Delay_variants.of_swept swept in
@@ -50,9 +50,10 @@ let%expect_test "the kernel's verdict on delay variants" =
     |}]
 ;;
 
-(* Planted timing bugs: at every deadline wait of the swept firmware, one to three cycles
-   of nops, half the slack, and every count from one short of it to three past, each run
-   on the model under the sweep's stimulus. What the kernel certifies must never run late. *)
+(* Planted timing bugs: at every deadline wait of the swept firmware, add one to three
+   cycles of nops, half the slack, and every count from one short of the slack to three
+   past it, each run on the model under the sweep's stimulus. What the kernel certifies
+   must never run late. *)
 let%expect_test "planted delays: none the kernel certifies runs late" =
   let totals = Array.create ~len:5 0 in
   List.iter Library.swept ~f:(fun swept ->

@@ -103,8 +103,8 @@ let%expect_test "four frames, acknowledged by the TV but the last" =
     |}]
 ;;
 
-(* Five bit periods between frames, the wait a new initiator owes, is short by two for
-   this one's next frame. *)
+(* Five bit periods between frames (the wait a new initiator owes) is two short for this
+   one's next frame. *)
 let%expect_test "the follower refuses five bit periods free before the same initiator" =
   let pattern = "set y, 6" in
   if not (String.is_substring firmware ~substring:pattern)
@@ -131,11 +131,11 @@ let%expect_test "the follower refuses five bit periods free before the same init
     |}]
 ;;
 
-(* A line driven by an initiator drawn in 50 us units, a cycle each, with the followers at
-   [addresses] on it. Each frame comes [free] bit periods after the last one's final bit,
-   and is [from] an initiator to [to_]. The initiator holds its ACK slots low for
-   [ack_units], and the frame at each index in [cuts] is cut to its first so many units,
-   the initiator giving it up. *)
+(* A line driven by an initiator, drawn in 50 us units of one cycle each, with followers
+   at [addresses] on it. Each frame comes [free] bit periods after the previous frame's
+   final bit and goes [from] an initiator [to_] a destination. The initiator holds its ACK
+   slots low for [ack_units]. The frame at each index in [cuts] is cut to its first so
+   many units, the initiator giving it up. *)
 let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?(cuts = []) sends =
   let bit one = List.init 48 ~f:(fun i -> i < if one then 12 else 30) in
   let lows =
@@ -173,8 +173,8 @@ let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?(cuts = []) sends =
           ~violations:(Follower.violations follower : string list)])
 ;;
 
-(* 4 polls 5, where no one answers, so the frame fails: a retry of it may come 3 bit
-   periods on, but a new frame of 4's owes 7 and one from a new initiator, 3, owes 5. *)
+(* 4 polls 5, where no one answers, so the frame fails. A retry may come 3 bit periods
+   later, but a new frame from 4 owes 7 and one from a new initiator (3) owes 5. *)
 let%expect_test "the free time the follower asks of each next frame" =
   let failed = 0, 4, 5, [] in
   let ok = 0, 4, 0, [] in
@@ -229,9 +229,9 @@ let%expect_test "a frame cut short is dropped" =
   [%expect {| ((frames 1) (violations ())) |}]
 ;;
 
-(* A frame given up after its header is still the frame before the next: 4's header to 5
-   goes unanswered and 4 stops there, as Linux does, so 4 may send it whole 3 bit periods
-   on. The header is 90 units of start bit and 10 bit periods. *)
+(* A frame given up after its header still counts as the frame before the next. 4's header
+   to 5 goes unanswered and 4 stops there, as Linux does, so 4 may send it whole 3 bit
+   periods later. The header is 90 units of start bit plus 10 bit periods. *)
 let%expect_test "a retry after a frame given up at a NACK" =
   followers_see
     ~cuts:[ 1, 90 + 480 ]
@@ -328,10 +328,10 @@ let%expect_test "every edge and every sample is placed by a deadline" =
 
 module G = Hardcaml_verify.Comb_gates
 
-(* As first written, but for the anchor before the line is let go, which only makes that
-   edge's report exact. The host picks the unit, so the analyser's rows are for every load
-   of the floor or more and the kernel accepts them at each, by checked SAT; at one less
-   it refuses. *)
+(* Same as the first one except for the anchor before the line is let go, which only makes
+   that edge's report exact. The host picks the unit, so the analyser's rows cover every
+   load of the floor or more and the kernel accepts them at each by checked SAT. At one
+   less it refuses. *)
 let%expect_test "the kernel accepts every unit from the shortest up" =
   let program = Asm.assemble firmware |> ok_exn in
   let config = Asm.Program.configure program config in

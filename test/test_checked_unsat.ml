@@ -3,9 +3,9 @@ open Hardcaml_verify
 
 let temp_file = Stdlib.Filename.temp_file "checked_unsat"
 
-(* [query]'s DIMACS file as [Solver.solve] writes it, cadical's answer, whether cake_lpr
-   accepts cadical's proof, or with [model] whether [check_model] accepts its model, and
-   whether it does once [corrupt] rewrites that file's text. *)
+(* Takes [query]'s DIMACS file as [Solver.solve] writes it and reports cadical's answer,
+   whether cake_lpr accepts cadical's proof (or, with [model], whether [check_model]
+   accepts its model), and the same once [corrupt] has rewritten the file's text. *)
 let solve_and_check ?corrupt ?(model = false) query =
   let dimacs = temp_file "dimacs" in
   let proof = temp_file "lrat" in

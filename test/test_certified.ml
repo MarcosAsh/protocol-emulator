@@ -241,20 +241,20 @@ let%expect_test "the least period the host may load" =
     |}]
 ;;
 
-(* The fastest rate each protocol's firmware is certified at, as the least setting of its
-   rate, a half period or the period the host loads, that the analyser and the kernel
+(* The fastest rate each protocol's firmware is certified at: the smallest setting of its
+   rate (a half period, or the period the host loads) that the analyser and the kernel
    accept. Where the host loads the period, the certificate holds for every load from it
-   up, as above. The deadlines only: datasheet limits and pad speed are apart. *)
+   up, as above. Deadlines only; datasheet limits and pad speed are separate. *)
 module Rate = struct
   type t =
     { protocol : string
     ; firmware : string
     ; unit : string
-    ; cycles : int (* to a unit of the rate, for a setting of 1 *)
+    ; cycles : int (* per unit of the rate, for a setting of 1 *)
     ; make : int -> Certified.t
     ; pio : int option
-        (* what RP2040 PIO's pico-examples (uart_tx, uart_rx, spi, i2c) take to a unit, in
-           its own cycles: the perf scout's reading, 2026-10-29 *)
+        (* cycles per unit that the RP2040 PIO pico-examples (uart_tx, uart_rx, spi, i2c)
+           take, in RP2040 cycles (perf scout's reading, 2026-10-29) *)
     ; note : string
     }
 
