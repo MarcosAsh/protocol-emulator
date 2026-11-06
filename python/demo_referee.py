@@ -1,37 +1,38 @@
 # SPDX-License-Identifier: Apache-2.0
-# Cheat the referee (MicroPython, Pico A): demo_self_check's frames on wire 20, and a press
-# of BOOTSEL makes the next restart's bit period a cycle long or short. Engine 1 catches it
-# and halts, is reloaded as the SK6812 driver to light the score on the stick on OUT3, so
-# after the catch and not with it, then is the referee again. demo/referee.sh runs it.
+# Cheat the referee (MicroPython, Pico A). Runs demo_self_check's frames on wire 20, and
+# pressing BOOTSEL makes the next restart's bit period one cycle long or short. Engine 1
+# catches it and halts, gets reloaded as the SK6812 driver to light the score on the stick
+# on OUT3 (after the catch, not during it), then goes back to being the referee.
+# demo/referee.sh runs it.
 
 import bench
 import demo_neopixel
 import demo_self_check as check
 import protocol_emulator as pe
 
-# pico_board.PicoSpi's rate, which the self-check runs at
+# pico_board.PicoSpi's rate, which is what the self-check runs at
 HOST_HZ = 6_000_000
 MHZ = 48
 RED = (0x20, 0x00, 0x00)
 GREEN = (0x00, 0x20, 0x00)
 OFF = (0x00, 0x00, 0x00)
 PIXELS = 8
-# a green sweep each time this many honest frames have passed, each step held this long
+# a green sweep every time this many honest frames pass, each step held this long
 SWEEP_EVERY = 256
 SWEEP_MS = 40
-# a press's cheat, in turn
+# the cheat for each press, in turn
 PRESSES = (1, -1)
 # BOOTSEL is read every POLL_MS and seven honest frames go out every RESTART_EVERY reads,
-# so a sweep comes about every 4 s, and held for HOLD reads, about 2 s, it ends the game
+# so a sweep comes about every 4 s; holding it for HOLD reads (about 2 s) ends the game
 POLL_MS = 10
 RESTART_EVERY = 10
 FRAMES = 7
 HOLD = 200
-# what button's reads say
+# what the button's reads say
 PRESS = 1
 END = 2
-# the auto mode's cheats, in turn, the honest frames before each, so one sweep comes in
-# the run, and how long each catch's score shows
+# the auto mode's cheats, in turn; honest frames go before each so the run gets one sweep;
+# and how long each catch's score shows
 AUTO = (1, -1, 2, -2)
 AUTO_CHEATS = 8
 AUTO_FRAMES = 35
@@ -39,7 +40,8 @@ LINGER_MS = 150
 
 
 def score(caught):
-    """A red pixel a catch, from the first, starting over after a full stick."""
+    """Light one red pixel per catch, starting from the first and starting over after a
+    full stick."""
     lit = (caught - 1) % PIXELS + 1 if caught else 0
     return [RED] * lit + [OFF] * (PIXELS - lit)
 
@@ -49,7 +51,7 @@ def sweep():
 
 
 class Referee:
-    """The self-check set up, and the score: rate(hz) sets Pico A's SPI clock."""
+    """Set up the self-check and keep the score. rate(hz) sets Pico A's SPI clock."""
 
     def __init__(self, transfer, rate, pause_ms, log=print, sweep_every=SWEEP_EVERY,
                  sweep_ms=SWEEP_MS):
@@ -66,7 +68,7 @@ class Referee:
         self.rows, self.program, self.track, self.edges = check.begin(self.host, log)
 
     def frames(self, count=FRAMES):
-        """count honest frames: whether engine 1 checked them all with no alarm."""
+        """Send count honest frames. True if engine 1 checked them all with no alarm."""
         sent, s, pc = check.send(self.host, count, self.track, first=self.honest)
         before = self.honest
         self.honest += sent
@@ -79,7 +81,7 @@ class Referee:
         return True
 
     def cheat(self, slip):
-        """One frame with the bit period slip cycles off: whether engine 1 caught it."""
+        """Send one frame with the bit period slip cycles off. True if engine 1 caught it."""
         period = check.PERIOD + slip
         due = check.moves(check.GLITCH_BYTE, check.PERIOD)[0]
         moved, at = check.caught_by(self.edges, check.GLITCH_BYTE, period)
@@ -101,8 +103,8 @@ class Referee:
         return caught
 
     def show(self, frames, hold_ms=demo_neopixel.LATCH_MS):
-        """Engine 1, halted, drives the stick at its SPI rate, then is scrubbed, and setup
-        reloads the rows and the checker while both are halted, as the theorem assumes."""
+        """Halt engine 1, drive the stick at its SPI rate, then scrub it. setup reloads the
+        rows and the checker while both engines are halted, as the theorem assumes."""
         self.rate(demo_neopixel.SPI_HZ)
         demo_neopixel.show(self.host, frames, self.pause_ms, engine=1, hold_ms=hold_ms)
         self.rate(HOST_HZ)
@@ -116,8 +118,8 @@ class Referee:
 
 
 def scrub(host, program, polls=100):
-    """The selected engine runs program, scrub.hex, under the config it has, which must
-    not autopull: the SK6812 firmware leaves osr's count at 8, and the checker would shift
+    """Run program (scrub.hex) on the selected engine under its current config, which must
+    not autopull: the SK6812 firmware leaves osr's count at 8 and the checker would shift
     its first row from what is left. A start clears neither."""
     selected = host.read(pe.SELECT)[0]
     for engine in (0, 1):
@@ -125,7 +127,7 @@ def scrub(host, program, polls=100):
         host.stop()
     host.select(selected)
     host.load(program)
-    # no jump and no wrap: the certificate is the empty table
+    # no jump and no wrap, so the certificate is the empty table
     host.certify([0, 0])
     host.start()
     for _ in range(polls):
@@ -135,7 +137,8 @@ def scrub(host, program, polls=100):
 
 
 def button(read, hold=HOLD):
-    """PRESS once for each press of read's button, END once it has been held hold reads."""
+    """Yield PRESS for each press of read's button, and END once it has been held for hold
+    reads."""
     held = [0]
 
     def pressed():
@@ -146,8 +149,8 @@ def button(read, hold=HOLD):
 
 
 def play(referee, pressed, poll, restart_every=RESTART_EVERY):
-    """Honest frames, and a cheat for each press, until a hold or an honest frame's alarm:
-    whether there was none. BOOTSEL is never read while the stick is lit."""
+    """Send honest frames and a cheat for each press, until a hold or an alarm on an honest
+    frame. True if there was no such alarm. BOOTSEL is never read while the stick is lit."""
     cheats = 0
     tick = 0
     while True:
@@ -164,8 +167,8 @@ def play(referee, pressed, poll, restart_every=RESTART_EVERY):
 
 
 def auto(referee, cheats=AUTO_CHEATS, frames=AUTO_FRAMES, linger_ms=LINGER_MS):
-    """frames honest frames around each of AUTO's cheats in turn: whether all were caught,
-    the honest frames raised no alarm and nothing faulted."""
+    """Send `frames` honest frames around each of AUTO's cheats in turn. True if every cheat
+    was caught, the honest frames raised no alarm and nothing faulted."""
     ok = True
     for n in range(cheats):
         ok = referee.frames(frames) and ok
@@ -191,7 +194,7 @@ def on_pico(log):
 
 
 def main():
-    """The game: a press of BOOTSEL cheats, a hold ends it, as mpremote keeps Ctrl-C."""
+    """The game: pressing BOOTSEL cheats, holding it ends the game (mpremote keeps Ctrl-C)."""
     import rp2
     import time
 

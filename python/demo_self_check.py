@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
-# The self-check on the host Pico (MicroPython): engine 0 sends UART frames over wire 20,
-# engine 1 checks every edge against the certificate's rows and raises its irq and halts
-# at the first that leaves its cycle. Quiet over every byte value, then the same restart
-# with the bit period a cycle long and a cycle short, then quiet again. The wire stays
-# inside the chip, so Pico B and the analyser see nothing. Needs protocol_emulator.py,
-# pico_board.py and the three .hex files and two .cert.hex files on the Pico.
+# The self-check on the host Pico (MicroPython). Engine 0 sends UART frames over wire 20.
+# Engine 1 checks every edge against the certificate's rows, and raises its irq and halts
+# at the first edge that misses its cycle. The run goes quiet over every byte value, then
+# repeats with the bit period one cycle long and one cycle short, then goes quiet again.
+# The wire stays inside the chip, so Pico B and the analyser see nothing. Needs
+# protocol_emulator.py, pico_board.py and the three .hex and two .cert.hex files on the
+# Pico.
 
 import protocol_emulator as pe
 
 WIRE = 20
-# The rows certify uart_tx_host_rate at 434 cycles a bit, 9 us at 48 MHz. A checked frame
-# ends inside 2^14 cycles, so the self-timing demo's 5000 cannot be checked.
+# The rows certify uart_tx_host_rate at 434 cycles per bit (9 us at 48 MHz). A checked
+# frame has to end within 2^14 cycles, so the self-timing demo's 5000 can't be checked.
 PERIOD = 434
 # the rows' base, as test_two_engines loads them
 BASE = 256
@@ -27,8 +28,8 @@ WAIT_FALL = 0x2000 | WIRE
 IDLE = 4
 # every byte value ten times
 FRAMES = 2560
-# A cycle long, then a cycle short. Engine 0's own kernel accepts both, so it meets every
-# deadline it is given; only the rows say 434.
+# one cycle long, then one cycle short. Engine 0's own kernel accepts both, so it meets
+# every deadline it is given; only the rows say 434.
 GLITCHES = (PERIOD + 1, PERIOD - 1)
 # its one move is the start bit's end
 GLITCH_BYTE = 0xFF
@@ -40,9 +41,9 @@ def words(name):
 
 
 def certified(rows):
-    """Each write's cycle after a frame's first edge, then the least to the next frame's,
-    from Self_check.rows' words: the first gap less 12, each later gap over a 1, the
-    least's gap less 3 over a 0, then the base."""
+    """Decode Self_check.rows' words into each write's cycle after a frame's first edge,
+    then the least cycle to the next frame's. The first gap is minus 12, each later gap
+    comes over a 1, the least's gap is minus 3 over a 0, and the base follows."""
     at = rows[0] + 12
     edges = [at]
     for row in rows[1:-1]:
@@ -52,14 +53,16 @@ def certified(rows):
 
 
 def moves(byte, period):
-    """The cycles after its start bit at which a frame of byte at period moves the line."""
+    """Return the cycles after the start bit at which a frame of byte at period moves the
+    line."""
     levels = [0] + [(byte >> i) & 1 for i in range(8)] + [1]
     return [bit * period for bit in range(1, 10) if levels[bit] != levels[bit - 1]]
 
 
 def caught_by(edges, byte, period):
-    """The first move off a write's cycle, and the check that must see it: the first edge
-    or least at or after it, as the checker looks at the line only there."""
+    """Return the first move off a write's cycle and the check that must see it. That is
+    the first edge, or `least`, at or after it, since the checker only looks at the line
+    there."""
     for at in moves(byte, period):
         if at not in edges[:-1]:
             return at, min(e for e in edges if e >= at)
@@ -67,8 +70,8 @@ def caught_by(edges, byte, period):
 
 
 def tracking(program):
-    """Where the checker waits for each frame's first edge after the first frame: its last
-    wait 0 pin 20."""
+    """Return where the checker waits for each frame's first edge after the first frame,
+    i.e. its last wait 0 pin 20."""
     return max(pc for pc, word in enumerate(program) if word == WAIT_FALL)
 
 
@@ -82,9 +85,9 @@ def load(host, engine, config, program):
 
 
 def setup(host, rows, program):
-    """Both certified and the rows in while both are halted, then the checker running and
-    the transmitter halted. The certificates go at 0, under the rows, and hold once
-    checked."""
+    """Certify both engines and load the rows while both are halted, then run the checker
+    and leave the transmitter halted. The certificates go at 0, under the rows, and stay
+    valid once checked."""
     for engine in (0, 1):
         host.select(engine)
         host.stop()
@@ -99,8 +102,8 @@ def setup(host, rows, program):
 
 
 def restart(host, period, data):
-    """Engine 0 from its first instruction with the bit period and bytes queued, so a frame
-    starts no sooner than the rows allow; only while it is idle."""
+    """Restart engine 0 from its first instruction with the bit period and bytes queued, so
+    a frame starts no sooner than the rows allow. Only while it is idle."""
     host.stop()
     host.flush()
     host.push([period] + list(data))
@@ -108,8 +111,8 @@ def restart(host, period, data):
 
 
 def idle(host, pause=None, polls=10_000):
-    """Returns once engine 0 has sent all it was given and waits for more, the stop bit
-    over. Nothing waits on the host, so the poll need not be fast."""
+    """Return once engine 0 has sent everything and waits for more, with the stop bit over.
+    Nothing waits on the host, so the poll needn't be fast."""
     for _ in range(polls):
         s = host.read(pe.STATUS)[0]
         if s & 1:
@@ -122,7 +125,7 @@ def idle(host, pause=None, polls=10_000):
 
 
 def checker(host):
-    """Engine 1's status and pc, back on engine 0."""
+    """Return engine 1's status and pc, and reselect engine 0."""
     host.select(1)
     s = host.read(pe.STATUS)[0]
     pc = host.read(pe.PC)[0]
@@ -131,9 +134,10 @@ def checker(host):
 
 
 def send(host, frames, track, pause=None, first=0):
-    """Every byte value in turn from first, seven to a restart at the certified period, back
-    to back within one, until a restart leaves engine 1 halted or anywhere but its wait at
-    track: the frames sent, and engine 1's status and pc after the last restart."""
+    """Send every byte value in turn from `first`, seven per restart at the certified
+    period, back to back within a restart. Stops when a restart leaves engine 1 halted or
+    anywhere but its wait at `track`. Returns the frames sent, and engine 1's status and pc
+    after the last restart."""
     sent = 0
     while sent < frames:
         data = [(first + sent + i) & 0xFF for i in range(min(7, frames - sent))]
@@ -147,8 +151,8 @@ def send(host, frames, track, pause=None, first=0):
 
 
 def quiet(host, label, frames, track, pause=None):
-    """Whether frames went out with no irq, engine 1 waiting at track for the next frame
-    after every restart, so it checked them all."""
+    """True if the frames went out with no irq and engine 1 was waiting at `track` for the
+    next frame after every restart, so it checked them all."""
     sent, s, pc = send(host, frames, track, pause)
     if s & 3:
         seen = "ALARM, engine 1 status 0x%04x pc %d" % (s, pc)
@@ -162,8 +166,8 @@ def quiet(host, label, frames, track, pause=None):
 
 
 def arm(host):
-    """Engine 1 stopped, then checking again from its first instruction with its irq
-    clear, back on engine 0. Only while the line idles high."""
+    """Stop engine 1, then restart it checking from its first instruction with its irq
+    clear, and reselect engine 0. Only while the line idles high."""
     host.select(1)
     host.stop()
     host.clear_irq()
@@ -172,8 +176,8 @@ def arm(host):
 
 
 def glitch(host, period, pause=None):
-    """Engine 1 armed afresh, so an alarm from before cannot show here, then the quiet
-    restart at period with one frame: engine 1's status and pc once the frame is out."""
+    """Arm engine 1 afresh so an earlier alarm can't show up here, then do a quiet restart
+    at period with one frame. Returns engine 1's status and pc once the frame is out."""
     arm(host)
     restart(host, period, [GLITCH_BYTE])
     idle(host, pause)
@@ -181,7 +185,7 @@ def glitch(host, period, pause=None):
 
 
 def faults(host):
-    """Each engine's fault bits, as pe.FAULTS names them."""
+    """Each engine's fault bits (masked with pe.FAULTS)."""
     found = []
     for engine in (0, 1):
         host.select(engine)
@@ -191,8 +195,9 @@ def faults(host):
 
 
 def begin(host, log=print):
-    """The rows and the checker read from their .hex files and set up, once no fault holds
-    from an earlier run: the rows, the checker, its wait at each frame and the edges."""
+    """Read the rows and the checker from their .hex files and set them up, once no fault
+    is left from an earlier run. Returns the rows, the checker, its wait at each frame and
+    the edges."""
     found = faults(host)
     if any(found):
         raise RuntimeError("faults %s hold from an earlier run: reset the chip" % found)
@@ -206,7 +211,7 @@ def begin(host, log=print):
 
 
 def run(transfer, frames=FRAMES, pause=None):
-    """Quiet, each glitch, then quiet again: whether the quiet frames raised no alarm,
+    """Run quiet, each glitch, then quiet again. True if the quiet frames raised no alarm,
     every glitch raised one, and nothing faulted."""
     host = pe.Host(transfer)
     _, _, track, edges = begin(host)
@@ -225,7 +230,7 @@ def run(transfer, frames=FRAMES, pause=None):
         else:
             print("NO ALARM: engine 1 status 0x%04x pc %d" % (s, pc))
 
-    # started again on a line already high, as after the self-timing demo
+    # restart on a line that's already high, as after the self-timing demo
     arm(host)
     ok = quiet(host, "re-armed", min(frames, 256), track, pause) and ok
     found = faults(host)

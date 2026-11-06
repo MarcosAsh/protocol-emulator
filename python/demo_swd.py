@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B's SWD port on the chip's SWD host (MicroPython, Pico A): OUT2 (header 12) to
-# SWCLK, pin 1 of Pico B's debug connector, IO5 (header 36) to SWDIO, pin 3, GND to pin 2,
-# each line through 220 R, and 4.7 k from SWDIO to Pico B's 3V3. Reads core 0's DPIDR and
-# AP IDR and core 1's DPIDR, checks an absent instance stays silent, then lets the lines
-# go. demo/outside.sh swd runs it; test/test_swd.py rehearses it on the RTL.
+# Pico B's SWD port on the chip's SWD host (MicroPython, Pico A). OUT2 (header 12) goes to
+# SWCLK (pin 1 of Pico B's debug connector), IO5 (header 36) to SWDIO (pin 3) and GND to
+# pin 2, each line through 220 R, with 4.7 k from SWDIO to Pico B's 3V3. Reads core 0's
+# DPIDR and AP IDR and core 1's DPIDR, checks that an absent instance stays silent, then
+# releases the lines. demo/outside.sh swd runs it; test/test_swd.py rehearses it on the RTL.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# Swd.firmware's half period: 24 cycles at 48 MHz, a 1 MHz SWCLK
+# Swd.firmware's half period: 24 cycles at 48 MHz, so SWCLK is 1 MHz
 HALF = 24
 OK, WAIT, FAULT = 1, 2, 4
 # RP2040 datasheet 2.3.4: core 0, core 1, and an instance ID nobody on the bus has
@@ -18,24 +18,24 @@ CORE1 = 0x11002927
 NOBODY = 0x21002927
 # what OpenOCD reads from an RP2040: Arm's designer code, DPv2, MINDP
 DPIDR = 0x0BC12477
-# ADIv5.2 B5.3.4: the selection alert LSB first, then four low and the SW-DP activation
-# code 0b0101_1000 MSB first, the last four bits high into the line reset
+# ADIv5.2 B5.3.4: the selection alert LSB first, then four low bits and the SW-DP
+# activation code 0b0101_1000 MSB first, with the last four bits high into the line reset
 ALERT = [0xF392, 0x6209, 0x2D95, 0x8685, 0xAFE9, 0xE3DD, 0x0EA2, 0x19BC]
 ACTIVATION = 0xF1A0
 LINE_RESET = [0xFFFF] * 4 + [0x0000]
-# DP registers (B2.2), and ABORT's sticky flag clears less STKCMPCLR, which a MINDP DP
-# takes as SBZ
+# DP registers (B2.2). ABORT clears the sticky flags except STKCMPCLR, which a MINDP DP
+# treats as SBZ
 ABORT, CTRL_STAT, SELECT, RDBUFF = 0x0, 0x4, 0x8, 0xC
 CLEAR_STICKY = 0x1C
 POWER_UP = 0x50000000
 POWERED = 0xA0000000
 POLLS = 20
-# the polls of one transfer's words in and replies out, each an SPI frame
+# polls for one transfer's words going in and replies coming out, one SPI frame each
 STEPS = 10_000
 
 
 def sequence(words):
-    """Driven bits, sixteen a word LSB first, behind the count less one."""
+    """Driven bits, sixteen per word, LSB first, after the count minus one."""
     return [(len(words) - 1) << 1] + words
 
 
@@ -51,7 +51,7 @@ class Swd:
         self.host = host
 
     def send(self, words, replies):
-        """The words into the tx fifo as it has room, and the replies they make. One
+        """Feed the words into the tx fifo as room appears and collect the replies. One
         transfer at a time, so at most three replies are ever waiting."""
         sent, got = 0, []
         for _ in range(STEPS):
@@ -78,12 +78,12 @@ class Swd:
         self.bits(LINE_RESET)
 
     def targetsel(self, target):
-        """The ACK lines as nobody drove them, since no DP answers TARGETSEL."""
+        """The ACK lines with nobody driving them, since no DP answers TARGETSEL."""
         word = request(0, 0, 0xC) | 0x100
         return self.send([word, target & 0xFFFF, target >> 16], 1)[0] & 7
 
     def read(self, ap, address):
-        """ACK, data and whether its parity held."""
+        """Return the ACK, the data and whether its parity held."""
         low, high, status = self.send([request(ap, 1, address)], 3)
         return status & 7, low | (high << 16), not status & 8
 
@@ -91,7 +91,7 @@ class Swd:
         return self.send([request(ap, 0, address), value & 0xFFFF, value >> 16], 1)[0] & 7
 
     def read_until(self, ap, address, done=lambda v: True):
-        """Retried on WAIT, and until done(value), as many as POLLS times."""
+        """Retry on WAIT, and until done(value), up to POLLS times."""
         for _ in range(POLLS):
             ack, value, good = self.read(ap, address)
             if ack == OK and good and done(value):
@@ -104,8 +104,8 @@ def ack_name(ack):
 
 
 def select(swd, target, log):
-    """Line reset, TARGETSEL, then the DPIDR read B4.3.4 asks for: whether it is the
-    RP2040's DPIDR, with good parity."""
+    """Do a line reset, TARGETSEL, then the DPIDR read B4.3.4 asks for. True if it is the
+    RP2040's DPIDR with good parity."""
     swd.line_reset()
     swd.targetsel(target)
     ack, value, good = swd.read(0, 0x0)
@@ -115,8 +115,8 @@ def select(swd, target, log):
 
 
 def let_go(host):
-    """Restarts the core, whose first instruction lets SWDIO go with SWCLK low, wherever
-    in a command it stopped. Begun again on a second Ctrl-C."""
+    """Restart the core. Its first instruction releases SWDIO with SWCLK low, wherever in a
+    command it stopped. Tried again on a second Ctrl-C."""
     while True:
         try:
             host.stop()
@@ -128,7 +128,7 @@ def let_go(host):
 
 
 def run(transfer, log=print, half=HALF):
-    """The act, leaving SWCLK low and SWDIO let go however it ends."""
+    """Run the demo, leaving SWCLK low and SWDIO released however it ends."""
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD)
     host.start()
@@ -137,7 +137,7 @@ def run(transfer, log=print, half=HALF):
         ok = act(Swd(host), host, log, half)
         finished = True
     finally:
-        # what stopped the act is what it raises, even if letting go fails too
+        # raise whatever stopped the demo, even if releasing the lines fails too
         try:
             let_go(host)
         except Exception as e:
@@ -168,12 +168,12 @@ def act(swd, host, log, half):
     log("ABORT ACK %s, CTRL/STAT 0x%08x written ACK %s, reads 0x%08x: powered up %s" % (
         ack_name(clear), POWER_UP, ack_name(power), ctrl, "yes" if powered else "NO"))
 
-    # AP 0's IDR, bank 0xf, address 0xc: posted, so RDBUFF has it (B4.2.2)
+    # AP 0's IDR (bank 0xf, address 0xc) is posted, so RDBUFF has it (B4.2.2)
     swd.write(0, SELECT, 0xF0)
     first, _, _ = swd.read_until(1, 0xC)
     ack, idr, good = swd.read_until(0, RDBUFF)
     designer, kind = (idr >> 17) & 0x7FF, (idr >> 13) & 0xF
-    # C1.3.2: Arm is JEP106 0x7f four times then 0x3b, so 4 << 7 | 0x3b; class 8, a MEM-AP
+    # C1.3.2: Arm is JEP106 0x7f four times, then 0x3b, so 4 << 7 | 0x3b; class 8, a MEM-AP
     ap = first == ack == OK and good and designer == 0x23B and kind == 8
     log("AP 0 IDR 0x%08x: designer 0x%03x, class %d, %s" % (
         idr, designer, kind, "an Arm MEM-AP" if ap else "NOT an Arm MEM-AP"))
@@ -183,7 +183,7 @@ def act(swd, host, log, half):
     ack, value, good = select(swd, CORE1, log)
     core1 = ack == OK and value == DPIDR and good
     ack, _, _ = select(swd, NOBODY, log)
-    # the ACK lines read 111 or 000 as the pull-up or the pad's pull-down wins
+    # the ACK lines read 111 or 000 depending on whether the pull-up or the pad's pull-down wins
     silent = ack != OK
     log("nobody answers instance 2: %s" % ("yes" if silent else "NO"))
     ack, value, good = select(swd, CORE0, log)
