@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# The kernel's verdicts against the board. Runs every delay variant from
+# Compares the kernel's verdicts with the board. Runs every delay variant from
 # test/python/write_kernel_variants.exe on the chip through Pico A, in batches of
-# python/demo_kernel_vs_board.py, reloading the bitstream after a fault, as faults hold
-# until reset. A variant the kernel accepts must run on time. One it refuses that runs on
-# time is the kernel's pessimism, counted. With --chip the chip checks each variant's
-# certificate itself and must refuse exactly what the kernel refuses.
+# python/demo_kernel_vs_board.py, and reloads the bitstream after a fault (faults stick until
+# reset). A variant the kernel accepts must run on time. One the kernel refuses that still
+# runs on time counts as the kernel being pessimistic. With --chip the chip checks each
+# variant's certificate itself and must refuse exactly what the kernel refuses.
 # Usage: PICO=id:<serial> python3 demo/kernel_vs_board.py VARIANTS --bitstream BIT --out DIR
 #            [--python DIR] [--chip] [--batch N] [--only FIRMWARE...]
 import argparse
@@ -52,7 +52,7 @@ def batch_script(batch, chip):
 
 
 def parse(line):
-    """A RESULT line as a dict, or None."""
+    """Parses a RESULT line into a dict, or returns None."""
     fields = line.split()
     if not fields or fields[0] != "RESULT":
         return None
@@ -68,7 +68,7 @@ def parse(line):
 
 
 def outcome(variant, result):
-    """What the pair says, the first word a verdict: ok, pessimism, or a word for a bug."""
+    """Compares the kernel and board outcomes. The first word is the verdict: ok, pessimism or a bug."""
     accepted = variant["accepted"]
     if result["board"] == "refused":
         if accepted:
@@ -85,8 +85,8 @@ def outcome(variant, result):
 
 
 def summary(variants, results):
-    """A line per firmware: the kernel's last accepted k against the first the board ran
-    late, and the count of each verdict that is not ok."""
+    """Returns one line per firmware: the kernel's last accepted k, the first k where the
+    board ran late, and the count of each verdict that isn't ok."""
     lines = ["firmware           wait pc  slack  kernel accepts  board late from  "
              "unsound  pessimism  mismatches"]
     for name in dict.fromkeys(v["firmware"] for v in variants):
@@ -129,7 +129,7 @@ def main():
     if args.chip:
         if not any("chip_model" in v for v in variants):
             sys.exit("--chip needs variants from a build with the chip's check")
-        # with no certificate the chip would check the firmware's own
+        # without a certificate the chip would check the firmware's own
         for v in variants:
             if v.get("certificate") is None:
                 print("%s k=%d has no certificate: %s" % (v["firmware"], v["k"], v["chip_model"]))
@@ -159,7 +159,7 @@ def main():
             r["accepted"] = variant["accepted"]
             r["outcome"] = outcome(variant, r)
             r["chip_model"] = variant.get("chip_model")
-            # a logger fault alone says nothing of engine 0: run that variant again
+            # a fault in the logger alone says nothing about engine 0, so run it again
             if r["board"] == "ran" and r["fault1"] and not r["fault0"] and not r["out"]:
                 if (r["firmware"], r["k"]) not in retried:
                     retried.add((r["firmware"], r["k"]))
@@ -181,7 +181,7 @@ def main():
             if empty == 3:
                 sys.exit("no result from the Pico three times: see %s/board.log" % args.out)
             load_bitstream(args.bitstream, log)
-    # every run into this directory, the last of each variant's
+    # every run is in this directory; use the last one of each variant
     with open(os.path.join(args.out, "results.jsonl")) as f:
         results = [json.loads(line) for line in f if line.strip()]
     text = summary(every, results)

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# A learn demo kept in test/board/learn_<protocol>/ as demo/learn_board.sh left it. The check
-# here is the half that needs sigrok: every file against SHA256SUMS, each capture's edges
-# against the .edges file read from it, and sigrok's stock decoder on the chip's speech
-# against what the run kept, with a bit of the speech flipped refused. test/test_learn_board.ml
-# is the other half: it learns again from the chip's own recording, must write the same
-# firmware, and reads the analyser's and Pico B's edges back as the message sent.
+# Checks a learn demo kept in test/board/learn_<protocol>/ as demo/learn_board.sh left it.
+# This is the half that needs sigrok: every file against SHA256SUMS, each capture's edges
+# against the .edges file made from it, and sigrok's stock decoder on what the chip sent
+# against what the run kept. A flipped bit in that data must be refused. The other half is
+# test/test_learn_board.ml, which learns again from the chip's own recording, must write the
+# same firmware, and reads the analyser's and Pico B's edges back as the message sent.
 # Usage: python3 demo/learn_witness.py check test/board/learn_*/
 #        python3 demo/learn_witness.py write RUN test/board/learn_<protocol> --decode ARGS
 
@@ -50,7 +50,7 @@ def decode(capture, arguments):
 
 
 def flipped(capture, channel, at, to, out):
-    """A copy of the capture with one channel inverted from sample at up to to."""
+    """Copies the capture with one channel inverted from sample [at] up to [to]."""
     with zipfile.ZipFile(capture) as z:
         names = z.namelist()
         files = {n: z.read(n) for n in names}
@@ -71,7 +71,7 @@ def flipped(capture, channel, at, to, out):
 
 
 def check(directory):
-    """What is wrong with the run in directory, and its tooth's verdict."""
+    """Returns what is wrong with the run in directory, and its tooth's verdict."""
     directory = Path(directory)
     w = json.loads((directory / "witness.json").read_text())
     problems = []

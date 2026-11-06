@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# The live die's run: uart_tx loaded over SPI, started, then fed "Jane St!" while it sends.
-# Writes the pins at every falling edge to $LIVE_DIE_PINS, so the RTL and the gate-level
-# runs can be compared cycle for cycle. demo/live_die.py runs it on both.
+# The live die's run: loads uart_tx over SPI, starts it, then feeds it "Jane St!" while it
+# sends. Writes the pins at every falling edge to $LIVE_DIE_PINS, so the RTL and gate-level
+# runs can be compared cycle by cycle. demo/live_die.py runs it on both.
 
 import json
 import os
@@ -22,7 +22,7 @@ from protocol_emulator import (
 )
 
 MESSAGE = b"Jane St!"
-# SCK at a quarter of the clock, so the load takes half the cycles test.py's does
+# SCK = clock / 4, which halves the cycles the load takes compared with test.py
 HALF = 2
 BIT = 16
 
@@ -61,8 +61,8 @@ class AsyncHost(Host):
 
 
 def frames(levels):
-    """[first cycle, last cycle, byte] of each 8N1 frame on a line at BIT cycles a bit,
-    once its stop bit ends."""
+    """Returns [first cycle, last cycle, byte] for each 8N1 frame on a line at BIT cycles
+    per bit, reported once its stop bit ends."""
     found, i = [], 1
     while i + 10 * BIT <= len(levels):
         if levels[i - 1] and not levels[i]:
@@ -94,7 +94,7 @@ async def live_die(dut):
     await ClockCycles(dut.clk, 5)
 
     host = AsyncHost(dut)
-    # the fields reset to zero, so only the others are written
+    # the fields reset to zero, so only write the nonzero ones
     for reg, word in config_writes(DEFAULT_CONFIG):
         if word:
             await host.write(reg, [word])

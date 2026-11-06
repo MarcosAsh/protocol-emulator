@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Files for a learn demo on the board (CPython, no numpy):
-#   logger DIR GENERATE LINE...   the edge logger for each line (IO3, or IO3 and IO2 for a
-#                                 clocked bus), assembled by generate.exe, as record.json
-#   replay OUT RECORDING...       Pico B's segments from recordings in demo/edges.py's form,
-#                                 [--scale S] [--until SECONDS] [--line NAME]
-#   clocked OUT                   Pico B's segments for a two-wire bus of made frames, a
-#                                 CRC-8/AUTOSAR last, the data moving 10 us after SCL falls
-#   edges CAPTURE NAME=CHANNEL... a capture's edges as demo/edges.py prints them
+#   logger DIR GENERATE LINE...   assemble the edge logger for each line with generate.exe
+#                                 (IO3, or IO3 and IO2 for a clocked bus), as record.json
+#   replay OUT RECORDING...       make Pico B's segments from recordings in demo/edges.py's
+#                                 format [--scale S] [--until SECONDS] [--line NAME]
+#   clocked OUT                   make Pico B's segments for a two-wire bus of invented
+#                                 frames, CRC-8/AUTOSAR last, data moving 10 us after SCL falls
+#   edges CAPTURE NAME=CHANNEL... print a capture's edges the way demo/edges.py does
 # Usage: python3 demo/learn_prepare.py COMMAND ...
 
 import argparse
@@ -17,7 +17,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-# the chip's pin numbers: IO2 is SCL and Pico B's GP3, IO3 SDA and Pico B's GP2
+# the chip's pin numbers: IO2 is SCL (Pico B's GP3), IO3 is SDA (Pico B's GP2)
 PINS = {"IO3": 15, "IO2": 14}
 WIRE = 20
 
@@ -40,7 +40,7 @@ def logger(pin, prefix):
 
 
 def assemble(generate, path, config, *flags):
-    """The words, or with -certificate the certificate the chip checks them against."""
+    """Returns the assembled words, or with -certificate the certificate the chip checks them against."""
     fields = ",".join("%s=%s" % (k, "true" if v is True else v) for k, v in config.items())
     done = subprocess.run([generate, "assemble", "-config", fields, *flags, str(path)],
                           capture_output=True, text=True)
@@ -60,7 +60,7 @@ def logger_files(directory, generate, lines, ms):
         prefix = ["; the edge logger on %s, pin %d" % (name, pin)]
         sync = len(lines) == 2 and engine == 1
         if len(lines) == 2 and engine == 0:
-            # raise the wire engine 1 stamps, which puts both on one clock
+            # raise the wire that engine 1 stamps, so both engines share one clock
             config.update(set_base=WIRE, set_count=1)
             prefix.append("    set pins, 1")
         if sync:
@@ -84,8 +84,8 @@ def read_edges(path, line=None):
 
 
 def segments_of(rate, first, edges, scale, until):
-    """(pull low, us) runs of one line held as GP2, the level at each edge, the line's own
-    level before its first edge and after its last for 5 ms."""
+    """Returns (pull low, us) runs for one line held on GP2, from the level at each edge.
+    The line idles at its own level before the first edge and for 5 ms after the last."""
     edges = [e for e in edges if e / rate < until] if until else edges
     out = [(1 if first == 0 else 0, 5000)]
     level = first
@@ -111,7 +111,7 @@ def crc8_autosar(data):
     return crc ^ 0xFF
 
 
-# address, then command and value: a sensor bus nobody documented
+# (address, command, value) for an undocumented sensor bus
 FRAMES = [(0xA5, c, v) for c, v in [(0x01, 0x10), (0x02, 0x20), (0x03, 0x33), (0x01, 0x47),
                                     (0x04, 0x05), (0x02, 0x99), (0x05, 0xC8), (0x03, 0x0E),
                                     (0x06, 0x71), (0x01, 0xEE)]]
@@ -119,8 +119,8 @@ HALF_US = 100
 
 
 def clocked_segments():
-    """SCL is bit 1 (GP3, IO2), SDA bit 0 (GP2, IO3), each 1 when pulled low. SCL idles
-    high; SDA moves only while SCL is low, so no I2C part on the bus sees a START."""
+    """SCL is bit 1 (GP3, IO2) and SDA bit 0 (GP2, IO3); a bit is 1 when pulled low. SCL
+    idles high and SDA only moves while SCL is low, so no I2C part sees a START."""
     out = [(0, 5000)]
     for frame in FRAMES:
         bits = []
