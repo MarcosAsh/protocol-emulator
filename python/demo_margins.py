@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# One point of a margin sweep on the bench (MicroPython, Pico A): the point's firmware from
-# demo/margins.py, run REPEATS times against the part, each repeat judged by what the part
-# does, beside a reference at the library's timing. Each run returns a dict of what it saw;
-# demo/margins.py judges it and labels the point in spec or OUT OF SPEC. Needs bench.py,
-# bench_firmware.py, protocol_emulator.py, pico_board.py and the parts' demos.
+# One point of a margin sweep on the bench (MicroPython, Pico A). Runs the point's firmware
+# from demo/margins.py REPEATS times against the part, judging each repeat by what the part
+# does, alongside a reference at the library's timing. Each run returns a dict of what it
+# saw, and demo/margins.py judges it and labels the point in spec or OUT OF SPEC. Needs
+# bench.py, bench_firmware.py, protocol_emulator.py, pico_board.py and the parts' demos.
 
 import bench
 import bench_firmware
@@ -12,27 +12,27 @@ import demo_eeprom
 import demo_neopixel
 import protocol_emulator as pe
 
-# a pixel a frame, a byte a word from the top bit: green, red, blue
+# one pixel per frame, one byte per word, top bit first: green, red, blue
 WHITE = [0xFF00, 0xFF00, 0xFF00]
 BLACK = [0, 0, 0]
-# the stick settles in microseconds; this lets the ADC's reading settle behind it
+# the stick settles in microseconds; this gives the ADC reading time to catch up
 SETTLE_MS = 20
 REFERENCES = 4
-# the last page, the eeprom demo's, where any write a broken read turns into lands
+# the last page (same as the eeprom demo), where a write caused by a broken read would land
 EEPROM_PAGE = 0x7FC0
 EEPROM_DEVICE = 0x50
 EEPROM_BYTES = 8
-# the scratchpad bytes written: TH, TL and the configuration, both bit values in each
-# byte, and every repeat the other pattern so a write that does not land shows
+# scratchpad bytes written: TH, TL and the configuration, with both bit values in each
+# byte, and the other pattern on every repeat so a write that doesn't land shows up
 PATTERNS = [(0x0F, 0xF0, 0x7F), (0xF0, 0x0F, 0x1F)]
-# the configuration's resolution bits, the only ones it takes
+# the configuration register's resolution bits, the only ones it accepts
 CONFIG_BITS = 0x60
 SKIP_ROM = 0xCC
 WRITE_SCRATCHPAD = 0x4E
 
 
 def run_point(host, point):
-    """Loads a point's firmware halted, so words pushed next are all in before it starts."""
+    """Load a point's firmware halted, so the words pushed next are all in before it starts."""
     bench.load(host, point)
     if point["load"] is not None:
         host.start()
@@ -40,9 +40,9 @@ def run_point(host, point):
 
 
 def sk6812(host, pause_ms, vsys, point, repeats, pair):
-    """Each repeat a white pixel, then a black one, or with pair a white one and a black
-    one back to back, each frame's words in while the core is halted, then vsys(). The
-    references after, at the library's timing, also leave the stick dark."""
+    """Each repeat sends a white pixel then a black one (with pair, a white and a black
+    back to back), pushing each frame's words while the core is halted, then reads vsys().
+    The references afterwards, at the library's timing, also leave the stick dark."""
     lit, dark = [], []
     bench.load(host, point)
     for _ in range(repeats):
@@ -65,7 +65,7 @@ def sk6812(host, pause_ms, vsys, point, repeats, pair):
 
 
 def eeprom_reference(host):
-    """The page's first bytes at the eeprom demo's timing, with each ACK."""
+    """Read the page's first bytes at the eeprom demo's timing, with each ACK."""
     bench.load(host, bench_firmware.I2C_MASTER)
     host.start()
     host.push([demo_eeprom.QUARTER])
@@ -74,7 +74,7 @@ def eeprom_reference(host):
 
 
 def eeprom(host, pause_ms, point, words, repeats):
-    """The point's words, an address probe and a random read of the page, each repeat,
+    """Each repeat sends the point's words, an address probe and a random read of the page,
     with a read at the eeprom demo's timing before and after."""
     if not demo_eeprom.bus_free(host, pause_ms):
         raise RuntimeError("Pico B is mastering the bus: load MicroPython or can_node")
@@ -104,7 +104,7 @@ def byte_word(b, swept):
 
 
 def ds18b20_reference(host):
-    """The ROM and the scratchpad at the library's timing, each with its CRC."""
+    """Read the ROM and the scratchpad at the library's timing, each with its CRC."""
     bench.load(host, bench_firmware.ONE_WIRE)
     host.start()
     host.push([demo_ds18b20.UNIT])
@@ -119,8 +119,9 @@ def ds18b20_reference(host):
 
 
 def ds18b20_words(kind, repeat):
-    """A repeat's words, the swept timing where the point moves it: a reset then READ
-    ROM, three scratchpad bytes written then read back, or READ ROM's read slots."""
+    """Words for one repeat, using the swept timing where the point changes it: a reset
+    then READ ROM, three scratchpad bytes written then read back, or READ ROM's read
+    slots."""
     rom = [byte_word(demo_ds18b20.READ_ROM, 0)]
     if kind == "reset":
         return [reset_word(0), reset_word(1)] + rom + [byte_word(0xFF, 0)] * 8
@@ -137,8 +138,8 @@ def ds18b20_words(kind, repeat):
 
 
 def ds18b20(host, point, kind, repeats):
-    """Each repeat's replies to ds18b20_words, a reference before and after, and the
-    scratchpad put back as the reference found it."""
+    """Return each repeat's replies to ds18b20_words with a reference before and after,
+    and restore the scratchpad to what the reference found."""
     before = ds18b20_reference(host)
     run_point(host, point)
     replies = []
@@ -161,8 +162,8 @@ def ds18b20(host, point, kind, repeats):
 
 
 def main(part, point, repeats, kind=None, words=None, path="margins.log"):
-    """On Pico A, as demo/margins.py runs it: the run's dict saved as JSON to path, or
-    what stopped it."""
+    """Run on Pico A as demo/margins.py does. Saves the run's dict as JSON to path, or
+    saves what stopped it."""
     import json
     import time
 

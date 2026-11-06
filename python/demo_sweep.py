@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# The self-timing for every firmware engine 1 can stamp, on the host Pico (MicroPython): each runs
-# on engine 0 with its watched output on wire 20, and every edge's stamp is held to the
-# cycle the model gives it and the interval the kernel's rows allow along the model's
-# path, from its frame's first edge. sweep_firmware.py says what runs, and why the rest
-# do not. Needs protocol_emulator.py, pico_board.py, demo_self_timing.py and
-# sweep_firmware.py.
+# Self-timing for every firmware engine 1 can stamp, on the host Pico (MicroPython). Each
+# firmware runs on engine 0 with its watched output on wire 20. Every edge's stamp must
+# match the cycle the model gives it, and fall in the interval the kernel's rows allow
+# along the model's path, counted from the frame's first edge. sweep_firmware.py says what
+# runs and why the rest don't. Needs protocol_emulator.py, pico_board.py,
+# demo_self_timing.py and sweep_firmware.py.
 
 import gc
 
@@ -22,16 +22,16 @@ def config(changes):
 
 
 def write_program(host, words, dirty):
-    """The selected engine's words from 0, halted, and zeros after them up to dirty, past
-    which the memory is zero already. Returns how far it may now hold anything."""
+    """Load the selected engine's words from 0, halted, and zero the memory after them up
+    to dirty (past that it is zero already). Returns how far the memory may now be nonzero."""
     host.write(pe.PROGRAM_ADDR, [0])
     host.write(pe.PROGRAM, list(words) + [0] * (dirty - len(words)))
     return len(words)
 
 
 def setup(host, firmware, dirty):
-    """Engine 1 halted; engine 0 parked, its pins low as the model starts them, and
-    loaded; then engine 1 started at the wire's level and engine 0 after it."""
+    """Halt engine 1, park and load engine 0 with its pins low as the model starts them,
+    then start engine 1 at the wire's level and engine 0 after it."""
     host.select(1)
     host.stop()
     host.flush()
@@ -65,7 +65,7 @@ def polls(cycles, pause):
 
 
 def collect(drain, count, limit, pause):
-    """The next count stamps, or what came in limit polls."""
+    """Return the next count stamps, or whatever arrives within limit polls."""
     stamps = []
     for _ in range(limit):
         drain(stamps, ())
@@ -77,7 +77,7 @@ def collect(drain, count, limit, pause):
 
 
 def offsets(stamps):
-    """Each stamp's cycles after the first, adding up 16-bit gaps."""
+    """Each stamp's cycles after the first, summing the 16-bit gaps."""
     out = [0] if stamps else []
     for k in range(1, len(stamps)):
         out.append(out[-1] + ((stamps[k] - stamps[k - 1]) & 0xFFFF))
@@ -94,9 +94,9 @@ def verdict(edge, got):
 
 
 def sweep(host, firmware, drain, pause):
-    """Exact, within and out counts over every edge, a missing or extra one out, and a
-    line for each frame that is not exact. The setup's edges are dropped, as the self-timing demo drops
-    the line going idle."""
+    """Count edges that are exact, within the allowed interval and out of it (a missing or
+    extra edge counts as out), and print a line for each frame that isn't exact. The
+    setup's edges are dropped, as the self-timing demo drops the line going idle."""
     counts = [0, 0, 0]
     notes = []
     s = firmware["setup"]
@@ -105,7 +105,7 @@ def sweep(host, firmware, drain, pause):
         counts[OUT] += abs(len(got) - s["edges"])
         notes.append("setup: %d of %d edges" % (len(got), s["edges"]))
     for burst in firmware["bursts"]:
-        # a collection mid-burst stalls the poll for milliseconds, and engine 1 overflows
+        # a collection mid-burst stalls the poll for milliseconds and engine 1 overflows
         gc.collect()
         host.select(0)
         host.push(burst["words"])
@@ -132,8 +132,8 @@ def sweep(host, firmware, drain, pause):
 
 
 def run(transfer, pause=None, drain=None):
-    """Every swept firmware in turn, a line each, and whether all passed. Faults hold until
-    reset, so the sweep stops at the first."""
+    """Run every swept firmware in turn, print a line each and return whether all passed.
+    Faults stick until reset, so the sweep stops at the first."""
     host = pe.Host(transfer)
     found = faults(host)
     if any(found):
@@ -147,7 +147,7 @@ def run(transfer, pause=None, drain=None):
     host.configure(config(sf.LOGGER["config"]))
     host.load(sf.LOGGER["words"])
     host.certify(sf.LOGGER["certificate"])
-    # nothing is known of engine 0's memory yet
+    # we don't know what engine 0's memory holds yet
     dirty = pe.PROGRAM_WORDS
     print("firmware           watch  edges  exact  within  out  faults")
     passed = 0

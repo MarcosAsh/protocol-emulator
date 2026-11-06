@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Raspberry Pi's uart_tx.pio, byte for byte, sending uart_tx.c's own string at 115200 baud
-# on OUT0, Pico B's GP1 through 1 k (MicroPython, Pico A). demo/outside.sh pio_uart_tx runs
-# it and sigrok decodes OUT0.
+# on OUT0 (MicroPython, Pico A), with Pico B's GP1 on it through 1 k. demo/outside.sh
+# pio_uart_tx runs it and sigrok decodes OUT0.
 
 import bench
 import pio_firmware
@@ -9,7 +9,7 @@ import pio_upstream
 import protocol_emulator as pe
 
 FIRMWARE = pio_firmware.UART_TX
-# a character is 10 bits of 8.7 us: the last has gone well within this once the fifo is empty
+# a character is 10 bits of 8.7 us, so once the fifo is empty the last one is long gone
 LAST_MS = 1
 
 

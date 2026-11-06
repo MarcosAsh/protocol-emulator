@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# The standard settings on the bench's parts (MicroPython, Pico A), each firmware held to
-# its sheet's limits in its protocol's file. i2c: the EEPROM demo in Standard-mode and in
-# Fast-mode, on the master that holds START and STOP the quarters each mode needs. spi: the
-# flash's JEDEC ID in modes 0 and 3, which a W25Q64 takes, and the same frame in modes 1 and
-# 2, which it does not, for the analyser alone. uart: four bytes on OUT0 at a rate, for Pico
-# B and the analyser. demo/rates.sh runs each.
+# The standard settings on the bench's parts (MicroPython, Pico A). Each firmware is held
+# to its datasheet's limits in its protocol's file.
+#   i2c:  the EEPROM demo in Standard-mode and Fast-mode, on the master that holds START
+#         and STOP for the quarters each mode needs
+#   spi:  the flash's JEDEC ID in modes 0 and 3, which a W25Q64 accepts, and the same frame
+#         in modes 1 and 2, which it doesn't, for the analyser alone
+#   uart: four bytes on OUT0 at a given rate, for Pico B and the analyser
+# demo/rates.sh runs each.
 
 import bench
 import bench_firmware
@@ -18,11 +20,11 @@ JEDEC = [0x9F, 0, 0, 0]
 
 
 def i2c(transfer, clock, pause_ms, log=print, only=None):
-    """The EEPROM demo once in each mode, at the quarter its rate's host sends, or only in
-    the mode named by only."""
+    """Run the EEPROM demo once per mode at the quarter its rate's host sends, or only in
+    the mode named by `only`."""
     passed = True
     for name in (only,) if only else ("i2c_standard", "i2c_fast"):
-        # the EEPROM demo sends demo_eeprom.QUARTER first; here each mode's own
+        # the EEPROM demo sends demo_eeprom.QUARTER first; here we send each mode's own
         demo_eeprom.QUARTER = both_roles_firmware.LOADS[name]
         log("%s: quarter %d" % (name, demo_eeprom.QUARTER))
         firmware = getattr(bench_firmware, name.upper())
@@ -32,8 +34,8 @@ def i2c(transfer, clock, pause_ms, log=print, only=None):
 
 
 def spi(transfer, pause_ms, log=print, only=None):
-    """Modes 0 and 3 have to read the flash's ID; 1 and 2 only send it, as the flash
-    samples on the other edge. Only mode only, when given."""
+    """Modes 0 and 3 must read the flash's ID. Modes 1 and 2 only send it, since the flash
+    samples on the other edge. Runs only mode `only` if given."""
     host = pe.Host(transfer)
     passed = True
     for mode in range(4) if only is None else (only,):
@@ -58,8 +60,9 @@ def spi(transfer, pause_ms, log=print, only=None):
 
 
 def uart(transfer, pause_ms, baud, log=print):
-    """UART_BYTES at baud on OUT0, the bit period from both_roles_firmware.LOADS. OUT0 idles
-    high a frame before the first start bit, as a UART that saw it low loses the first bytes."""
+    """Send UART_BYTES at baud on OUT0, with the bit period from both_roles_firmware.LOADS.
+    OUT0 idles high for a frame before the first start bit, because a UART that saw it low
+    would lose the first bytes."""
     host = pe.Host(transfer)
     period = both_roles_firmware.LOADS["uart_tx_%d" % baud]
     frame_ms = 1 + 10 * period // 48_000
@@ -76,8 +79,8 @@ def uart(transfer, pause_ms, baud, log=print):
 
 
 def main(demo, baud=None, only=None):
-    """One of demo/rates.sh's demos: i2c, spi, or uart at baud. only is one of i2c's firmware
-    names or one of spi's modes, for demo/sweep_rates.py."""
+    """Run one of demo/rates.sh's demos: i2c, spi, or uart at baud. only picks one of i2c's
+    firmware names or one of spi's modes, for demo/sweep_rates.py."""
     import time
 
     import pico_board
