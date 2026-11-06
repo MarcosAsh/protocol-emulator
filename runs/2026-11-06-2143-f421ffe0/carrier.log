@@ -1,0 +1,6 @@
+make: Entering directory '~/repo/icepi'
+openFPGALoader -b icepi-zero build/v1.3-carrier-check.bit
+unable to open ftdi device: -3 (device not found)
+JTAG init failed with: unable to open ftdi device
+make: *** [Makefile:89: check-prog] Error 1
+make: Leaving directory '~/repo/icepi'

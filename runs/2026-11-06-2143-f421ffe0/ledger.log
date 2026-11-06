@@ -1,0 +1,67 @@
+commit f421ffe0bd7a368d513aeae92c22e7fbea90e242, bitstream ~/repo/icepi/build/v1.3.bit, evidence ~/runs/2026-11-06-2143-f421ffe0/ledger/2026-11-06/ledger
+smoke, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+self_timing, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+sweep, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+self_check, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+flash, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+eeprom, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+eeprom_stretch, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+ds18b20, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+neopixel, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+swd, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+referee, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+nec, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+the bitstream did not load: not run
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+mpremote: no device with serial number <pico A>
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+unable to open ftdi device: -3 (device not found)
+JTAG init failed with: unable to open ftdi device
+
+smoke            ERROR  (expected PASS)
+self_timing      ERROR  (expected PASS)
+sweep            ERROR  (expected PASS)
+self_check       ERROR  (expected PASS)
+flash            ERROR  (expected PASS)
+eeprom           ERROR  (expected PASS)
+eeprom_stretch   ERROR  (expected PASS)
+ds18b20          ERROR  (expected PASS)
+neopixel         ERROR  (expected PASS)
+swd              ERROR  (expected PASS)
+referee          ERROR  (expected PASS)
+nec              ERROR  (expected PASS)
