@@ -14,14 +14,14 @@ HALF = 4
 
 
 def assembled(name):
-    """The words `make firmware` assembles from the .asm of the same name."""
+    """The words `make firmware` assembles from the .asm with the same name."""
     with open(f"{name}.hex") as f:
         return [int(line, 16) for line in f]
 
 
 def padded(words):
-    """The whole program memory, zeros after the program, as Host.load writes it: the
-    chip's check reads every word, and memory nobody wrote holds anything."""
+    """The whole program memory, zero-padded after the program like Host.load writes it.
+    The chip's check reads every word, and memory nobody wrote could hold anything."""
     return list(words) + [0] * (PROGRAM_WORDS - len(words))
 
 
@@ -47,7 +47,7 @@ class Pins:
         for b in range(7, -1, -1):
             self.mosi = (out >> b) & 1
             await self.wait(HALF)
-            # MISO alone: the other outputs may not have been driven yet
+            # only MISO; the other outputs may not be driven yet
             bit = 1 if str(self.dut.uo_out.value)[-1] == "1" else 0
             self.sck = 1
             await self.wait(HALF)
@@ -66,7 +66,7 @@ class Pins:
 
 
 class AsyncHost(Host):
-    """The library is synchronous; under cocotb every call becomes an await."""
+    """The library is synchronous, so under cocotb every call becomes an await."""
 
     async def write(self, reg, words):
         data = [0x80 | reg]
@@ -88,7 +88,7 @@ class AsyncHost(Host):
             raise Refused(status, (await self.read(REJECT_PC))[0], (await self.read(REJECT_REASON))[0])
 
     async def certify_firmware(self, name):
-        """The certificate firmware.mk wrote for name.asm, under its assumptions."""
+        """Certify with the certificate firmware.mk wrote for name.asm, under its assumptions."""
         await self.certify(certificate(name), **assumptions(name))
 
 
@@ -132,8 +132,8 @@ async def test_uart_over_spi(dut):
     await host.certify_firmware("uart_tx")
     await host.write(TX, [0x55, 0xA3])
 
-    # the line can go idle and start before the host's write returns, so the recording
-    # starts first and is read from the idle on
+    # the line can go idle and start before the host's write returns, so start recording
+    # first and read from the idle on
     levels = []
 
     async def record():
@@ -152,9 +152,9 @@ async def test_uart_over_spi(dut):
 
 @cocotb.test()
 async def test_fractional_period(dut):
-    """115200 baud at 48 MHz: 416 and 43691/65536 cycles a bit, as the OCaml model gives.
+    """115200 baud at 48 MHz is 416 + 43691/65536 cycles per bit, as the OCaml model says.
 
-    The start bit is a whole period; the fraction carries a cycle into two bits in three.
+    The start bit is a whole period, and the fraction adds a cycle to two bits in three.
     """
     await reset(dut)
 
@@ -184,7 +184,7 @@ async def test_fractional_period(dut):
 
 @cocotb.test()
 async def test_data_memory(dut):
-    """The host fills the data memory and the program streams it out with autopull."""
+    """The host fills data memory and the program streams it out with autopull."""
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
@@ -197,8 +197,8 @@ async def test_data_memory(dut):
     await host.write(DATA_ADDR, [0])
     await host.write(DATA, [0x2211, 0x4433, 0x6655, 0x8877])
     assert (await host.read(DATA_ADDR))[0] == 4, "the address counts the words written"
-    # a byte every six cycles, the first of which can come before the host's write returns,
-    # so the recording starts first; past the four words written the memory holds nothing
+    # one byte every six cycles, and the first can come before the host's write returns,
+    # so start recording first. Past the four words written, the memory holds nothing
     def level():
         value = dut.uio_out.value
         return int(value) if value.is_resolvable else None
@@ -248,15 +248,15 @@ async def test_wrapped_loop(dut):
 
 
 def predicate_settings(name):
-    """What `generate.exe predicate -settings` wrote beside the watch: the config, the
-    host budget if any, and the certified window."""
+    """Read what `generate.exe predicate -settings` wrote next to the watch: the config,
+    the host budget (if any) and the certified window."""
     with open(f"{name}.settings") as f:
         return {key: int(value) for key, value in (line.split() for line in f)}
 
 
 async def load_watch(host, name):
     settings = predicate_settings(name)
-    # every field from the settings, so a missing one fails rather than falls back
+    # take every field from the settings, so a missing one fails instead of falling back
     config = {k: settings[k] for k in CONFIG_FIELDS if k}
     for reg, word in config_writes(config):
         await host.write(reg, [word])
@@ -269,22 +269,22 @@ async def load_watch(host, name):
     return settings
 
 
-# The pads add the two synchroniser flops and the pin register to a certified latency,
-# which runs from the core's first sample of the event to the verdict's issue.
+# The pads add the two synchroniser flops and the pin register to a certified latency.
+# The latency runs from the core's first sample of the event to issuing the verdict.
 PAD_DELAY = 3
 
 
 @cocotb.test()
 async def test_i2c_start_watch(dut):
-    """Every SDA fall while SCL is high pulses OUT0 a fixed 13 cycles later, and nothing else."""
+    """Every SDA fall while SCL is high pulses OUT0 exactly 13 cycles later, and nothing else does."""
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
     settings = await load_watch(host, "i2c_start_watch")
     assert settings["jitter"] == 0
 
-    # (sda, scl, cycles): a start, a byte's worth of data changes while SCL is low, a
-    # repeated start, a stop, and an SDA fall while SCL is low
+    # (sda, scl, cycles): a start, a byte of data changes while SCL is low, a repeated
+    # start, a stop, and an SDA fall while SCL is low
     bit = [(0, 0, 12), (0, 1, 12), (1, 1, 12), (1, 0, 12)]
     waveform = [(1, 1, 30), (0, 1, 30), (0, 0, 20)] + bit * 4
     waveform += [(1, 0, 12), (1, 1, 30), (0, 1, 30), (0, 0, 20), (0, 1, 20), (1, 1, 30)]
@@ -295,8 +295,8 @@ async def test_i2c_start_watch(dut):
         if sda == 1 and next_sda == 0 and next_scl == 1:
             starts.append(cycle)
         sda, scl = next_sda, next_scl
-        # pins change on the falling edge, so with the router's delays (make sdf) the
-        # clock tree cannot move the edge that first samples them
+        # pins change on the falling edge so that, with the router's delays (make sdf),
+        # the clock tree can't move the edge that first samples them
         for _ in range(cycles):
             await FallingEdge(dut.clk)
             dut.ui_in.value = 0b100 | (sda << 3) | (scl << 4)
@@ -329,23 +329,23 @@ async def refused_watch(dut, name, pc):
 
 @cocotb.test()
 async def test_quiet_watch(dut):
-    """The compiled quiet watch's timing rests on the kernel's affine rows, a phase less a
-    multiple of x, which the chip's check does not carry: the chip refuses to start it,
-    at its first deadline wait. The kernel on the host accepts it (test_asm.ml)."""
+    """The compiled quiet watch's timing rests on the kernel's affine rows (a phase minus a
+    multiple of x), which the chip's check doesn't carry. The chip refuses to start it at
+    its first deadline wait, although the host kernel accepts it (test_asm.ml)."""
     await refused_watch(dut, "quiet_watch", pc=8)
 
 
 @cocotb.test()
 async def test_quiet_watch_slow(dut):
-    """The same at a latency whose budget the host sends, as the settings say."""
+    """The same, at a latency whose budget the host sends (per the settings)."""
     assert "budget_from_host" in predicate_settings("quiet_watch_slow")
     await refused_watch(dut, "quiet_watch_slow", pc=10)
 
 
 @cocotb.test()
 async def test_crc_send(dut):
-    """CRC-32/MPEG-2 over "123456789", MSB first and not complemented, sent by the CRC
-    unit after the data; two words of padding, since the osr still shifts under it."""
+    """CRC-32/MPEG-2 over "123456789" (MSB first, not complemented), sent by the CRC unit
+    after the data. Two words of padding are needed because the osr still shifts under it."""
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
@@ -362,8 +362,8 @@ async def test_crc_send(dut):
     words = [(data[i] << 8) | (data[i + 1] if i + 1 < len(data) else 0) for i in range(0, len(data), 2)]
     await host.write(TX, [8 * len(data) - 2] + words + [0, 0])
 
-    # OUT0 is uo_out[1], OUT1 uo_out[2]; a bit every six cycles from the cycle after OUT1,
-    # which can rise before the host's write returns, so the recording starts first
+    # OUT0 is uo_out[1] and OUT1 is uo_out[2]. One bit every six cycles from the cycle after
+    # OUT1 rises, which can happen before the host's write returns, so start recording first
     levels = []
 
     async def record():

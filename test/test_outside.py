@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The outside chip demos' own Python on the RTL at the bench's 48 MHz, run blocking in a
-thread as Pico A runs it, against a third-party model of the part where there is one. The
-pins are sampled as the analyser samples them and decoded with the sigrok decoders
-demo/outside.sh runs on the bench's capture."""
+"""Runs the outside-chip demos' own Python on the RTL at the bench's 48 MHz, blocking in a
+thread like Pico A, against a third-party model of the part where one exists. Pins are
+sampled the way the analyser samples them and decoded with the same sigrok decoders
+demo/outside.sh runs on the bench capture."""
 
 import math
 import os
@@ -37,18 +37,18 @@ sys.path.insert(0, "../demo")
 import sigrok
 import start_hold
 
-# 48 MHz, as the Icepi's PLL makes it
+# 48 MHz, what the Icepi's PLL produces
 CLOCK_PS = 20834
 # the analyser's rate on the bench
 RATE = 24_000_000
-# cycles in a millisecond: the demos' pauses are kept, which CAN's idle and the SK6812's
-# latch need
+# cycles per millisecond; the demos' pauses are kept because CAN's idle time and the
+# SK6812's latch need them
 MS = 48_000
 
 
 def decoders():
-    """Each demo's sigrok arguments from demo/outside.sh, so the rehearsal decodes what the
-    bench decodes."""
+    """Each demo's sigrok arguments from demo/outside.sh, so the rehearsal decodes exactly
+    what the bench decodes."""
     with open("../demo/outside.sh") as f:
         text = f.read()
     return {
@@ -69,7 +69,7 @@ async def reset(dut):
 
 
 class Analyser:
-    """Every change of the lines on its channels, sampled at RATE into a sigrok session."""
+    """Records every change on its channels, sampled at RATE into a sigrok session."""
 
     def __init__(self, channels):
         self.channels = channels
@@ -105,7 +105,7 @@ class Analyser:
 
 
 def bit(signal, n=None):
-    """A line's level, 1 for anything not driven low."""
+    """A line's level: 1 for anything not driven low."""
     def level():
         text = str(signal.value)
         return 0 if (text[len(text) - 1 - n] if n is not None else text) == "0" else 1
@@ -114,20 +114,20 @@ def bit(signal, n=None):
 
 
 def outside_line(act):
-    """The sigrok arguments a protocol's own demo gives on its "# outside:" line, as
-    demo/outside.sh reads them."""
+    """The sigrok arguments from the "# outside:" line of a protocol's own demo, read the
+    way demo/outside.sh reads them."""
     with open("../python/demo_%s.py" % act) as f:
         line = next(ln for ln in f if ln.startswith("# outside: "))
     return line.split("decode=", 1)[1].split()
 
 
 def decode(analyser, act, args=None):
-    """What sigrok reads, with the demo's arguments unless given others."""
+    """What sigrok decodes, using the demo's arguments unless others are given."""
     path = "outside_%s.sr" % act
     analyser.write(path)
     args = args or decoders()[act]
-    # sigrok's decoders run in the system's Python, not the simulator's, and ours are
-    # beside its own, as demo/decode.py gives them
+    # sigrok's decoders use the system Python, not the simulator's, and ours sit next to
+    # its own, as demo/decode.py arranges
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     env.setdefault("SIGROKDECODE_DIR", os.path.abspath("../demo/decoders"))
     run = subprocess.run(
@@ -140,7 +140,7 @@ def decode(analyser, act, args=None):
 
 
 def acted(dut, pins=None):
-    """transfer and pause_ms for a demo's thread, and the log it writes to."""
+    """The transfer and pause_ms functions for a demo's thread, and the log it writes to."""
     pins = pins or Pins(dut)
     lines = []
 
@@ -160,22 +160,22 @@ def acted(dut, pins=None):
 
 
 def in_mode(args, mode):
-    """sigrok arguments with the spi decoder in mode."""
+    """sigrok arguments with the spi decoder set to mode."""
     return [a.replace("spi:", "spi:cpol=%d:cpha=%d:" % (mode >> 1, mode & 1), 1) for a in args]
 
 
 @cocotb.test()
 @cocotb.parametrize(mode=[0, 3])
 async def test_flash(dut, mode):
-    """The flash demo's commands against picosoc's spiflash.v, which models only release
-    from power down and the reads: so the wake and a read of a page it was loaded with, in
-    mode 0 as the demo runs and in mode 3, the flash's other mode. JEDEC ID, status, program
-    and erase it does not have, and they are scripted only."""
+    """The flash demo's commands against picosoc's spiflash.v. That model only covers
+    release from power down and reads, so the test wakes it and reads back a page it was
+    loaded with, in mode 0 (as the demo runs) and in mode 3 (the flash's other mode). JEDEC
+    ID, status, program and erase aren't modelled, so they are only scripted."""
     await reset(dut)
     page = [(0x5A + 11 * i) & 0xFF for i in range(demo_flash.PAGE)]
     for i, value in enumerate(page):
         dut.flash.memory[demo_flash.SECTOR + i].value = value
-    # CS is low from reset until the firmware starts, as on the bench
+    # CS is low from reset until the firmware starts, like on the bench
     dut.flash_wired.value = 1
     analyser = Analyser({
         0: bit(dut.uo_out, 6), 1: bit(dut.uo_out, 5), 2: bit(dut.miso), 3: bit(dut.uo_out, 7),
@@ -202,8 +202,8 @@ async def test_flash(dut, mode):
 
 
 def cocotbext_spi():
-    """cocotbext-spi 0.5.0 predates cocotb 2, which dropped BaseClock, only its master's
-    base, and a scalar's .integer, which its slaves read."""
+    """cocotbext-spi 0.5.0 predates cocotb 2, which dropped BaseClock (only the master's
+    base uses it) and a scalar's .integer (which the slaves read)."""
     import cocotb.clock
     from cocotb.types import Logic
 
@@ -216,7 +216,7 @@ def cocotbext_spi():
     return spi, SpiSlaveLoopback
 
 
-# 9 cycles at 48 MHz, the least CS high the kernel proves, is 187.5 ns: 190 fails
+# 9 cycles at 48 MHz is the minimum CS high time the kernel proves, 187.5 ns; 190 fails
 FRAME_SPACING_NS = 180
 
 
@@ -224,9 +224,9 @@ FRAME_SPACING_NS = 180
 @cocotb.parametrize(mode=[0, 1, 2, 3])
 async def test_spi_modes(dut, mode):
     """The SPI master with chip select in each mode against cocotbext-spi's loopback slave
-    of that mode, which answers each 16-bit frame with the one before and fails on CS
-    rising inside a frame or falling less than FRAME_SPACING_NS after it rose. The pins
-    are decoded by sigrok's spi decoder with the mode's cpol and cpha."""
+    of that mode. The slave answers each 16-bit frame with the previous one and fails if CS
+    rises inside a frame or falls less than FRAME_SPACING_NS after it rose. The pins are
+    decoded by sigrok's spi decoder with the mode's cpol and cpha."""
     spi, SpiSlaveLoopback = cocotbext_spi()
     await reset(dut)
     # test_flash leaves the flash wired
@@ -243,7 +243,7 @@ async def test_spi_modes(dut, mode):
     def act():
         host = demo_flash.pe.Host(transfer)
         demo_flash.start(host, getattr(demo_flash.bench_firmware, "SPI_CS_MODE%d" % mode))
-        # in one go, so the next frame's words wait in the fifo and CS is high the least
+        # all in one go, so the next frame's words wait in the fifo and CS stays high the minimum time
         words = [w for high, low in frames for w in (high, low | demo_flash.LAST)]
         got = [b & 0xFF for b in demo_flash.bench.exchange(host, words)]
         replies = [got[i:i + 2] for i in range(0, len(got), 2)]
@@ -253,10 +253,10 @@ async def test_spi_modes(dut, mode):
     replies, faults = await bridge(act)()
     assert faults == 0
     assert replies == [[0, 0]] + frames[:-1], replies
-    # the flash demo's spi decoder, without the spiflash one stacked on it
+    # the flash demo's spi decoder, without the spiflash one stacked on top
     decoder = in_mode(["-P", decoders()["flash"][1].split(",")[0]], mode)
 
-    # CS is low from reset until the firmware starts: a transfer with no bytes
+    # CS is low from reset until the firmware starts, which shows up as a transfer with no bytes
     def transfers(frames):
         return ["spi-1: "] + ["spi-1: " + " ".join("%02X" % b for b in f) for f in frames]
 
@@ -267,7 +267,7 @@ async def test_spi_modes(dut, mode):
 
 class Memory(I2cMemory):
     """cocotbext-i2c 0.1.2's memory keeps bits of the old address when a two-byte one comes
-    in, its mask not shifted to the byte, so here each byte is set in place."""
+    in, because its mask isn't shifted to the byte. Here each byte is set in place instead."""
 
     async def handle_write(self, data):
         if self.addr_ptr < 0:
@@ -280,8 +280,8 @@ class Memory(I2cMemory):
 
 @cocotb.test()
 async def test_eeprom(dut):
-    """The EEPROM demo against cocotbext-i2c's I2C memory, 32 KiB at 0x52, so the demo has to
-    find it. The model ends no write cycle, so ACK polling sees no NACK."""
+    """The EEPROM demo against cocotbext-i2c's I2C memory (32 KiB at 0x52), which the demo
+    has to find. The model never ends a write cycle, so ACK polling sees no NACK."""
     await reset(dut)
     memory = Memory(
         sda=dut.sda, sda_o=dut.sda_o, scl=dut.scl, scl_o=dut.scl_o, addr=0x52, size=32768
@@ -297,8 +297,8 @@ async def test_eeprom(dut):
     page = [(1 + 13 * i) & 0xFF for i in range(demo_eeprom.PAGE)]
     assert list(memory.read_mem(demo_eeprom.PAGE_ADDRESS, demo_eeprom.PAGE)) == page
     assert memory.read_mem(demo_eeprom.BYTE_ADDRESS, 1) == b"\x01"
-    # every START, repeated ones included: SCL high this long before SDA falls, which
-    # SCL's rise on the bench eats into against Fast-mode's 600 ns
+    # every START, repeated ones included: SCL is high this long before SDA falls. On the
+    # bench SCL's rise eats into this, against Fast-mode's 600 ns
     scl = analyser.levels(7)
     setups = [
         (fall - max(at for at, level in scl if at <= fall and level == 1)) / 1000
@@ -318,10 +318,11 @@ async def test_eeprom(dut):
 
 
 class StretchingMemory(Memory):
-    """Holds SCL low a random 0 to 1499 cycles before each byte it takes or gives, as
-    cocotbext-i2c holds it across handle_write and handle_read. Past a read's first byte
-    0.1.2 calls handle_read as the ACK's SCL rises, where a hold would cut that high to
-    nothing, which no slave may do, so this one first lets SCL go until the ACK's fall."""
+    """Holds SCL low for a random 0 to 1499 cycles before each byte it takes or gives, the
+    way cocotbext-i2c holds it across handle_write and handle_read. After a read's first
+    byte, 0.1.2 calls handle_read as the ACK's SCL rises, and a hold there would cut that
+    high to nothing, which no slave may do. So this one first lets SCL go until the ACK's
+    fall."""
 
     def __init__(self, *args, seed, **kwargs):
         super().__init__(*args, **kwargs)
@@ -354,7 +355,7 @@ class StretchingMemory(Memory):
 
 
 def scl_highs(analyser):
-    """Cycles SCL stays high, each time, but for the idle bus around a transfer."""
+    """How many cycles SCL stays high each time, ignoring the idle bus around a transfer."""
     scl = analyser.levels(7)
     highs = [round((end - at) / CLOCK_PS) for (at, level), (end, _) in zip(scl, scl[1:]) if level]
     return [n for n in highs if n < 4 * demo_eeprom.QUARTER]
@@ -362,8 +363,8 @@ def scl_highs(analyser):
 
 @cocotb.test()
 async def test_eeprom_stretch(dut):
-    """The EEPROM demo on the master that waits on SCL, against the memory stretching SCL
-    before every byte. Every SCL high is two quarters from the rise the core sees."""
+    """The EEPROM demo on the master that waits on SCL, against a memory that stretches SCL
+    before every byte. Every SCL high lasts two quarters from the rise the core sees."""
     await reset(dut)
     memory = StretchingMemory(
         sda=dut.sda, sda_o=dut.sda_o, scl=dut.scl, scl_o=dut.scl_o, addr=0x52, size=32768,
@@ -400,8 +401,8 @@ async def test_eeprom_stretch(dut):
 
 @cocotb.test()
 async def test_eeprom_beside_a_master(dut):
-    """The EEPROM demo with another master's reads on the bus, as Pico B's start hold build
-    makes them: the run hears the STARTs, refuses, and never drives either line."""
+    """The EEPROM demo with another master's reads on the bus, like Pico B's start hold
+    build makes them. The run hears the STARTs, refuses, and never drives either line."""
     await reset(dut)
     driven = []
 
@@ -427,7 +428,7 @@ async def test_eeprom_beside_a_master(dut):
     assert not await bridge(demo_eeprom.run)(transfer, clock, pause_ms, log=log)
     master.cancel()
     watcher.cancel()
-    # the later demos share the bus
+    # leave the bus released for the later demos, which share it
     dut.sda_o.value = 1
     dut.scl_o.value = 1
     assert "Pico B is mastering the bus: load MicroPython or can_node" in lines, lines
@@ -436,15 +437,15 @@ async def test_eeprom_beside_a_master(dut):
 
 @cocotb.test()
 async def test_i2c_stuck_scl(dut):
-    """SCL held low from the address's second bit: the master that waits on SCL answers
-    that word 0xffff after 65536 polls of four cycles, the others at once, and lets both
-    lines go."""
+    """SCL held low from the address's second bit. The master that waits on SCL answers
+    that word 0xffff after 65536 polls of four cycles, the others answer at once, and both
+    lines are released."""
     await reset(dut)
     transfer, _, log, _ = acted(dut)
     held = []
 
     async def hold(falls):
-        # the bus clear's START, the word's START and its first bit
+        # the bus clear's START, the word's START, and its first bit
         for _ in range(falls):
             await FallingEdge(dut.scl)
         dut.scl_o.value = 0
@@ -474,9 +475,10 @@ async def test_i2c_stuck_scl(dut):
 
 
 class Ds18b20:
-    """A DS18B20 as its datasheet times it. There is no third-party model, so this one is
-    ours: a presence pulse 30 to 150 us after a reset, a zero held 30 us from the falling
-    edge, READ ROM, SKIP ROM, CONVERT T busy for CONVERTING read slots, READ SCRATCHPAD."""
+    """A DS18B20 timed per its datasheet. There is no third-party model, so this one is
+    ours. It gives a presence pulse 30 to 150 us after a reset, reads a zero held 30 us
+    from the falling edge, and supports READ ROM, SKIP ROM, CONVERT T (busy for CONVERTING
+    read slots) and READ SCRATCHPAD."""
 
     CONVERTING = 12
 
@@ -514,7 +516,7 @@ class Ds18b20:
         while True:
             await RisingEdge(self.dut.dq_held)
             start = get_sim_time("ns")
-            # a read slot: a bit of what is being sent, or a zero while converting
+            # a read slot sends a bit of the pending data, or a zero while converting
             sent = None
             if self.sending:
                 sent = self.sending.pop(0)
@@ -541,11 +543,11 @@ def with_crc(data):
 
 @cocotb.test()
 async def test_ds18b20(dut):
-    """The DS18B20 demo against our own model, its line decoded by sigrok's 1-Wire link and
-    network layers."""
+    """The DS18B20 demo against our own model, with its line decoded by sigrok's 1-Wire
+    link and network layers."""
     await reset(dut)
     rom = with_crc([0x28, 0xD1, 0xC3, 0x5A, 0x0B, 0x00, 0x00])
-    # +25.0625 C, the datasheet's own example, and 12-bit resolution
+    # +25.0625 C (the datasheet's own example) at 12-bit resolution
     pad = with_crc([0x91, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x0C, 0x10])
     device = Ds18b20(dut, rom, pad)
     analyser = Analyser({5: bit(dut.dq)})
@@ -553,7 +555,7 @@ async def test_ds18b20(dut):
     assert await bridge(demo_ds18b20.run)(transfer, log=log)
     assert any("25.0625 C" in line for line in lines), lines
     assert device.log[:3] == ["reset", "0x33", "reset"], device.log
-    # 84 units of 6 us, which leaves 480 behind by more than the clock's rounding
+    # 84 units of 6 us, which clears 480 by more than the clock's rounding
     cocotb.log.info("resets low for %s us", sorted(set(round(r, 1) for r in device.resets)))
     assert min(device.resets) >= 500
     decoded = decode(analyser, "ds18b20")
@@ -563,8 +565,8 @@ async def test_ds18b20(dut):
 
 
 class SlowPins(Pins):
-    """The host SPI at another clock, half a period of half cycles, with gap half periods
-    between bytes: the RP2040's SPI in mode 0 pauses a bit and a half after each."""
+    """The host SPI at a different clock: half a period is half cycles, with gap half
+    periods between bytes. The RP2040's SPI in mode 0 pauses 1.5 bit times after each byte."""
 
     def __init__(self, dut, half, gap):
         super().__init__(dut)
@@ -585,18 +587,18 @@ class SlowPins(Pins):
         return acc
 
 
-# SK6812-012 Rev. B/1 p.7, in ns: T0L and T1L have a least and no most
+# SK6812-012 Rev. B/1 p.7, in ns; T0L and T1L have a minimum and no maximum
 SK6812 = {"T0H": (250, 400), "T1H": (650, 1000), "T0L": (800, float("inf")), "T1L": (200, float("inf"))}
 
 
 async def neopixel(dut, gap):
-    """The NeoPixel demo with Pico A's SPI at its clock and gap half periods between bytes:
-    every pixel has to chain, so sigrok sees each frame whole, and nothing faults."""
+    """The NeoPixel demo with Pico A's SPI at its clock and gap half periods between bytes.
+    Every pixel must chain so sigrok sees each frame whole, and nothing may fault."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 4)})
     half = 48_000_000 // demo_neopixel.SPI_HZ // 2
     transfer, pause_ms, log, _ = acted(dut, SlowPins(dut, half, gap))
-    # engine 0's tx fifo, which drops a push when full without a fault
+    # engine 0's tx fifo, which drops a push when full without raising a fault
     level = dut.user_project.core.top.engines.engine_0.tx.level
     most = [0]
 
@@ -620,17 +622,17 @@ async def neopixel(dut, gap):
 
 @cocotb.test()
 async def test_neopixel_back_to_back(dut):
-    """The fifo at its fullest: the bytes with no pause between them."""
+    """The fifo at its fullest, with no pause between bytes."""
     await neopixel(dut, gap=0)
 
 
 @cocotb.test()
 async def test_neopixel(dut):
-    """The words at their latest, a byte and its pause 9.5 SPI clocks, and every high and low
-    time held to the SK6812's datasheet."""
+    """The words at their latest (a byte plus its pause is 9.5 SPI clocks), with every high
+    and low time held to the SK6812's datasheet."""
     analyser = await neopixel(dut, gap=3)
 
-    # each bit is a high time and the low time after it, the last of a frame excepted
+    # each bit is a high time followed by a low time, except the last of a frame
     edges = analyser.levels(4)
     times = {name: [] for name in SK6812}
     for (rise, high), (fall, _), (next_rise, _) in zip(edges[1::2], edges[2::2], edges[3::2]):
@@ -649,10 +651,10 @@ async def test_neopixel(dut):
 
 @cocotb.test()
 async def test_can(dut):
-    """The CAN demo as demo/outside.sh runs it, armed before the capture: its frames on OUT1
-    decoded by sigrok as the receiving transceiver's R line. The run arms again, and OUT1
-    stays recessive through it, the first SOF at least 11 recessive bits after the first
-    arm. Nothing ACKs here; on the bench Pico B does."""
+    """The CAN demo as demo/outside.sh runs it, armed before the capture. Its frames on OUT1
+    are decoded by sigrok as the receiving transceiver's R line. The run arms again, and
+    OUT1 stays recessive through that, with the first SOF at least 11 recessive bits after
+    the first arm. Nothing ACKs here; on the bench Pico B does."""
     await reset(dut)
     line = Analyser({5: bit(dut.uo_out, 2)})
     transfer, pause_ms, log, _ = acted(dut)
@@ -676,11 +678,11 @@ async def test_can(dut):
 
 @cocotb.test()
 async def test_can_from_reset(dut):
-    """The CAN demo's run with no arm before it, the transmitter wired from reset: module A's
-    R is dominant until the run gives the period, then idle at least 11 bits before the
-    first SOF, and sigrok reads every frame from where R let go. A capture from reset it
-    would not: sigrok 0.5.3's CAN decoder takes a low level for SOF, not a falling edge,
-    so demo/outside.sh arms before it captures."""
+    """The CAN demo's run with no arm before it, with the transmitter wired from reset.
+    Module A's R is dominant until the run sets the period, then idle for at least 11 bits
+    before the first SOF, and sigrok reads every frame from where R let go. A capture from
+    reset wouldn't work: sigrok 0.5.3's CAN decoder treats a low level as SOF rather than a
+    falling edge, so demo/outside.sh arms before it captures."""
     await reset(dut)
     line = Analyser({5: bit(dut.can_rx)})
     later = []
@@ -704,15 +706,15 @@ async def test_can_from_reset(dut):
     assert not any("must be" in line or "arning" in line for line in decoded), decoded
 
 
-# can2040's own lines, SOF to the CRC delimiter, for demo/can_node.c's replies, as
-# demo/can_node/golden.c prints them and test/test_can_node.ml checks them
+# can2040's own lines (SOF to the CRC delimiter) for demo/can_node.c's replies, as printed
+# by demo/can_node/golden.c and checked by test/test_can_node.ml
 REPLY_LINES = [
     "0000101000010000011100000100100000101000001001111100011110011001",
     "00001010001010000101010011001010101",
     "0110101100010001000111110111110111110111110111110111110111110111110111110111110111110111110111110010101011011101",
     "000001000001000001001000001000001000001000100101101100011",
 ]
-# Pico B's bit, a crystal's 500 kbit/s, where the chip's is 96 of its cycles
+# Pico B's bit time, from a crystal at 500 kbit/s; the chip's is 96 of its cycles
 CAN_BIT_PS = 2_000_000
 
 
@@ -727,11 +729,11 @@ def crc15(bits):
 
 
 class PicoB:
-    """Pico B as demo/can_node.c runs can2040, on its own transceiver: it ACKs each frame
-    whose CRC holds, and after a frame with ID request, delay_ms on, sends replies, can2040's
-    own lines, gap_ms apart, each again until ACKed. A model of ours: it samples each bit
-    three quarters in from the SOF's fall, with no resynchronising, which the simulator's
-    steady clocks allow."""
+    """Pico B as demo/can_node.c runs can2040, on its own transceiver. It ACKs each frame
+    whose CRC holds. After a frame with ID request it waits delay_ms, then sends the
+    replies (can2040's own lines) gap_ms apart, each repeated until ACKed. This model is
+    ours: it samples each bit three quarters in from the SOF's fall with no
+    resynchronising, which the simulator's steady clocks allow."""
 
     def __init__(self, dut, request, replies, delay_ms, gap_ms):
         self.dut = dut
@@ -754,15 +756,15 @@ class PicoB:
             await Timer(ps - now, unit="ps")
 
     async def idle(self, bits):
-        """Until the bus has been recessive for that many bits, a quarter bit at a time."""
+        """Wait until the bus has been recessive for that many bits, checking every quarter bit."""
         quarters = 0
         while quarters < 4 * bits:
             await Timer(CAN_BIT_PS // 4, unit="ps")
             quarters = quarters + 1 if self.level() else 0
 
     async def receive(self, sof):
-        """The frame whose SOF fell at sof: (id, rtr, dlc, data), ACKed if its CRC holds, or
-        None for a stuff, form or CRC error."""
+        """Receive the frame whose SOF fell at sof as (id, rtr, dlc, data), ACKing it if its
+        CRC holds. Returns None on a stuff, form or CRC error."""
         raw, bits = [], []
         last, run, need = None, 0, None
         while need is None or len(bits) < need or run == 5:
@@ -794,7 +796,7 @@ class PicoB:
         return value(bits[1:12]), bits[12], value(bits[15:19]), data
 
     async def send(self, line):
-        """line once, after an idle bus, and whether a receiver ACKed it."""
+        """Send line once, after an idle bus. Returns whether a receiver ACKed it."""
         await self.idle(11)
         for level in line:
             self.dut.can_o.value = int(level)
@@ -835,12 +837,12 @@ def can_ids(decoded):
 
 @cocotb.test()
 async def test_can_node(dut):
-    """The can_node demo against a model of Pico B: armed, the sender's four frames, each
-    ACKed and the ACK read back, the last asking for Pico B's four, which the receiver ACKs.
-    sigrok decodes both ways on module A's R."""
+    """The can_node demo against a model of Pico B. After arming, the sender sends four
+    frames, each ACKed and the ACK read back, the last one asking for Pico B's four, which
+    the receiver ACKs. sigrok decodes both directions on module A's R."""
     await reset(dut)
-    # demo/can_node.c waits 300 ms; shorter here, but past the host's switch to the
-    # receiver, which loads, certifies and waits for its check's turn: 6.7 ms after the
+    # demo/can_node.c waits 300 ms. It's shorter here, but still longer than the host's
+    # switch to the receiver (load, certify, wait for its check's turn), 6.7 ms after the
     # request
     pico_b = PicoB(dut, demo_can_node.REQUEST, REPLY_LINES, delay_ms=10, gap_ms=2)
     transfer, pause_ms, log, _ = acted(dut)
@@ -855,16 +857,17 @@ async def test_can_node(dut):
     decoded = decode(analyser, "can_node")
     frames = sent + demo_can_node.REPLIES
     assert can_ids(decoded) == ["%d (0x%x)" % (f[0], f[0]) for f in frames], decoded
-    # sigrok 0.5.3 reads a remote frame's DLC of data bytes, test/can_node.ml's
-    # can_remote, so its CRC and ACK slot are not where it looks
+    # sigrok 0.5.3 reads a remote frame's DLC as data bytes (test/can_node.ml's
+    # can_remote), so the CRC and ACK slot aren't where it looks for them
     data_frames = [f for f in frames if not f[1]]
     assert decoded.count("can-1: ACK slot: ACK") == len(data_frames), decoded
     assert not any("must be" in line or "arning" in line for line in decoded), decoded
 
 
 def two_engines(transfer, pause_ms):
-    """The receiver in engine 1 with its ACK on OUT2, and the sender in engine 0, which has
-    its period and leaves OUT1 recessive; the receiver hears eleven idle bits after."""
+    """Set up the receiver in engine 1 with its ACK on OUT2, and the sender in engine 0,
+    which gets its period and leaves OUT1 recessive. The receiver then hears eleven idle
+    bits."""
     host = demo_can_node.pe.Host(transfer)
     bench = demo_can_node.bench
     firmware = demo_can_node.bench_firmware
@@ -880,7 +883,7 @@ def two_engines(transfer, pause_ms):
 
 
 def send(transfer, pause_ms, log, frames):
-    """frames from engine 0, the ACKs it read, what engine 1 heard, and their faults."""
+    """Send frames from engine 0. Returns the ACKs it read, what engine 1 heard, and their faults."""
     host = demo_can_node.pe.Host(transfer)
     bench = demo_can_node.bench
     acks, words = [], []
@@ -888,7 +891,7 @@ def send(transfer, pause_ms, log, frames):
         host.push(demo_can.words(ident, data))
         pause_ms(demo_can_node.FRAME_MS)
         acks += host.pop(bench.rx_level(host))
-        # a long frame is seven words, so each is read before the next
+        # a long frame is seven words, so read each before the next
         host.select(1)
         words += host.pop(bench.rx_level(host))
         host.select(0)
@@ -902,7 +905,7 @@ def send(transfer, pause_ms, log, frames):
 
 
 def stop_engine_1(transfer):
-    """Its OUT2 holds the recessive level it left."""
+    """Stop engine 1; its OUT2 holds the recessive level it left."""
     host = demo_can_node.pe.Host(transfer)
     host.select(1)
     host.stop()
@@ -912,8 +915,8 @@ def stop_engine_1(transfer):
 @cocotb.test()
 async def test_can_chip_to_chip(dut):
     """The chip's sender in engine 0 on OUT1 and its receiver in engine 1 on OUT2, through
-    two transceivers on one bus: engine 1 takes and ACKs each frame and engine 0 reads the
-    ACK, then with engine 1 stopped reads none. sigrok decodes the bus."""
+    two transceivers on one bus. Engine 1 takes and ACKs each frame and engine 0 reads the
+    ACK. With engine 1 stopped, engine 0 reads none. sigrok decodes the bus."""
     await reset(dut)
     dut.can_out2.value = 1
     transfer, pause_ms, log, _ = acted(dut)
@@ -937,14 +940,14 @@ async def test_can_chip_to_chip(dut):
     ), slots
 
 
-# Standard-mode at 100 kHz: SCL low and high 5 us each, SDA moving a quarter into the low
+# Standard-mode at 100 kHz: SCL is low and high 5 us each, and SDA moves a quarter of the way into the low
 HALF_PS = 5_000_000
 QUARTER_PS = 1_250_000
 READS = 3
 
 
 async def i2c_reads(dut, hold_ps):
-    """READS reads as a master that holds each START hold_ps: START, 0x50 to write, a
+    """READS reads from a master that holds each START for hold_ps: START, 0x50 to write,
     repeated START, 0x50 to read, STOP. Nothing answers, so both addresses are NACKed."""
 
     async def wait(ps):
@@ -979,10 +982,10 @@ async def i2c_reads(dut, hold_ps):
 
 
 async def start_holds(dut, hold_ps):
-    """The start hold demo against a master holding every START hold_ps, with Pico A's SPI
-    at the NeoPixel demo's clock: the chip's holds each within a cycle of it, the analyser's
-    within a sample, nothing driven on the bus, and the stick lit with the host's verdict,
-    which is returned."""
+    """The start hold demo against a master holding every START for hold_ps, with Pico A's
+    SPI at the NeoPixel demo's clock. The chip's measured hold must be within a cycle of
+    that, the analyser's within a sample, nothing may be driven on the bus, and the stick
+    is lit with the host's verdict, which is returned."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 4), 6: bit(dut.sda), 7: bit(dut.scl)})
     driven = []
@@ -1025,22 +1028,23 @@ async def start_holds(dut, hold_ps):
 
 @cocotb.test()
 async def test_start_hold_pio_i2c(dut):
-    """pio/i2c's START: 10 PIO cycles at 125 MHz over 39.0625, 3.125 us, which the host
-    has to FAIL against 4.0 us."""
+    """pio/i2c's START is 10 PIO cycles at 125 MHz over 39.0625, i.e. 3.125 us, which the
+    host must FAIL against 4.0 us."""
     assert await start_holds(dut, 3_125_000) is False
 
 
 @cocotb.test()
 async def test_start_hold_hardware_i2c(dut):
-    """The RP2040 I2C block's START, taken as its SCL high time, HCNT + SPKLEN + 7 = 553
-    cycles at 125 MHz, 4.424 us, which the host has to PASS."""
+    """The RP2040 I2C block's START, taken as its SCL high time: HCNT + SPKLEN + 7 = 553
+    cycles at 125 MHz, i.e. 4.424 us, which the host must PASS."""
     assert await start_holds(dut, 4_424_000) is True
 
 
 async def refereed(dut, act, **kwargs):
-    """act(referee) as Pico A runs it, the SPI clock switched as the script switches it:
-    the demo's result, each cheat's start bit fall on wire 20 and period, engine 1's irq rises,
-    the analyser on OUT3 and the log. Wire 20 and the irq never reach a pad, so the RTL's."""
+    """Run act(referee) as Pico A does, switching the SPI clock as the script switches it.
+    Returns the demo's result, each cheat's start bit fall on wire 20 and its period,
+    engine 1's irq rises, the analyser on OUT3 and the log. Wire 20 and the irq never
+    reach a pad, so they come from the RTL."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 4)})
     pins = SlowPins(dut, 48_000_000 // demo_referee.HOST_HZ // 2, 3)
@@ -1093,8 +1097,9 @@ async def refereed(dut, act, **kwargs):
 
 
 def assert_refereed(cheats, irqs, analyser, lines, slips, frames):
-    """One alarm a cheat and none on the honest frames, each six cycles after the write the
-    rows name shows on wire 20, the stick showing frames after the catches, no faults."""
+    """One alarm per cheat and none on the honest frames, each six cycles after the write
+    the rows name appears on wire 20. The stick shows frames after the catches, and there
+    are no faults."""
     check = demo_referee.check
     period = check.PERIOD
     assert [p - period for _, p in cheats] == slips, cheats
@@ -1123,9 +1128,10 @@ GREEN = "#002000"
 
 @cocotb.test()
 async def test_referee_auto(dut):
-    """The referee's auto mode, a cycle and two late and early: each cheat caught at the
-    check the rows name, the stick red a pixel a catch and swept green after 21 honest
-    frames, the checker re-armed and quiet on the honest frames between."""
+    """The referee's auto mode, with cheats one and two cycles late and early. Each cheat is
+    caught at the check the rows name, the stick goes red one pixel per catch and sweeps
+    green after 21 honest frames, and the checker re-arms and stays quiet on the honest
+    frames between."""
 
     def act(referee):
         return demo_referee.auto(referee, cheats=4, frames=7, linger_ms=0)
@@ -1141,8 +1147,9 @@ async def test_referee_auto(dut):
 
 @cocotb.test()
 async def test_referee_play(dut):
-    """The game with BOOTSEL pressed on the second and fourth polls: a cycle late, then a
-    cycle early, each caught, with honest frames before each, and the second held to end."""
+    """The game with BOOTSEL pressed on the second and fourth polls: one cycle late, then
+    one cycle early. Each is caught, with honest frames before each, and the second press
+    is held to the end."""
     reads = iter([False, True, False, True, True, True])
 
     @resume
@@ -1160,15 +1167,16 @@ async def test_referee_play(dut):
     assert_refereed(cheats, irqs, analyser, lines, [1, -1], [lit(RED, 1), lit(RED, 2)])
 
 
-# ws2812.pio's T1 = 3, T2 = 3 and T3 = 4 PIO cycles of 125 ns at ws2812.c's 800 kHz
+# ws2812.pio's T1 = 3, T2 = 3 and T3 = 4 PIO cycles of 125 ns, at ws2812.c's 800 kHz
 WS2812_PIO = {"T0H": 375, "T0L": 875, "T1H": 750, "T1L": 500}
 
 
 @cocotb.test()
 async def test_pio_ws2812(dut):
-    """Raspberry Pi's ws2812.pio as demo_pio_ws2812 runs it, Pico A's SPI at its clock with
-    its pause after each byte: both frames whole, no fault, and each bit's high and low
-    times those the program makes on an RP2040, inside the SK6812 B/1 sheet's."""
+    """Raspberry Pi's ws2812.pio as demo_pio_ws2812 runs it, with Pico A's SPI at its clock
+    and its pause after each byte. Both frames must arrive whole with no fault, and each
+    bit's high and low times must be what the program makes on an RP2040, inside the
+    SK6812 B/1 sheet's limits."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 4)})
     half = 48_000_000 // demo_pio_ws2812.SPI_HZ // 2
@@ -1197,7 +1205,7 @@ async def test_pio_ws2812(dut):
 
 @cocotb.test()
 async def test_pio_uart_tx(dut):
-    """Raspberry Pi's uart_tx.pio sending uart_tx.c's string on OUT0, as sigrok decodes it
+    """Raspberry Pi's uart_tx.pio sends uart_tx.c's string on OUT0, which sigrok decodes
     at 115200 baud, with no fault."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 1)})
@@ -1209,8 +1217,9 @@ async def test_pio_uart_tx(dut):
 
 
 async def w25q64(dut, ident):
-    """A W25Q64JV's Read JEDEC ID in mode 0 on spi_miso, which needs no flash model: the
-    command's bits taken on SCK's rising edges, the reply's put out on its falling ones."""
+    """A W25Q64JV's Read JEDEC ID in mode 0 on spi_miso, which needs no flash model. The
+    command's bits are taken on SCK's rising edges and the reply is put out on its falling
+    ones."""
     command, taken, reply = 0, 0, []
     while True:
         await First(RisingEdge(dut.spi_sclk), FallingEdge(dut.spi_sclk), RisingEdge(dut.spi_cs))
@@ -1227,8 +1236,8 @@ async def w25q64(dut, ident):
 
 @cocotb.test()
 async def test_pio_spi(dut):
-    """Raspberry Pi's spi.pio's spi_cpha0_cs reading the JEDEC ID of a W25Q64JV, as sigrok
-    decodes it, with no fault."""
+    """Raspberry Pi's spi.pio spi_cpha0_cs reads the JEDEC ID of a W25Q64JV, which sigrok
+    decodes, with no fault."""
     await reset(dut)
     # test_flash leaves the flash wired
     dut.flash_wired.value = 0
@@ -1248,8 +1257,8 @@ async def test_pio_spi(dut):
 
 @cocotb.test()
 async def test_snorble(dut):
-    """Snorble's demo, written from the SNB-1 sheet in the rehearsal, as sigrok's snorble
-    decoder reads OUT0: every byte, each with odd parity, no fault."""
+    """Snorble's demo, written from the SNB-1 sheet for the rehearsal. Every byte, each with
+    odd parity, must decode on OUT0 with sigrok's snorble decoder and no fault."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 1)})
     transfer, pause_ms, log, _ = acted(dut)

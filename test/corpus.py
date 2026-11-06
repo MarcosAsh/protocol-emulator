@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# One static page per protocol and an index, from data files only: what write_corpus.exe
-# prints of the library (firmware.tsv, limits.tsv, firmware/), test/<protocol>.ml, and
-# demo/speed.tsv. Optional, and each page says when one is missing: board ledgers, the
-# clock windows (python/clock_cliffs.py), named-refusal pictures, agent transcripts.
-# Writes corpus.sha256 beside the pages, in sha256sum's format; --check verifies a tree
-# against it. No timestamps, so the same inputs give the same bytes.
+# Builds one static page per protocol plus an index, from data files only: the output of
+# write_corpus.exe (firmware.tsv, limits.tsv, firmware/), test/<protocol>.ml and
+# demo/speed.tsv. These inputs are optional, and a page says when one is missing: board
+# ledgers, clock windows (python/clock_cliffs.py), named-refusal pictures, agent transcripts.
+# Writes corpus.sha256 next to the pages in sha256sum's format, and --check verifies a tree
+# against it. There are no timestamps, so the same inputs give the same bytes.
 # Usage: python3 test/corpus.py --data DIR --out DIR [--speed TSV] [--ledger TSV]...
 #            [--witnesses DIR] [--matrix FILE] [--cliffs FILE] [--refusals DIR]
 #            [--transcripts DIR]
@@ -25,7 +25,7 @@ MANIFEST = "corpus.sha256"
 STAGES = ["spec", "file", "certificate", "bench"]
 WORKFLOW = ("https://github.com/MarcosAsh/protocol-emulator/blob/main/"
             ".github/workflows/ocaml.yaml")
-# the protocol page each ledger demo belongs on; a demo not here is listed on the index
+# the protocol page each ledger demo belongs on; demos not listed here go on the index
 DEMO_PROTOCOL = {
     "swd": "swd", "neopixel": "ws2812", "eeprom": "i2c", "eeprom_stretch": "i2c",
     "ds18b20": "one_wire", "can": "can", "can_node": "can_node", "keyboard": "usb",
@@ -99,7 +99,7 @@ def minutes(a, b):
 
 
 def literal(path, names):
-    """The list assignments [names] of a data module, read without running it."""
+    """The list assignments named in names, read from a data module without running it."""
     found = {}
     for node in ast.parse(Path(path).read_text()).body:
         if isinstance(node, ast.Assign) and len(node.targets) == 1:
@@ -124,10 +124,10 @@ class Inputs:
         self.ledgers = []
         for path in a.ledger or []:
             for r in read_tsv(path):
-                # demo/bench_run.py's rows name their protocol and expect a PASS
+                # demo/bench_run.py's rows name their protocol and expect PASS
                 r.setdefault("expected", "PASS")
                 self.ledgers.append((Path(path), r))
-        # test/board's runs, whose witness.json CI checks again (demo/witness.py)
+        # test/board's runs; CI re-checks their witness.json (demo/witness.py)
         self.witnesses = []
         if a.witnesses and Path(a.witnesses).is_dir():
             for path in sorted(Path(a.witnesses).glob("*/witness.json")):
@@ -149,24 +149,24 @@ def protocols(inp):
 
 
 def ledger_protocol(r):
-    """The protocol a ledger row names, else the one DEMO_PROTOCOL gives its demo, else the
+    """The protocol a ledger row names, else DEMO_PROTOCOL's entry for its demo, else the
     demo's own name."""
     return r.get("protocol") or DEMO_PROTOCOL.get(r["demo"], r["demo"])
 
 
 def ledger_rows(inp, name):
-    """Ledger rows on protocol [name]."""
+    """Ledger rows for protocol name."""
     return [(p, r) for p, r in inp.ledgers if ledger_protocol(r) == name]
 
 
 def witness_rows(inp, name):
-    """test/board's witnesses on protocol [name]."""
+    """test/board's witnesses for protocol name."""
     return [(d, w) for d, w in inp.witnesses if ledger_protocol(w) == name]
 
 
 def board_runs(inp, name):
-    """The distinct bench runs on protocol [name], a ledger row and the witness made of the
-    same run counted once, by the run's SHA256SUMS."""
+    """The number of distinct bench runs for protocol name. A ledger row and the witness
+    from the same run count once, matched by the run's SHA256SUMS."""
     seen = {r.get("sums_sha256") or id(r) for _, r in ledger_rows(inp, name)}
     return len(seen | {w["sums_sha256"] for _, w in witness_rows(inp, name)})
 

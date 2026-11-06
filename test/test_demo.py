@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The bench demos' own Python, run blocking in a thread with each SPI frame a cocotb
-transfer, as the host Pico runs it."""
+"""The bench demos' own Python, run blocking in a thread like the host Pico does, with
+each SPI frame as one cocotb transfer."""
 
 import collections
 import os
@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import draw  # noqa: E402
 import outline  # noqa: E402
 
-# cycles in a microsecond at 48 MHz, for the Pico's pauses
+# cycles per microsecond at 48 MHz, for the Pico's pauses
 US = 48
 
 
@@ -38,7 +38,7 @@ def cycle():
 
 
 async def watch_out0(dut, out0):
-    """Appends OUT0's (cycle, level) each time it changes."""
+    """Append OUT0's (cycle, level) every time it changes."""
     while True:
         await dut.uo_out.value_change
         level = 1 if str(dut.uo_out.value)[-2] == "1" else 0
@@ -66,7 +66,7 @@ async def test_self_timing(dut):
     async def pause():
         await ClockCycles(dut.clk, 300 * US)
 
-    # OUT0's level from each cycle on
+    # OUT0's level from each cycle onwards
     out0 = [(0, 0)]
 
     def level_at(cycle):
@@ -77,7 +77,7 @@ async def test_self_timing(dut):
     ok = await bridge(demo_self_timing.run)(transfer, text=text, pause=pause)
     watcher.cancel()
     assert ok
-    # OUT0 echoes the wire, so it carries the text twice at 9600 baud
+    # OUT0 echoes the wire, so the text appears twice at 9600 baud
     period = demo_self_timing.PERIOD
     falls = [at for at, level in out0 if level == 0][1:]
     received, next_start = [], 0
@@ -94,8 +94,8 @@ async def test_self_timing(dut):
 
 @cocotb.test()
 async def test_sweep(dut):
-    """Demo 2 for every swept firmware, each poll taking as long as the table lets the Pico
-    take; every edge has to land where the kernel's rows along the model's path put it."""
+    """Demo 2 for every swept firmware, with each poll taking as long as the table allows
+    the Pico. Every edge must land where the kernel's rows along the model's path put it."""
     await reset(dut)
     pins = Pins(dut)
 
@@ -111,12 +111,12 @@ async def test_sweep(dut):
 
 
 class Done(Exception):
-    """Ends `serve`, which runs forever on the Pico."""
+    """Raised to end serve(), which runs forever on the Pico."""
 
 
 def uart_frames(edges, period):
-    """(start, byte) for each frame in a line's (cycle, level) edges, the first of which is
-    it going idle. Every edge must be a whole number of periods after its start bit."""
+    """(start, byte) for each frame in a line's (cycle, level) edges; the first edge is the
+    line going idle. Every edge must be a whole number of periods after its start bit."""
     assert edges[0][1] == 1, "idle high"
     frames, rest = [], edges[1:]
     while rest:
@@ -134,8 +134,8 @@ def uart_frames(edges, period):
 
 
 def assert_typed(dut, out0, period, taken, text):
-    """OUT0 carries text, each key once the laptop has acknowledged its report and before
-    the next report: taken holds the cycle of each report's ACK, three to a key."""
+    """OUT0 carries text, each key after the laptop acknowledges its report and before the
+    next report. taken holds the cycle of each report's ACK, three per key."""
     frames = uart_frames(out0[1:], period)
     dut._log.info(f"OUT0 frames at {[start for start, _ in frames]}, report ACKs at {taken}")
     assert bytes(byte for _, byte in frames) == text, frames
@@ -147,13 +147,13 @@ def assert_typed(dut, out0, period, taken, text):
 async def act3(dut, queue, logs):
     """Demo 3's enumeration as the Pico runs it, serving queue and logging with logs(host).
     Returns the host's handles, OUT0's edges, the board, and end(), which stops the Pico
-    and checks neither engine faulted."""
+    and checks that neither engine faulted."""
     await reset(dut)
     dut.uio_in.value = 2
     pins = Pins(dut)
     wire = Wire(dut)
     board = usb_board.Board(demo_usb.DESCRIPTORS)
-    # engine 0's starts, as engine 1's start comes first
+    # engine 0's starts (engine 1's start comes first)
     starts, selected, done = [], [0], [False]
 
     @resume
@@ -171,7 +171,7 @@ async def act3(dut, queue, logs):
     async def lines():
         return int(dut.uio_in.value) & 3
 
-    # a millisecond is a thousand cycles here, so the reset is short enough to simulate
+    # a millisecond is 1,000 cycles here, which keeps the reset short enough to simulate
     @resume
     async def ms():
         return get_sim_time("ns") // 20_000
@@ -202,11 +202,11 @@ async def act3(dut, queue, logs):
         await wire.send(data_packet(0xC3, request))
         assert await wire.listen() == [0xD2]
 
-    # the cycle each IN's ACK starts
+    # the cycle where each IN's ACK starts
     acked = []
 
     async def poll_in(address, endpoint):
-        """An IN's data packet, asked again after each NAK, and acknowledged."""
+        """An IN's data packet, requested again after each NAK, then acknowledged."""
         for _ in range(100):
             await wire.send(token(0x69, address, endpoint))
             packet = await wire.listen()
@@ -224,11 +224,11 @@ async def act3(dut, queue, logs):
         await wire.send(data_packet(0x4B, []))
         assert await wire.listen() == [0xD2]
 
-    # both certificates and both programs go over SPI first, some 1,500 words, and each
-    # check waits up to two of the checker's 65,536-cycle turns for its engine's
+    # both certificates and both programs go over SPI first (about 1,500 words), and each
+    # check waits up to two of the checker's 65,536-cycle turns for its engine
     await until(lambda: starts, cycles=700_000)
     await wire.drive(SE0, 150)
-    # idle, which the reset rereads until the reload is done
+    # idle; the reset rereads this until the reload is done
     dut.uio_in.value = 2
     await until(lambda: len(starts) == 2, cycles=400_000)
     dut._log.info(f"engine 0 started at cycles {starts}")
@@ -242,7 +242,7 @@ async def act3(dut, queue, logs):
     assert await poll_in(0, 0) == data_packet(0x4B, [])
     await until(lambda: len(starts) == 3)
 
-    # reports wait for SET_CONFIGURATION, then for the report descriptor's read
+    # reports wait for SET_CONFIGURATION, then for the report descriptor read
     await setup(3, [0x00, 9, 1, 0, 0, 0, 0, 0])
     assert await poll_in(3, 0) == data_packet(0x4B, [])
     length = len(demo_usb.REPORT)
@@ -269,7 +269,7 @@ async def act3(dut, queue, logs):
 
 
 def start_log(host):
-    """Engine 1 on uart_tx_host_rate at the testbench's 50 MHz, so 434 cycles a bit."""
+    """Engine 1 on uart_tx_host_rate at the testbench's 50 MHz, which is 434 cycles per bit."""
     return demo_usb.start_log(
         host,
         demo_usb.words("uart_tx_host_rate"),
@@ -280,13 +280,13 @@ def start_log(host):
 
 @cocotb.test()
 async def test_keyboard(dut):
-    """Demo 3 typing: after a SET_IDLE the keyboard's reports, while engine 1 sends each key
-    the host took out of OUT0, every edge on its certified cycle."""
+    """Demo 3 typing. After a SET_IDLE the keyboard sends its reports, and engine 1 sends
+    each key the host took, out of OUT0, with every edge on its certified cycle."""
     laptop = await act3(dut, demo_usb.reports("hi"), start_log)
     board = laptop.board
 
-    # A SET_IDLE once typing has started, h's report in the fifo. The status packet queues
-    # behind it, the status IN drops the report, and the ACK after that is the status
+    # SET_IDLE once typing has started, with h's report in the fifo. The status packet
+    # queues behind it, the status IN drops the report, and the next ACK is the status
     # packet's.
     await laptop.until(lambda: board.pending_report is not None and not board.replies)
     await laptop.setup(3, [0x21, 0x0A, 0, 0, 0, 0, 0, 0])
@@ -294,7 +294,7 @@ async def test_keyboard(dut):
     assert await laptop.poll_in(3, 0) == data_packet(0x4B, [])
 
     h, i = demo_usb.KEYS["h"], demo_usb.KEYS["i"]
-    # the fifth, i's release, is queued only once i is logged
+    # the fifth report, i's release, is only queued once i is logged
     received = [await laptop.poll_in(3, 1) for _ in range(5)]
     taken = laptop.acked[-5:]
     await laptop.end()
@@ -311,8 +311,8 @@ async def test_keyboard(dut):
 
 @cocotb.test()
 async def test_mouse_draw(dut):
-    """The drawing's first stroke, the tile's outline split at 127: each IN carries the next
-    report, the reports add up to the outline, and engine 1 sends each one taken."""
+    """The drawing's first stroke, the tile's outline split at 127. Each IN carries the next
+    report, the reports add up to the outline, and engine 1 sends each report taken."""
     die, cells, _ = outline.read()
     strokes = outline.pen_path(outline.outlines(outline.regions(die, cells)), die, 800)
     data = demo_draw.encode(strokes, 0)
@@ -331,7 +331,7 @@ async def test_mouse_draw(dut):
     received = []
     for _ in range(count):
         received.append(await laptop.poll_in(3, 1))
-        # the next poll after three bytes at 115200 baud, as the laptop's 10 ms is
+        # the next poll comes after three bytes at 115200 baud, like the laptop's 10 ms
         await laptop.wire.drive(J, 500)
     taken = laptop.acked[-count:]
     await laptop.end()
@@ -349,18 +349,18 @@ async def test_mouse_draw(dut):
         assert taken[n] < frames[3 * n][0], f"report {n} logged before it was taken"
 
 
-# test_keyboard_slow_host charges each call what it costs Pico A and enumerates as the
-# bench laptop did. It runs in real time (48 MHz cycles, also for sleeps and ms()), as a
-# compressed millisecond would let a reload outlast the 10 ms after SET_ADDRESS. That is
+# test_keyboard_slow_host charges each call what it costs Pico A and enumerates like the
+# bench laptop did. It runs in real time (48 MHz cycles, also for sleeps and ms()), because
+# a compressed millisecond would let a reload outlast the 10 ms after SET_ADDRESS. That is
 # 330 ms of chip, an hour on icarus, so only Verilator runs it:
 #   make SIM=verilator COCOTB_TEST_MODULES=test_demo COCOTB_TEST_FILTER=slow_host
-# PICO_SCALE=k multiplies every cost, TURNAROUND_US is the laptop's time between transfers.
+# PICO_SCALE=k multiplies every cost. TURNAROUND_US is the laptop's time between transfers.
 
-# Pico A's costs in microseconds: before the call's SPI frame and after it, per word moved
-# (before a write's frame, after a read's), and the bytes allocated, per call and per word.
-# The frame's simulated wire time comes off the first two. bench: timed on Pico A at 200
-# MHz on 2026-10-01, the timing loop's 8 us call in it; fit: solved from the bench's load
-# times; est: read off the code.
+# Pico A's costs in microseconds: before the call's SPI frame, after it, per word moved
+# (before a write's frame, after a read's), then the bytes allocated per call and per word.
+# The frame's simulated wire time is subtracted from the first two. bench: timed on Pico A
+# at 200 MHz on 2026-10-01, including the timing loop's 8 us call; fit: solved from the
+# bench's load times; est: read off the code.
 COSTS = {
     "Host.status": (60, 281, 0, 320, 0),  # bench 341; split, bytes est
     "Host.read": (60, 186, 0, 210, 0),  # bench 246 a word
@@ -379,13 +379,13 @@ COSTS = {
     "config_writes": (400, 0, 0, 1100, 0),  # est
     "say": (300, 0, 0, 100, 0),  # est: a line printed over the Pico's USB serial
 }
-# PicoSpi.drain_quiet's native loop, per status read and per rx read and its words, the
-# frame's wire time in each. est: a PicoHost.status of the bench's 95 less its dict, and
-# a PicoHost.pop of 84 and 7.1 a word less its call and list
+# PicoSpi.drain_quiet's native loop, per status read and per rx read and its words, with
+# the frame's wire time included in each. est: a PicoHost.status of the bench's 95 minus
+# its dict, and a PicoHost.pop of 84 and 7.1 per word minus its call and list
 DRAIN_STATUS_US = 60
 DRAIN_POP_US, DRAIN_WORD_US = 50, 7.1
 PIN_US = 4.7  # est: a Pin read, as a CS edge
-# bench: gc.mem_free() with the demo imported, and r3's pauses in serve, 660 ms apart there
+# bench: gc.mem_free() with the demo imported, and r3's pauses in serve (660 ms apart there)
 GC_HEAP = 200_000
 GC_PAUSE_US = 11_000
 
@@ -393,14 +393,14 @@ GC_PAUSE_US = 11_000
 RESET_US = 50_000  # USB 2.0 7.1.7.5, a root port's
 RESET_RECOVERY_US = 60_000  # bench: 110 ms from each reset to the next SETUP
 SET_ADDRESS_US = 10_700  # bench: 10.7 and 10.9 ms from the status ACK to the next SETUP
-# est: a completion's interrupt, the hub thread woken, the next URB queued; r3 bounds it
-# below about 370 us, and nothing here is less certain
+# est: a completion interrupt, the hub thread waking, the next URB queued. r3 bounds it
+# below about 370 us, and nothing else here is less certain
 TURNAROUND_US = float(os.environ.get("TURNAROUND_US", 100))
-BIND_US = 1_000  # est: the driver bound before SET_CONFIGURATION, usbhid before SET_IDLE
-OPEN_US = 10_000  # est: the input device opened, then EP1 polled
+BIND_US = 1_000  # est: driver bound before SET_CONFIGURATION, usbhid before SET_IDLE
+OPEN_US = 10_000  # est: input device opened, then EP1 polled
 POLL_US = 8_000  # xHCI's interval for bInterval 10 at low speed
-# bits between a transfer's transactions, and before a transaction goes again after a NAK
-# and after no good reply. bench, the analyser on 2026-10-02: 2.2 us, 57 to 197 us, 20 us
+# bits between a transfer's transactions, before retrying after a NAK, and before retrying
+# after no good reply. bench, the analyser on 2026-10-02: 2.2 us, 57 to 197 us, 20 us
 GAP = 3
 NAK_RETRY = 85
 ERROR_RETRY = 30
@@ -413,16 +413,16 @@ PIDS = {ACK: "ACK", NAK: "NAK", 0x1E: "STALL", DATA0: "DATA0", DATA1: "DATA1"}
 
 
 def bus(dut):
-    """D+ | D- << 1 as a Pico watching the bus sees it, the device's where it drives."""
+    """D+ | D- << 1 as a Pico watching the bus sees it: the device's level where it drives."""
     if int(dut.uio_oe.value) & 3 == 3:
         return int(dut.uio_out.value) & 3
     return int(dut.uio_in.value) & 3
 
 
 class Pico:
-    """Pico A's clock, and the MicroPython it runs on. A call's cost goes on a tab that is
-    paid in chip cycles before the Pico next touches the chip, and a collection joins it
-    each time calls have allocated a heap's worth."""
+    """Pico A's clock and the MicroPython it runs on. A call's cost goes on a tab that is
+    paid in chip cycles before the Pico next touches the chip, and a garbage collection is
+    added to it each time calls have allocated a heap's worth."""
 
     def __init__(self, dut, scale):
         self.dut = dut
@@ -431,7 +431,7 @@ class Pico:
         self.owed = 0.0
         self.free = GC_HEAP
         self.depth = 0
-        # inside a native loop, whose frames are charged one by one
+        # inside a native loop, where frames are charged one at a time
         self.native = False
         self.done = False
         self.collections = []
@@ -472,8 +472,8 @@ class Pico:
         return cycle() // (1000 * US)
 
     def costly(self, cost, function, words=None):
-        """function, costing what COSTS says. With words, which gives the words its SPI frame
-        moves, it is I/O, charged at the outermost call only."""
+        """Wrap function so it costs what COSTS says. With words (which returns the words its
+        SPI frame moves) it counts as I/O and is charged at the outermost call only."""
         before, after, per_word, allocates, per_word_allocates = COSTS[cost]
 
         def charged(*args, **kwargs):
@@ -502,7 +502,7 @@ class Pico:
         self.spend(max(0, us - (64 * len(out) + 11) / US), 4 * n)
 
     def natively(self, function):
-        """function, a native loop over SPI frames, each charged as native_frame says."""
+        """Wrap function, a native loop over SPI frames, charging each frame as native_frame says."""
 
         def charged(*args):
             self.native = True
@@ -522,8 +522,8 @@ class Pico:
             self.patch(owner, name, self.costly(cost, vars(owner)[name], words))
 
     def install(self):
-        """machine and micropython as pico_board uses them, the clock as demo_usb.run
-        does, and every call costed, as far as the code in python/ has it."""
+        """Patch in machine and micropython as pico_board uses them and the clock as
+        demo_usb.run does, and charge every call, as far as the code in python/ allows."""
         pico = self
 
         class Pin:
@@ -563,7 +563,7 @@ class Pico:
         sys.modules.pop("pico_board", None)
         import pico_board
 
-        # the laptop here enumerates from the start, so the detach before attach takes no time
+        # the laptop enumerates from the start, so detach before attach takes no time
         self.patch(demo_usb, "time",
                    types.SimpleNamespace(ticks_ms=self.ticks_ms, sleep_ms=lambda ms: None))
         if hasattr(usb_board, "gc"):
@@ -603,12 +603,13 @@ class Pico:
 
 
 class Failed(Exception):
-    """The laptop gave up, with the kernel's error."""
+    """The laptop gave up; carries the kernel's error."""
 
 
 class Laptop:
-    """Linux enumerating a low-speed device on an xHCI root port: a transfer's packets back
-    to back, a NAKed transaction retried within 60 us, three tries before -71."""
+    """Linux enumerating a low-speed device on an xHCI root port. A transfer's packets go
+    back to back, a NAKed transaction is retried within 60 us, and it gives up with -71
+    after three tries."""
 
     def __init__(self, dut, overflowed):
         self.dut = dut
@@ -641,8 +642,9 @@ class Laptop:
         return packet
 
     async def transaction(self, what, kind, send):
-        """send() puts a transaction on the wire and returns the reply: a handshake or a good
-        data packet. It goes again after a NAK, and after a bad reply up to three times."""
+        """send() puts a transaction on the wire and returns the reply, either a handshake or
+        a good data packet. We send again after a NAK, and after a bad reply up to three
+        times."""
         errors, since = 0, cycle()
         while True:
             reply = await send()
@@ -719,9 +721,9 @@ class Laptop:
 
 
 async def enumerate_and_type(laptop, text):
-    """What the bench laptop did: hub_port_init's two resets around the first read, then the
-    descriptors, the configuration, usbhid's requests, and EP1 polled until text is typed.
-    The reports and the cycle of each one's ACK."""
+    """Replay what the bench laptop did: hub_port_init's two resets around the first read,
+    then the descriptors, the configuration, usbhid's requests, and EP1 polling until text
+    is typed. Returns the reports and the cycle of each one's ACK."""
 
     def get(kind, length, recipient=0x80):
         return [recipient, 6, 0, kind, 0, 0, length & 0xFF, length >> 8]
@@ -770,8 +772,9 @@ async def enumerate_and_type(laptop, text):
 
 
 def timeline(laptop, levels, halts, pico, start, end, span_us=12_000):
-    """The laptop's packets, the rx fifo's level, engine 0 halting and starting, and the
-    Pico's collections over the span to end, one a line, a run of NAKed INs on one."""
+    """Text timeline of the laptop's packets, the rx fifo level, engine 0 halting and
+    starting, and the Pico's garbage collections over the span up to end. Each is one line,
+    and a run of NAKed INs shares one."""
     lines = [(at, what) for at, what in laptop.events]
     lines += [(at, f"    rx fifo {level}") for at, level in levels]
     lines += [(at, f"    engine 0 {'halted' if halted else 'started'}") for at, halted in halts]
@@ -791,7 +794,7 @@ def timeline(laptop, levels, halts, pico, start, end, span_us=12_000):
 
 @cocotb.test(skip=cocotb.SIM_NAME != "Verilator")
 async def test_keyboard_slow_host(dut):
-    """Demo 3 as demo_usb.run runs it on Pico A, at Pico A's pace, against the bench laptop."""
+    """Demo 3 as demo_usb.run runs it on Pico A, at Pico A's speed, against the bench laptop."""
     await reset(dut)
     start = cycle()
     scale = float(os.environ.get("PICO_SCALE", 1))
@@ -846,7 +849,7 @@ async def test_keyboard_slow_host(dut):
         f"{laptop.naks} NAKs, collections at "
         f"{[round((at - start) / (1000 * US), 1) for at in pico.collections]} ms")
     # USB 2.0 9.2.6: a request's data within 500 ms, a status stage within 50 ms, and the
-    # new address within 2 ms of SET_ADDRESS's status stage, where Linux waits 10
+    # new address within 2 ms of SET_ADDRESS's status stage (Linux waits 10)
     if laptop.waits:
         waited, what, kind = max(laptop.waits)
         dut._log.info(f"longest wait for an answer {waited / (1000 * US):.3f} ms, {kind} of {what}")
@@ -880,9 +883,9 @@ async def test_keyboard_slow_host(dut):
 
 @cocotb.test()
 async def test_self_check(dut):
-    """The self-check as the Pico runs it: the quiet frames all on the wire with no alarm,
-    one alarm per glitch, from the check the script names, then quiet again. Wire 20 never
-    reaches a pad, so the testbench reads it, and engine 1's irq, from the RTL."""
+    """The self-check as the Pico runs it: the quiet frames all appear on the wire with no
+    alarm, then one alarm per glitch from the check the script names, then quiet again.
+    Wire 20 never reaches a pad, so the testbench reads it, and engine 1's irq, from the RTL."""
     await reset(dut)
     pins = Pins(dut)
     engines = dut.user_project.core.top.engines
@@ -931,19 +934,19 @@ async def test_self_check(dut):
     assert [p for _, p in glitches] == list(demo_self_check.GLITCHES), pushes
     first, last = glitches[0][0], glitches[-1][0]
     rearmed = next(at for at, _ in pushes if at > last)
-    # each quiet run is every byte in turn on the wire, from the line idle high
+    # each quiet run puts every byte on the wire in turn, starting from the line idle high
     before = [edge for edge in wire[1:] if edge[0] < first]
     after = [(rearmed, 1)] + [edge for edge in wire if edge[0] > rearmed]
     for line in before, after:
         quiet = uart_frames(line, period)
         assert bytes(byte for _, byte in quiet) == bytes(range(frames)), quiet
-    # one alarm a glitch, none on the quiet frames
+    # one alarm per glitch, none on the quiet frames
     assert len(irqs) == len(glitches), (irqs, glitches)
     # the frame test_self_check.ml prints, as the script reads it from the rows
     edges = [bit * period for bit in range(1, 10)] + [10 * period + 6]
     with open("uart_tx_host_rate_rows.hex") as f:
         assert demo_self_check.certified([int(w, 16) for w in f.read().split()]) == edges
-    # the checker's irq shows six cycles after the write it checks shows on the wire
+    # the checker's irq shows six cycles after the write it checks appears on the wire
     for (pushed, glitch), irq in zip(glitches, irqs):
         start = next(at for at, level in wire if at > pushed and level == 0)
         moved, check = demo_self_check.caught_by(edges, demo_self_check.GLITCH_BYTE, glitch)

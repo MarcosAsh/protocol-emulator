@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Writes a results table from GitHub Actions: each claim, the job that checks it, its last
-# green run on main, the weakened copies that had to fail and did, and how long it took.
-# Reads the job logs, so it can only report what CI printed. Needs gh, logged in.
-# --readme-table prints the README's first table with its numbers, runs and dates fresh
-# from the sources test/check_docs.py holds it to, and --board-table the pinned ledgers.
+# green run on main, the weakened copies that had to fail (and did), and the time taken.
+# It reads the job logs, so it can only report what CI printed. Needs gh, logged in.
+# --readme-table prints the README's first table with fresh numbers, runs and dates from
+# the sources test/check_docs.py holds it to. --board-table prints the pinned ledgers.
 # Usage: python3 test/results.py [--repo OWNER/NAME] [--runs N] [--html PAGE] > RESULTS.md
 #        python3 test/results.py --readme-table | --board-table
 import argparse
@@ -33,7 +33,7 @@ DECODE = re.compile(r"^(PASS|XFAIL|TOOTH|FAIL|MISSED) \w+: ")
 
 
 def gh(*args):
-    # the API drops the odd request under parallel load, so try again before giving up
+    # the API occasionally drops a request under parallel load, so retry before giving up
     for attempt in range(4):
         done = subprocess.run(["gh", *args], capture_output=True, text=True)
         if done.returncode == 0:
@@ -48,8 +48,8 @@ def when(stamp):
 
 @cache
 def runs(workflow):
-    """The newest completed runs of [workflow] on main, newest first."""
-    # the API returns an empty list now and then, so ask again before taking it for none
+    """The newest completed runs of workflow on main, newest first."""
+    # the API sometimes returns an empty list, so ask again before believing there are none
     for attempt in range(4):
         out = gh("run", "list", "-R", REPO, "--workflow", workflow, "--branch", "main",
                  "--status", "completed", "--limit", str(RUNS),
@@ -69,7 +69,7 @@ def jobs(run_id):
 
 @cache
 def raw_flags():
-    # newer gh refuses a response with escape codes, as colored logs have, without this
+    # newer gh rejects a response containing escape codes (colored logs) without this flag
     return [f for f in ["--allow-escape-sequences"] if f in gh("api", "--help")]
 
 
@@ -100,7 +100,7 @@ def seconds(job, step=None):
 
 
 def span(intervals):
-    """Wall time covered by the intervals, which may overlap."""
+    """Wall time covered by the intervals, which can overlap."""
     total, reach = 0.0, None
     for start, end in sorted(intervals):
         if reach is None or start > reach:
@@ -126,8 +126,8 @@ class Result:
 
 
 def sby(*prefixes):
-    """SymbiYosys tasks by name: a pass is a proof or cover, a FAIL or UNKNOWN with rc 0 is a
-    tooth its .sby expects to fail, anything else is wrong."""
+    """SymbiYosys tasks by name. A pass is a proof or cover, a FAIL or UNKNOWN with rc 0 is
+    a tooth its .sby expects to fail, and anything else is wrong."""
     def read(lines):
         first, done = {}, {}
         for t, text in lines:
@@ -151,9 +151,9 @@ def sby(*prefixes):
 
 
 def abc(*prefixes, controls=()):
-    """ABC's dprove through the Makefile's greps: a directory with any 'Status = 0' is a
-    mutant refuted, one with only 'Status = 1' a proof, unless [controls] names it; the grep
-    must print that status."""
+    """ABC's dprove through the Makefile's greps. A directory with any 'Status = 0' is a
+    refuted mutant, and one with only 'Status = 1' is a proof unless controls names it.
+    The grep must print that status."""
     def read(lines):
         status, touched = {}, []
         for i, (t, text) in enumerate(lines):
@@ -180,8 +180,8 @@ def abc(*prefixes, controls=()):
 
 
 def sync(lines):
-    """formal/sync/check.tcl runs through the Makefile, which echoes each one's FAILS:
-    empty is the check, a name is a mutant that must fail there."""
+    """formal/sync/check.tcl runs through the Makefile, which echoes each run's FAILS.
+    Empty means the check, and a name is a mutant that must fail there."""
     r, touched = Result(), []
     for i, (t, text) in enumerate(lines):
         m = SYNC_RUN.match(text)
@@ -196,7 +196,7 @@ def sync(lines):
 
 
 def witness(lines):
-    """Certifaiger checks cake_lpr verified, and weakened models whose witness it rejected."""
+    """Certifaiger checks that cake_lpr verified, and weakened models whose witness it rejected."""
     r = Result()
     for _, text in lines:
         m = WITNESS.match(text)
@@ -218,7 +218,7 @@ def cocotb(lines):
 
 
 def decoded(lines):
-    """demo/decode.py's verdicts: a refused tooth counts as teeth, a fail or miss wrong."""
+    """demo/decode.py's verdicts. A refused tooth counts as a tooth, and a fail or miss is wrong."""
     r = Result()
     for _, text in lines:
         m = DECODE.match(text)
@@ -232,7 +232,7 @@ def decoded(lines):
 
 
 def matching(pattern, fmt):
-    """A note from the last line matching [pattern], formatted with its groups."""
+    """A note from the last line matching pattern, formatted with its groups."""
     def read(lines):
         found = [re.search(pattern, text) for _, text in lines]
         found = [m for m in found if m]
@@ -256,7 +256,7 @@ def green(lines):
 
 
 def mutation(lines):
-    """The score job's report: the scope from its env, then test/mutate.py --report."""
+    """The score job's report: the scope from its env, then the output of test/mutate.py --report."""
     texts = [t for _, t in lines]
     killed = [m for m in (re.search(r"total: killed (\d+) of (\d+) valid mutants", t) for t in texts) if m]
     scope = [m[1] for m in (re.match(r"\s*SCOPE: (\w+)", t) for t in texts) if m]
@@ -271,7 +271,7 @@ def mutation(lines):
 
 
 def engine_scope(found):
-    """True if a shard skipped the proof tools, which every scope but engine installs."""
+    """True if a shard skipped the proof tools (every scope except engine installs them)."""
     shards = [j for j in found if j["name"].startswith("mutate (")]
     return any(s["name"] == "Install OSS CAD Suite" and s["conclusion"] == "skipped"
                for j in shards for s in j["steps"])
@@ -282,7 +282,7 @@ def split(lines):
     return Result(note=", ".join(f"{v} {c}" for v, c in counts.items()))
 
 
-# Each claim's status word once a green run on main logs its check, and the last until then.
+# Each claim's status word, once a green run on main logs its check (until then, the last status).
 STATUSES = {
     "proved for all time": "a proof over every state, input or program it names, with no "
     "bound on time: induction, PDR, or an UNSAT checked by cake_lpr",
@@ -299,7 +299,7 @@ FORMAL = Path(__file__).resolve().parent.parent / "formal"
 
 
 def depth(sby_file, task):
-    """The status of a bounded proof, at the depth formal/[sby_file] gives [task]."""
+    """The status of a bounded proof, at the depth formal/sby_file gives task."""
     found = re.search(rf"^{task}: depth (\d+)$", (FORMAL / sby_file).read_text(), re.M)
     return f"proved to depth {found[1]}"
 
@@ -314,8 +314,8 @@ class Claim:
                  accept=lambda found: True):
         self.text, self.workflow, self.job, self.target = text, workflow, job, target
         self.read, self.step, self.teeth_note, self.status = read, step, teeth_note, status
-        # [reads]: the jobs whose logs hold the check, the rest only have to be green;
-        # [accept]: whether a run with these jobs is the claim's
+        # reads picks the jobs whose logs hold the check (the rest only have to be green);
+        # accept says whether a run with these jobs counts as the claim's
         self.reads, self.accept = reads, accept
 
     def jobs_of(self, run):
@@ -333,8 +333,8 @@ class Claim:
         return all(j["conclusion"] == "success" for j in found)
 
     def evaluate(self):
-        """The last run on main where every matching job (or step) is green, or failing
-        that the last run that has the job at all."""
+        """The last run on main where every matching job (or step) is green. If there is none,
+        the last run that has the job at all."""
         latest = None
         for run in runs(self.workflow):
             found = self.jobs_of(run)
@@ -522,7 +522,7 @@ def run_cell(run, good):
 
 
 class Row:
-    """What CI shows for one claim; [missing] when its green run logged no pass."""
+    """What CI shows for one claim. missing is set when its green run logged no pass."""
     def __init__(self, claim, run=None, good=False, where="", passes=0, wrong=0, note="",
                  teeth="", time=None, missing=False):
         self.claim, self.run, self.good, self.where = claim, run, good, where
@@ -530,7 +530,7 @@ class Row:
         self.teeth, self.time, self.missing = teeth, time, missing
 
     def evidence(self, passed=""):
-        """The passes, the failures and the note; [passed] follows the count of passes."""
+        """The passes, the failures and the note. passed is appended to the count of passes."""
         counts = [f"{self.passes}{passed}"] if self.passes else []
         counts += [f"{self.wrong} failed"] if self.wrong else []
         return "; ".join(t for t in [", ".join(counts), self.note] if t)
@@ -560,8 +560,8 @@ def row(claim):
         where += f" / {claim.step}"
     if len(found) > 1:
         where += f" ({len(found)} jobs)"
-    # a green job may never have run the check, as before the check was added, so the log
-    # has to show a pass, or for mutation and split their tally
+    # a green job may never have run the check (for example before it was added), so the
+    # log has to show a pass, or for mutation and split their tally
     if claim.read is green:
         missing = False
     elif claim.read in (mutation, split):
@@ -656,7 +656,7 @@ def html_row(r):
 
 
 def headline(rows):
-    """The page's top numbers as (label, figure, run), each from the rows that hold it."""
+    """The page's top numbers as (label, figure, run), each taken from the rows that hold it."""
     e = html.escape
     by_target = {r.claim.target: r for r in rows.values()}
 
@@ -694,7 +694,7 @@ def headline(rows):
 
 
 def html_page(rows, now):
-    """The claims as one table, for GitHub Pages."""
+    """All the claims as one table, for GitHub Pages."""
     e = html.escape
     counts = {}
     for r in rows.values():
@@ -763,8 +763,8 @@ def die():
 
 
 def readme_table(readme):
-    """[readme]'s first table, each number, run and date its sources give put in, the
-    words left as the README has them. Prints each change to stderr."""
+    """Update the first table in readme with the numbers, runs and dates its sources give,
+    leaving the words as the README has them. Prints each change to stderr."""
     import check_docs as docs
     import evidence
 
@@ -814,7 +814,7 @@ def readme_table(readme):
 
 
 def board_table():
-    """Every demo run the pinned board evidence holds, newest first per demo."""
+    """Every demo run in the pinned board evidence, newest first per demo."""
     import evidence
 
     lines = ["| Demo | Result | When | Bitstream sha256 | Evidence |", "|---|---|---|---|---|"]

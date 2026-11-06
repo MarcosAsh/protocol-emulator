@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/carrier_check.py against a model of the carrier built from demo/carrier_netlist.csv:
-carrier_check.v as its frames describe it, the resistors, both Picos' pins, the CAN boards,
-the EEPROM, the DS18B20, the flash and Pico B's SWD port (test/swd_target.py). A whole
-carrier passes, and each fault fails the nets it touches and no others."""
+"""Runs demo/carrier_check.py against a model of the carrier built from
+demo/carrier_netlist.csv. The model covers carrier_check.v as its frames describe it, the
+resistors, both Picos' pins, the CAN boards, the EEPROM, the DS18B20, the flash and Pico
+B's SWD port (test/swd_target.py). A complete carrier passes, and each fault fails the
+nets it touches and no others."""
 
 import heapq
 import sys
@@ -17,22 +18,22 @@ import carrier_check  # noqa: E402
 import swd_target  # noqa: E402
 from carrier_pins import HEADER, PIN, Pins, decode  # noqa: E402
 
-# bom.csv's values; R1 is the CAN terminator, left to the boards' model
+# bom.csv values; R1 is the CAN terminator, which the boards' model handles
 OHMS = {"R2": 10e3, "R3": 10e3, "R4": 330, "R5": 2200, "R6": 2200, "R7": 4700, "R8": 1e3,
         "R9": 1e3, "R10": 1e3, "R11": 220, "R12": 220, "R13": 4700, "R14": 47, "R15": 47,
         "R16": 470, "R17": 1e3, "R18": 1e3, "R19": 1e3}
-# a pin driving, a pad's or Pico's pull, a CAN transceiver's own pull-up on D
+# resistance of a driving pin, a pad's or Pico's pull, and a CAN transceiver's own pull-up on D
 DRIVE, PULL, D_PULL = 30, 50e3, 100e3
-# three trains hold a whole one, and sixty take the model a minute
+# three trains cover a whole carrier; sixty would take the model a minute
 carrier_check.TRAINS = 3
-# what a sample of the model's analysers stands for
+# microseconds per sample of the model's analysers
 US_A_SAMPLE = 100
 ROM = [0x28, 0x7D, 0x50, 0x63, 0x79, 0x25, 0x0B, 0x3E]
 JEDEC = [0xEF, 0x40, 0x17]
 
 
 class Flash:
-    """A W25Q64's JEDEC ID in mode 0, and nothing else."""
+    """A W25Q64 that answers only the JEDEC ID, in mode 0."""
 
     def __init__(self, carrier):
         self.c = carrier
@@ -58,7 +59,7 @@ class Flash:
 
 
 class Eeprom:
-    """A 24LC256 at 0x50 that ACKs its address and ignores the rest."""
+    """A 24LC256 at 0x50 that ACKs its address and ignores everything else."""
 
     def __init__(self, carrier, address=0x50):
         self.c, self.address = carrier, address
@@ -69,7 +70,7 @@ class Eeprom:
         scl, sda = level("J10.3"), level("J10.4")
         before = self.ack
         if scl and self.scl and sda != self.sda:
-            # START, or STOP
+            # START or STOP
             self.bits, self.ack, self.listening = ([], False, True) if not sda else (None, False,
                                                                                     False)
         elif scl and not self.scl and self.listening and self.bits is not None:
@@ -89,13 +90,13 @@ class Eeprom:
 
 
 class Ds18b20:
-    """The slots carrier_check.v times: a reset and presence, READ ROM and its bits."""
+    """The slots carrier_check.v times: reset and presence, READ ROM and its bits."""
 
     def __init__(self):
         self.state, self.bits = "idle", []
 
     def slot(self, length, sample):
-        """What the part drives at sample, us from the slot's fall."""
+        """What the part drives at sample (us after the slot's fall)."""
         if length >= 480:
             self.state, self.bits = "command", []
             return 0 if length + 15 <= sample <= length + 120 else None
@@ -112,7 +113,7 @@ class Ds18b20:
 
 
 class Swd:
-    """Pico B's two cores on the far end of J8's cable."""
+    """Pico B's two cores at the far end of J8's cable."""
 
     def __init__(self, carrier):
         self.c = carrier
@@ -134,8 +135,8 @@ class Swd:
 
 
 class Carrier:
-    """The board, its parts in removed left out, the pad pairs in swapped on each other's
-    nets, the net pairs in shorted one net, and the analyser probe pairs in crossed."""
+    """The board. Parts in removed are left out, pad pairs in swapped sit on each other's
+    nets, net pairs in shorted are one net, and analyser probe pairs in crossed are swapped."""
 
     def __init__(self, removed=(), swapped=(), shorted=(), crossed=(), bitstream=True):
         nets, _ = carrier_check.netlist()
@@ -176,7 +177,7 @@ class Carrier:
         return (self.out >> PIN[h]) & 1
 
     def can_boards(self, level):
-        """Each board's R, and its D's own pull-up."""
+        """Each board's R, and the pull-up on its D."""
         boards = [(b, j) for b, j in (("J4", "J5"), ("J6", "J7")) if b not in self.removed]
         local = {b: level(b + ".1") == 0 for b, _ in boards if level(b + ".4")}
         bus = any(d for b, j in boards if j not in self.removed for d in [local.get(b)])
@@ -201,7 +202,7 @@ class Carrier:
                     found.append((net, value, DRIVE))
                 elif value:
                     found.append((net, 1 if value == "up" else 0, PULL))
-        # Pico A's SPI and carrier_check.v's MISO, toggled once a frame
+        # Pico A's SPI, and carrier_check.v's MISO, which toggles once per frame
         for pad, value in self.host.items():
             found.append((self.pad[pad], value, DRIVE))
         if self.button and "SW1" not in self.removed:
@@ -291,13 +292,13 @@ class Carrier:
         return 1e6 / US_A_SAMPLE, samples
 
     def wait(self, us):
-        """Time on the analysers: the last sample again, one each US_A_SAMPLE."""
+        """Let time pass on the analysers by repeating the last sample, one per US_A_SAMPLE."""
         if self.recording:
             self.recording += self.recording[-1:] * (us // US_A_SAMPLE)
 
 
 class Gpio:
-    """carrier_pins.Gpio on the model."""
+    """carrier_pins.Gpio, backed by the model."""
 
     def __init__(self, carrier, side):
         self.c, self.side = carrier, side
@@ -307,7 +308,7 @@ class Gpio:
         self.c.settle()
 
     def let_go(self, gp, pull=None):
-        # the RP2040's pads come out of reset pulled down
+        # RP2040 pads come out of reset pulled down
         self.c.gpio[self.side][gp] = ("in", pull)
         self.c.settle()
 
@@ -355,7 +356,7 @@ class Gpio:
 
 
 def check(carrier=None, button=True, analysers=False):
-    """The run's verdict and its lines, each (status, nets)."""
+    """The run's verdict and its lines, each as (status, nets)."""
     c = carrier or Carrier()
     said = []
     bench = carrier_check.Bench(Pins(c.transfer, c.wait), Gpio(c, "A"), Gpio(c, "B"), c.capture,
@@ -367,7 +368,7 @@ def check(carrier=None, button=True, analysers=False):
 
 
 def failed(said):
-    """The nets of every FAIL line."""
+    """The nets named on every FAIL line."""
     return {net for line in said if line.startswith("FAIL ")
             for net in line[5:].split(" [")[0].split()}
 
@@ -387,7 +388,7 @@ class CarrierCheck(unittest.TestCase):
         self.assertEqual(skipped, ["SKIP NEO_3V3 NEO_5V NEO_DIN"])
 
     def test_no_flash(self):
-        """The breakout left out: its SPI reads all zeros, a SKIP and not a FAIL."""
+        """Breakout left out: its SPI reads all zeros, which is a SKIP, not a FAIL."""
         ok, said = check(Carrier(removed={"U4"}))
         self.assertTrue(ok, "\n".join(said))
         self.assertTrue(any(line.startswith("SKIP FLASH_CLK") and "not fitted (JEDEC ID 00 00 "
@@ -408,7 +409,7 @@ class CarrierCheck(unittest.TestCase):
         self.assert_fails(Carrier(removed={"R8"}), {"UART_B", "UART_B_PICO"})
 
     def test_pico_b_i2c_crossed(self):
-        """SDA and SCL crossed at Pico B: its lines and its scan fail, the header's do not."""
+        """SDA and SCL crossed at Pico B: its lines and its scan fail, but the header's don't."""
         self.assert_fails(Carrier(swapped=[("J15.4", "J15.5")]), {"I2C_SDA", "I2C_SCL", "3V3_A"})
 
     def test_dq_pull_up(self):
@@ -416,7 +417,7 @@ class CarrierCheck(unittest.TestCase):
         self.assertTrue(any("R7 4k7 to 3V3_A missing" in line for line in said))
 
     def test_can_bus(self):
-        """Board B's jumpers off: both boards echo, the bus between them fails."""
+        """Board B's jumpers off: both boards echo, but the bus between them fails."""
         said = self.assert_fails(Carrier(removed={"J7"}), {"CANH", "CANL"})
         self.assertTrue(any("jumpers from J5 and J7" in line for line in said))
 
@@ -437,7 +438,7 @@ class CarrierCheck(unittest.TestCase):
         self.assert_fails(Carrier(removed={"SW1"}), {"REPLUG"})
 
     def test_probes_crossed(self):
-        """Analyser B's D5 and D6 probes on each other's pins."""
+        """Analyser B's D5 and D6 probes on each other's pins (swapped)."""
         said = self.assert_fails(Carrier(crossed=[("J3.6", "J3.7")]), {"DQ", "I2C_SDA"},
                                  analysers=True)
         self.assertTrue(any("analyser B D5 sees 22 edges, I2C_SDA's 11 pulses, not DQ's 10" in line
@@ -446,8 +447,8 @@ class CarrierCheck(unittest.TestCase):
 
 class Remote(unittest.TestCase):
     def test_waits_out_a_press(self):
-        """A call through the REPL waits longer than the button does, which Pico A may
-        take in full before it answers."""
+        """A call through the REPL waits longer than the button press lasts, since Pico A may
+        take the whole press before it answers."""
 
         class Repl:
             def exec(self, code, timeout):
