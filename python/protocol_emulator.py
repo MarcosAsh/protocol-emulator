@@ -124,11 +124,10 @@ class Host:
 
     def certify(self, certificate, base=0, loaded=None, single_edge=False, floor=False):
         """Write the selected engine's certificate at base and have the chip check its
-        program against it, as it must before a start counts. Every core has to be halted
-        for the write; certification lasts until the program or configuration changes,
-        whatever the data memory holds later. loaded is the period every run-time load of
-        p is assumed to carry, the least with floor. The core then faults where p or the
-        capture pin breaks what the check assumed."""
+        program against it, as a start needs. Every core must be halted for the write;
+        certification lasts until the program or configuration changes. loaded is the
+        period every run-time load of p is assumed to carry, the least with floor. The
+        core then faults where p or the capture pin breaks what the check assumed."""
         self.load_data(certificate, base)
         self.check(base, loaded, single_edge, floor)
 

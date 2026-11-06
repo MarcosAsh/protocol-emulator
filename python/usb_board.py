@@ -228,9 +228,8 @@ def service(host, board, fifo_depth=8):
     setups = board.setups
     for word in words:
         board.feed(word)
-    # The laptop NAKs its IN until the reply is queued, so no word arrives while this
-    # collects. A collection of the Pico's own, 5 to 11 ms, could fall on the laptop's
-    # words back to back and overflow the fifo; after this one none is due for a while.
+    # the laptop NAKs its IN until the reply is queued, so no word arrives meanwhile; a
+    # 5 to 11 ms collection among its words would overflow the fifo
     if board.setups != setups:
         gc.collect()
     if board.reload is not None:

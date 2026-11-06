@@ -60,8 +60,7 @@ def setup(host, firmware, dirty):
 
 
 def polls(cycles, pause):
-    """How long to wait for edges cycles after a push: the self-timing demo's bound on the Pico, and with
-    a pause of POLL cycles, that long and a few more."""
+    """Polls to wait for edges cycles after a push."""
     return 100_000 if pause is None else cycles // sf.POLL + 8
 
 

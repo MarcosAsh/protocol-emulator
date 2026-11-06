@@ -63,8 +63,7 @@ def run_step(host, m, polls=20_000):
     fifo's worth of bytes, the rest as it has room. Returns the bytes engine 0 pushed and
     both status words."""
     load(host, m)
-    # a collection of the Pico's, 5 to 11 ms, mid-step overflows engine 0's fifo; a step
-    # allocates far less than a collection frees, so none falls in it after this one
+    # a 5 to 11 ms collection mid-step would overflow engine 0's fifo
     gc.collect()
     host.select(0)
     host.push([tf.HALF])

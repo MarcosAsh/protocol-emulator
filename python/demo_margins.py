@@ -172,9 +172,8 @@ def main(part, point, repeats, kind=None, words=None, path="margins.log"):
     adc = machine.ADC(3)
 
     def vsys(n=2000):
-        """ADC channel 3, the Pico's VSYS divider, scaled by three as for VSYS. On Pico A
-        it reads about 1.26, not VSYS; it is used only for how the stick's current moves
-        it."""
+        """ADC channel 3 scaled as for VSYS. On Pico A it reads about 1.26, not VSYS: only
+        the change with the stick's current is used."""
         total = 0
         for _ in range(n):
             total += adc.read_u16()
