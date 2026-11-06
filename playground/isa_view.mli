@@ -1,5 +1,5 @@
-(** The instruction set as the page lays it out. Field positions and value names come
-    only from [Isa]. *)
+(** The instruction set as the page lays it out. Field positions and value names come only
+    from [Isa]. *)
 
 open! Core
 

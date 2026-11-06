@@ -30,8 +30,8 @@ module Pio_report : sig
     }
 end
 
-(** Runs [pio_check] on [source] with [spec]'s flags, one per line. The verdict is "passed"
-    if it exits 0, "failed" on any FAIL or ERROR, and refused on a usage error. *)
+(** Runs [pio_check] on [source] with [spec]'s flags, one per line. The verdict is
+    "passed" if it exits 0, "failed" on any FAIL or ERROR, and refused on a usage error. *)
 val check_pio : source:string -> spec:string -> Pio_report.t
 
 module Diagram_report : sig

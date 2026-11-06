@@ -127,10 +127,10 @@ let rec drain_rx machine =
   | Some (_, machine) -> drain_rx machine
 ;;
 
-(* Runs the model the way the host would drive it: [tx] words go in as room allows, [inputs]
-   are held from their cycle and the rx fifo is emptied every cycle. Each instruction that
-   makes a pin edge is checked against the analyser's window for it (at its first issue
-   in each visit), and we record each deadline wait's releases. *)
+(* Runs the model the way the host would drive it: [tx] words go in as room allows,
+   [inputs] are held from their cycle and the rx fifo is emptied every cycle. Each
+   instruction that makes a pin edge is checked against the analyser's window for it (at
+   its first issue in each visit), and we record each deadline wait's releases. *)
 let simulate ?period ?period_floor ~single_capture_edge ~config ~tx ~inputs ~cycles source
   : Sim_report.t
   =
