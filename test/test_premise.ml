@@ -3,7 +3,7 @@ open Protocol_emulator
 open Firmware
 open Protocol_models
 
-(* A sender's bit as [num / den] of the receiver's: 4% fast, exact, 4% slow. *)
+(* A sender's bit time as [num / den] of the receiver's: 4% fast, exact, 4% slow. *)
 let rates = [ "4% fast", 24, 25; "exact", 1, 1; "4% slow", 26, 25 ]
 
 (* USB allows a low speed sender 1.5% off *)
@@ -18,8 +18,8 @@ let usb_rates =
   ]
 ;;
 
-(* Per-bit levels to per-cycle levels, each bit starting on the first cycle at or after it
-   is due, so an off-rate sender's edges drift. *)
+(* Turns per-bit levels into per-cycle levels. Each bit starts on the first cycle at or
+   after it's due, so an off-rate sender's edges drift. *)
 let clocked bits ~period ~num ~den =
   let start k = ((k * period * num) + den - 1) / den in
   List.concat_mapi bits ~f:(fun k level ->
@@ -35,7 +35,7 @@ module Run = struct
     }
 end
 
-(* Steps the model and monitor while [next] gives levels; the host reads every word and
+(* Steps the model and monitor while [next] gives levels. The host reads every word and
    clears every interrupt. *)
 let watch_while ?(preload = []) ?(react = ignore) (firmware : Certified.t) ~next =
   let premise = Premise.create () in
@@ -193,7 +193,7 @@ let usb_device_transactions ~bit_period firmware =
     let levels =
       clocked (List.map lines ~f:(usb_level ~dp ~dm)) ~period:bit_period ~num ~den
     in
-    (* what the device sends, the bus idle where it does not drive *)
+    (* what the device sends, with the bus idle where it doesn't drive *)
     let sniffer = ref (Usb_ls.Sniffer.create ~bit_period) in
     let react (m : Machine.t) =
       let pin n ~idle =
@@ -212,8 +212,9 @@ let usb_device_transactions ~bit_period firmware =
       ~received:(sprintf "%d ACK and %d NAK of 32 each" (answers 0xd2) (answers 0x5a)))
 ;;
 
-(* The device's tightest arm: the host's next packet the minimum two bit times after the
-   device's handshake. Per eight bytes: SETUP + DATA0, IN, next SETUP, each at once. *)
+(* The device's tightest arm: the host's next packet comes the minimum two bit times after
+   the device's handshake. Per eight bytes: SETUP + DATA0, IN, next SETUP, each straight
+   after the last. *)
 let usb_device_at_once ~bit_period firmware =
   let dp = Usb.device_dp_pin in
   let dm = Usb.device_dm_pin in
@@ -278,12 +279,13 @@ let usb_device_at_once ~bit_period firmware =
     ~received:(sprintf "%d ACK and %d NAK of 32 each" (answers 0xd2) (answers 0x5a))
 ;;
 
-(* Every receiver whose certificate assumes the single-edge premise, run as certified
-   under a sender off only in rate: at each [capture_arm], is the pin already at the
-   captured level, or does it leave it before the wait releases? Either is a frame the
-   certificate does not cover. UART also runs at 25 and 17 cycles a bit, and with every
-   eighth stop bit missing to reach the arm after a framing error. USB allows 1.5% off;
-   past what its receiver follows, packets garble and only the arms matter. *)
+(* Runs every receiver whose certificate assumes the single-edge premise as certified,
+   under a sender that's off only in rate. At each [capture_arm], is the pin already at
+   the captured level, or does it leave that level before the wait releases? Either case
+   is a frame the certificate doesn't cover. UART also runs at 25 and 17 cycles per bit,
+   and with every eighth stop bit missing to reach the arm after a framing error. USB
+   allows 1.5% off. Beyond what its receiver follows, packets garble and only the arms
+   matter. *)
 let%expect_test "the receivers keep the premise their certificates rest on" =
   printf
     "%-18s %-9s %5s  %8s  %10s  %s\n"
@@ -339,8 +341,8 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
     |}]
 ;;
 
-(* A halt is not a release: the host stops the armed UART and the line falls and rises
-   again, a second edge before the wait released. *)
+(* A halt isn't a release. The host stops the armed UART, and the line falls and rises
+   again, giving a second edge before the wait released. *)
 let%expect_test "a halted wait for the edge has not released" =
   let firmware = Library.find_certified_exn "uart_rx" in
   let program = assemble firmware.source in

@@ -9,7 +9,7 @@ module Harness =
 
 let ( <--. ) = Bits.( <--. )
 
-(* as the macro: a read or a write needs [men] beside its own enable, and dout holds
+(* like the macro: a read or write needs [men] as well as its own enable, and dout holds
    between reads *)
 let%expect_test "dout moves only on a read with the memory enabled" =
   Harness.run
@@ -56,7 +56,7 @@ let%expect_test "dout moves only on a read with the memory enabled" =
     |}]
 ;;
 
-(* The same accesses in a waveform: dout holds through the cycles that do not read. *)
+(* The same accesses as a waveform. dout holds through the cycles that don't read. *)
 let%expect_test "waveform of a read, a disabled read and a write" =
   let display_rules =
     [ "men"; "wen"; "ren"; "addr"; "din"; "dout" ]

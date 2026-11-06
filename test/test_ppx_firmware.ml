@@ -2,9 +2,9 @@ open! Core
 open Protocol_emulator
 open Ppxlib
 
-(* Runs [%firmware] on [source] as the build does, from a file, and prints each error the
-   compiler would report, under the line it points at: the line from its start's byte
-   offset, as the compiler quotes it. *)
+(* Runs [%firmware] on [source] from a file, as the build does, and prints each error the
+   compiler would report under the line it points at (found from the error's start byte
+   offset, as the compiler quotes it). *)
 let build source =
   let file = Stdlib.Filename.temp_file "demo" ".ml" in
   Out_channel.write_all file ~data:source;
@@ -338,7 +338,7 @@ let behind_open =
     |xxx}]
 ;;
 
-(* The library's literal firmwares, checked as they compiled and again as they load. *)
+(* The library's literal firmwares, checked as compiled and again as loaded. *)
 let%expect_test "the literal firmwares" =
   List.iter
     [ "uart_tx16", Uart.tx16

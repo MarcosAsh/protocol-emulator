@@ -34,11 +34,11 @@ let certify (c : Certified.t) =
     (if List.is_empty assumes then "nothing" else String.concat ~sep:", " assumes)
 ;;
 
-(* Everything a protocol's file gives, from its record alone, in the order a new protocol
-   goes through it: each firmware's certificate, which CI then proves by induction
-   ([make -C formal inductive_certificate NAME=...]); the bench copies against their
-   datasheet limits; each run at the pins in lockstep at the engine; and what sigrok's
-   decoders have to read off its trace, which demo/decode.py checks. *)
+(* Everything a protocol file provides, from its record alone, in the order a new protocol
+   goes through it. First each firmware's certificate, which CI then proves by induction
+   ([make -C formal inductive_certificate NAME=...]). Then the bench copies against their
+   datasheet limits, each run at the pins in lockstep with the engine, and what sigrok's
+   decoders have to read off its trace (demo/decode.py checks that). *)
 let end_to_end (p : Protocol.t) =
   (match p.certified @ p.time_triggered with
    | [] -> print_endline "certificates: none"
@@ -62,8 +62,8 @@ let end_to_end (p : Protocol.t) =
        | None -> "uncertified as loaded");
     let received = Protocol.lockstep scenario in
     print_s [%message (received : Int.Hex.t list)];
-    (* what the host reads from rx through the whole chip on the scenario's trace, the
-       order the engine received it in, or less *)
+    (* what the host reads from rx through the whole chip on the scenario's trace: the
+       words in the order the engine received them, or fewer *)
     let (_ : Pin_trace.Line.t list), reads = Pin_trace.run scenario in
     let read =
       List.filter_map scenario.script ~f:(fun (step : Pin_trace.Step.t) ->
@@ -93,7 +93,7 @@ let end_to_end (p : Protocol.t) =
   List.iter p.decoded ~f:(run ~dir:"test/traces/sigrok")
 ;;
 
-(* A protocol added as a file of its own shows up here with nothing else to write. *)
+(* A protocol added as its own file shows up here with nothing else to write. *)
 let%expect_test "every protocol from its file to the decoded trace" =
   List.iter Library.protocols ~f:(fun p ->
     printf "=== %s\n\n" p.name;
@@ -877,7 +877,8 @@ let%expect_test "every name in the library is its own" =
   [%expect {| ((certified ()) (bench ()) (scenarios ())) |}]
 ;;
 
-(* each limit, reason for none and sweep decision names the protocol's own firmware *)
+(* each limit, reason for no limit and sweep decision must name the protocol's own
+   firmware *)
 let%expect_test "every protocol speaks only of its own firmware" =
   List.iter Library.protocols ~f:(fun p ->
     let names l = String.Set.of_list l in
@@ -899,8 +900,8 @@ let%expect_test "every protocol speaks only of its own firmware" =
 ;;
 
 (* What a protocol file started by [generate.exe new-protocol] still leaves to do: a
-   limit, a reason or a bench copy that says TODO, and a run sigrok judges with no payload
-   to read. *)
+   limit, reason or bench copy that says TODO, and a run sigrok judges with no payload to
+   read. *)
 let%expect_test "no protocol file is left half written" =
   let todo text = String.is_substring text ~substring:"TODO" in
   List.iter Library.protocols ~f:(fun p ->

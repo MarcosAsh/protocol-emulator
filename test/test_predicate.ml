@@ -105,7 +105,7 @@ let verdict_bit (firmware : Predicate.Firmware.t) (machine : Machine.t) =
   (machine.pin_out lsr firmware.config.set_base) land 1
 ;;
 
-(* The cycles in which the verdict issues: the pin shows it after that step. *)
+(* The cycles in which the verdict issues. The pin shows it after that step. *)
 let machine_verdicts (firmware : Predicate.Firmware.t) samples =
   let words = Asm.Program.words firmware.program |> ok_exn in
   let machine = Machine.create ~config:firmware.config ~program:words |> ok_exn in
@@ -123,8 +123,8 @@ let machine_verdicts (firmware : Predicate.Firmware.t) samples =
   |> fun (_, _, verdicts) -> List.rev verdicts
 ;;
 
-(* The predicate read off the samples, blind where the certificate says, each match a
-   verdict [latency] cycles on. *)
+(* The predicate evaluated on the samples (ignoring the cycles the certificate says it's
+   blind), with each match giving a verdict [latency] cycles later. *)
 let expected_verdicts (firmware : Predicate.Firmware.t) predicate samples =
   let samples = Array.of_list samples in
   let bit cycle pin = (samples.(cycle) lsr pin) land 1 = 1 in
@@ -141,7 +141,7 @@ let expected_verdicts (firmware : Predicate.Firmware.t) predicate samples =
     | Edge_while { edge; guard } -> edge, Some guard
     | Quiet _ -> raise_s [%message "not an edge"]
   in
-  (* the prologue's instructions each take a cycle, the budget being in the fifo *)
+  (* each prologue instruction takes a cycle, since the budget is in the fifo *)
   let watching_from =
     List.findi_exn firmware.program.instructions ~f:(fun _ -> function
       | Op { op = Wait (Pin_edge _); _ } -> true
@@ -317,7 +317,8 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
     |}]
 ;;
 
-(* The host's budget takes three instructions where [set] took one, moving every pc on. *)
+(* The host's budget takes three instructions where [set] took one, which shifts every
+   later pc. *)
 let%expect_test "a budget from the host moves the anchors and verdicts it certifies" =
   List.iter
     [ i2c_start, 300; quiet, 100 ]
@@ -436,7 +437,7 @@ let%expect_test "a quiet layout that samples the wrong pin or level is a bug" =
     |}]
 ;;
 
-(* The cycles whose sample of [pin] differs from the cycle before's. *)
+(* The cycles where the sample of [pin] differs from the previous cycle's. *)
 let changes samples ~pin =
   List.filter_mapi
     (List.zip_exn (List.drop_last_exn samples) (List.tl_exn samples))
@@ -444,7 +445,7 @@ let changes samples ~pin =
 ;;
 
 (* Runs of the pin at least [min_run] long, some ending before a verdict is due and some
-   after, the first as short as any. *)
+   after. The first run can be as short as any. *)
 let quiet_samples ~min_run ~due =
   let open Quickcheck.Generator.Let_syntax in
   let%map runs =
@@ -463,9 +464,9 @@ let polls (firmware : Predicate.Firmware.t) =
   | Waits _ -> raise_s [%message "waits, not polls"]
 ;;
 
-(* Raises unless each verdict answers the last edge the polls could see, inside the
-   window, no edge twice, and every run longer than the window gets one. Gives the
-   verdicts. *)
+(* Raises unless each verdict answers the last edge the polls could see inside the window,
+   no edge is answered twice, and every run longer than the window gets a verdict. Returns
+   the verdicts. *)
 let check_quiet (firmware : Predicate.Firmware.t) samples =
   let { Predicate.Certificate.latency; jitter; _ } = firmware.certificate in
   let _, unseen = polls firmware in
@@ -517,8 +518,8 @@ let%expect_test "on the model, a quiet verdict comes latency to latency + jitter
 ;;
 
 (* A pulse off a steady level, or a step, starting at every cycle through the prologue and
-   a whole half. A pulse [min_run] long is always seen, one a cycle shorter is missed at
-   some start, so [min_run] is tight. *)
+   a whole half. A pulse [min_run] long is always seen and one a cycle shorter is missed
+   at some start, so [min_run] is tight. *)
 let%expect_test "a pulse of min_run is seen from every start, one shorter is not" =
   List.iter [ 12; 20; 36; 200 ] ~f:(fun latency ->
     let firmware = Predicate.compile quiet ~latency |> ok_exn in
