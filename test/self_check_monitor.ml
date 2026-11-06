@@ -1,8 +1,8 @@
 open! Core
 open Protocol_emulator
 
-(* [Self_check.checker] against a reference monitor that is its contract, on waveforms
-   made by moving, dropping, adding and pulsing the edges of certified frames. *)
+(* Checks [Self_check.checker] against a reference monitor that states its contract, on
+   waveforms made by moving, dropping, adding and pulsing the edges of certified frames. *)
 
 let pin = 0
 let config = Self_check.checker_config ~pin
@@ -53,11 +53,12 @@ module Reference = struct
     }
   [@@deriving sexp_of]
 
-  (* A frame starts at the first low cycle from the least on, or for the first, after the
-     line is first high from [watch_from]. Inside it the line moves only at an edge, and
-     it is high by the next least. A move in the four cycles before the least is seen when
-     the next frame starts; one before those, by the cycle before the least. After a fall
-     at [watch_from], the first frame is blind from a fall [2^16 k] cycles after it. *)
+  (* A frame starts at the first low cycle from the previous least on (for the first
+     frame, after the line first goes high from [watch_from]). Inside a frame the line
+     moves only at an edge, and it is high by the next least. A move in the four cycles
+     before the least is seen when the next frame starts; an earlier one is seen by the
+     cycle before the least. After a fall at [watch_from], the first frame is blind from a
+     fall [2^16 k] cycles after it. *)
   let violations ~edges (w : Wave.t) =
     let m = Array.length edges in
     let least = edges.(m - 1) in
@@ -303,7 +304,7 @@ module Gen = struct
   let rand rs lo hi = lo + Random.State.int rs (hi - lo + 1)
   let span = 1 lsl 14
 
-  (* Edges the rows take, some gaps at the least, the frame sometimes near [span]. *)
+  (* Edges as the rows take them, some gaps at the least, sometimes a frame near [span]. *)
   let rec edges rs ~long =
     let n = rand rs 2 10 in
     let least_first = Self_check.min_gap + 12 in

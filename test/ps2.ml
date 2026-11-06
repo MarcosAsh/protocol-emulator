@@ -20,9 +20,9 @@ let config =
   }
 ;;
 
-(* [set] is the clock and [mov pindirs] the data; a direction bit of 1 pulls low. isr
-   builds the frame shifting right: byte, parity from the CRC, stop, then five more so the
-   start bit is bit 0. *)
+(* [set] drives the clock and [mov pindirs] the data (direction 1 pulls low). isr shifts
+   right, so the frame goes in as byte, CRC parity, stop, then five padding bits to put
+   the start bit at bit 0. *)
 let firmware =
   [%firmware
     {|
@@ -140,7 +140,7 @@ module Host = struct
     ; data : int
     ; clock_run : int
     ; data_run : int
-    ; own_clock : bool (* this host held the clock at some point of the current run *)
+    ; own_clock : bool (* this host has held the clock during the current run *)
     ; data_moved : bool (* since the clock last fell *)
     ; log : string list
     ; measured : Measured.t
@@ -335,9 +335,9 @@ let certified =
     config
 ;;
 
-(* The host lets each frame end, then holds the clock low for 100 us as it takes the byte
-   in. That fall is also the twelfth sigrok 0.5.3's ps2 decoder waits for before it reads
-   a frame of eleven clocks. *)
+(* The host lets each frame end, then holds the clock low for 100 us while it takes the
+   byte. sigrok 0.5.3's ps2 decoder needs that twelfth fall before it reads an
+   eleven-clock frame. *)
 let scenario =
   let quarter = standard_quarter in
   let bytes = [ 0x1c; 0xf0; 0x1c ] in
@@ -366,7 +366,7 @@ let scenario =
             inhibit_in := Some quarter))
     }
   in
-  (* a frame is a clock period of idle and eleven clocks, 48 quarters *)
+  (* an idle period plus eleven clocks, 48 quarters *)
   let send byte = [ Step.Write (Reg.tx, [ byte ]); Run ((48 * quarter) + 10_000) ] in
   { Scenario.name = "ps2"
   ; peer
@@ -387,7 +387,7 @@ let scenario =
               , List.concat_map bytes ~f:(fun byte ->
                   [ "Start bit"; sprintf "Data: %02x" byte; "Parity OK"; "Stop bit" ])
                 |> Sigrok.lines "ps2" )
-            ; (* sigrok checks neither the start nor the stop bit, only labels them *)
+            ; (* sigrok only labels the start and stop bits, it doesn't check them *)
               ( "ps2=bit"
               , List.concat_map bytes ~f:(fun byte ->
                   let data = List.init 8 ~f:(fun i -> (byte lsr i) land 1) in
@@ -403,14 +403,14 @@ let scenario =
             [ [ Flip
                   { pin = data_pin; edge = 2; after = 12 * quarter; cycles = 4 * quarter }
               ]
-            ; (* edge 3 raises the first byte's stop bit: held low instead *)
+            ; (* edge 3 would raise the first byte's stop bit, so hold it low *)
               [ Flip { pin = data_pin; edge = 3; after = 0; cycles = 4 * quarter } ]
             ]
         }
   }
 ;;
 
-(* the firmware on the bench's clock, at a 20 us quarter, sending one byte *)
+(* bench firmware sending one byte, 20 us quarter *)
 let bench =
   let quarter = Bench.cycles_in ~us:20 in
   { Bench.name = "ps2"
@@ -428,12 +428,12 @@ let bench =
   }
 ;;
 
-(* IBM's receiving data timings, figure 8: T1 at each clock fall since data last moved, T2
-   at each data move since the clock rose, and the clock's lows and highs, the high from
-   reset before the frame. A direction bit of 1 pulls the line low. The kernel's high runs
-   from the device letting the clock go to its taking it again (969 cycles at least),
-   which counts a host's inhibit and request to send, and figure 9 leaves the quarter from
-   release to first clock untimed, so the least high is the run's. *)
+(* IBM's receiving data timings, figure 8. T1 runs from data's last move to each clock
+   fall, T2 from the clock rise to each data move. Clock lows and highs are checked too,
+   the first high counted from reset. A direction bit of 1 pulls the line low. The
+   kernel's high run lasts from the device releasing the clock to taking it again (969
+   cycles at least), so it includes a host's inhibit and request to send. Figure 9 leaves
+   the quarter from release to first clock untimed, so the minimum high is the run's. *)
 let limits =
   let sheet parameter =
     { Datasheet.Sheet.part = "PS/2 keyboard and auxiliary device"

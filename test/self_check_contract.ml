@@ -52,11 +52,12 @@ module Make (Config : Config) = struct
     [@@deriving sexp_of, compare ~localize, enumerate]
   end
 
-  (* A frame starts at the first low from the last's least, the first once the line is
-     high from [watch_from]. A move off its edges, or a low at its last, is a break, due
-     by the cycle before the least if five or more before it, else ten after the next
-     start. Blind where the reference is: from a fall [2^16 k] after a fall at
-     [watch_from], and a lone break before a high least with the next start [2^16 k] on. *)
+  (* A frame starts at the first low after the previous frame's least (the first frame:
+     once the line has been high since [watch_from]). A move off its edges, or a low at
+     its last, is a break. It is due by the cycle before the least if it came five or more
+     cycles before it, else ten cycles after the next start. Blind where the reference is:
+     a fall [2^16 k] after a fall at [watch_from], and a lone break before a high least
+     with the next start [2^16 k] later. *)
   let create (scope : Scope.t) (i : Signal.t I.t) =
     let spec = Clocking.to_spec i.clocking in
     let open Always in

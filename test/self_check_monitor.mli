@@ -3,8 +3,8 @@
 
 open! Core
 
-(** The cycle the checker first looks for the line high in; the first frame starts at the
-    first fall after it sees it. *)
+(** The cycle the checker first looks for the line high; the first frame starts at the
+    first fall after it sees that. *)
 val watch_from : int
 
 module Wave : sig
@@ -16,7 +16,8 @@ module Reference : sig
   module Kind : sig
     type t =
       | By of int (** The checker must raise its irq by this cycle. *)
-      | Pending (** In the four cycles before a least no frame follows: never seen. *)
+      | Pending
+      (** A break in the four cycles before a least with no frame after it: never seen. *)
       | Alias (** Blind, as [Self_check.checker] states. *)
     [@@deriving sexp_of, compare, equal]
   end

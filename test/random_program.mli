@@ -6,10 +6,10 @@ open Protocol_emulator
 
 val config : Splittable_random.t -> Program_config.t
 
-(** A full program memory of random words that decode, never [halt]. With [waits]
-    [`Input_pins] the only waits are on input pins, which random inputs release within a
-    few cycles; a deadline wait on a random [t] or a fifo wait would hold the core for the
-    rest of a run. *)
+(** A full program memory of random words that decode, never [halt]. With [waits] set to
+    [`Input_pins], the only waits are on input pins, which random inputs release within a
+    few cycles. A deadline wait on a random [t] or a fifo wait would stall the core for
+    the rest of the run. *)
 val program
   :  ?waits:[ `Any | `Input_pins ]
   -> Splittable_random.t
