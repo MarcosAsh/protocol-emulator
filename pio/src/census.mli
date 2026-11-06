@@ -77,9 +77,9 @@ val row : file:string -> Pioasm.Program.t -> Row.t
 (** A markdown table followed by the totals. *)
 val to_string : Row.t list -> string
 
-(** The largest gap, in cycles, that the kernel accepts on the certified rows between
-    [b]'s last edge and an edge of [a], where [apart] holds for the bits before it. [None]
-    if it accepts no gap. *)
+(** The largest minimum spacing, in cycles, that the kernel accepts on the certified rows
+    between [b]'s last edge and an edge of [a], where [apart] holds for the bits before
+    it. [None] if it accepts none. *)
 val least_apart
   :  Timed_program.t
   -> dirs:bool
