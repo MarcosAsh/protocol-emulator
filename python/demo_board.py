@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Transport for the Tiny Tapeout demo board (MicroPython, ttboard SDK v3.1.1 on the RP2350B
-# DB v3, v2 on the RP2040 boards). A PIO state machine runs SPI mode 0 on ui[0] SCK, ui[1]
-# MOSI and uo[0] MISO, which no hardware SPI pins match; ui[2] CS_N is a plain pin. Every ui
-# DIP switch off. Untested on a board; test/test_demo_board.py runs it on the RTL.
+# Host SPI for the Tiny Tapeout demo board (MicroPython, ttboard SDK v3.1.1 on DB v3, v2 on
+# RP2040 boards). SPI mode 0 runs in PIO because SCK/MOSI/MISO (ui[0], ui[1], uo[0]) don't
+# sit on hardware SPI pins. Turn every ui DIP switch off. Not tried on a real board yet,
+# only on the RTL (test/test_demo_board.py).
 
 import micropython
 import rp2
@@ -14,15 +14,15 @@ from ttboard.mode import RPMode
 from protocol_emulator import Host
 
 PROJECT = "tt_um_marcosash_protocol_emulator"
-# PIO 1's first, on either RP2: the SDK's slow clock takes PIO 0
+# first SM of PIO 1, since the SDK's slow clock uses PIO 0
 STATE_MACHINE = 4
-# a FIFO's depth, so a chunk out and its replies back never stall either side
+# one FIFO deep, so neither side stalls
 CHUNK = 4
-# SCK at most an eighth of the chip's clock (host_spi.mli): MISO moves 3 clocks after SCK
-# falls and is read on the next fall, leaving 5 for the pads, mux and input synchroniser
+# SCK <= clock / 8 (see host_spi.mli): MISO changes 3 clocks after SCK falls, which leaves
+# 5 clocks for the pads, mux and synchroniser before we sample it
 SCK_DIVIDE = 8
-# designs the SDK has enabled, ours included, since watch_enables: a deselected design is
-# powered down, so a count that moved since a select means the chip lost its program
+# bumped on every design enable; a deselected design loses power, so if this moved since
+# select() the chip has lost its program
 ENABLES = [0]
 WATCHERS = []
 
@@ -33,7 +33,7 @@ WATCHERS = []
     autopull=True, pull_thresh=8, autopush=True, push_thresh=8,
 )
 def spi_mode0():
-    # four cycles a bit, MISO read as SCK falls; an empty FIFO stalls the out with SCK low
+    # 4 cycles per bit, sample MISO as SCK falls; an empty FIFO stalls with SCK low
     out(pins, 1).side(0)  # noqa: F821
     nop().side(1)[1]  # noqa: F821
     in_(pins, 1).side(0)  # noqa: F821
@@ -44,7 +44,7 @@ def gpio(tt, name):
 
 
 def watch_enables(mux):
-    """Count every design the SDK enables into ENABLES, before its own callback runs."""
+    """Wrap the SDK's enable callback so it bumps ENABLES first."""
     callback = mux.design_enabled_callback
     if callback in WATCHERS:
         return
@@ -59,10 +59,10 @@ def watch_enables(mux):
 
 
 def claim_pio(index, gpios, programs):
-    """Stop PIO index's state machines and clear its programs, so a second instance starts
-    clean. Only a named removal resets a stored offset, and rp2_pio.c lets one never loaded
-    through, so check asm_pio's [data, offsets...] first. On the RP2350B a PIO sees 32
-    GPIOs from 0 or from 16."""
+    """Stop the PIO's state machines and unload its programs so a second instance starts
+    clean. remove_program(p) is the only way to reset p's stored offset, but rp2_pio.c
+    doesn't complain about one that was never loaded, so we check the offsets ourselves.
+    On the RP2350B a PIO only sees 32 GPIOs, starting at 0 or 16."""
     for n in range(4):
         rp2.StateMachine(4 * index + n).active(0)
     pio = rp2.PIO(index)
@@ -78,10 +78,10 @@ def claim_pio(index, gpios, programs):
 
 
 class DemoBoardSpi:
-    """SCK at most an eighth of the chip's clock (SCK_DIVIDE), by default a sixteenth.
-    Build another to change the clock: the PIO's divider is set from the system clock the
-    PWM chose. programs, those the caller runs on PIO 1's other state machines, unload too.
-    ui_inputs has a bit for each of ui[3] to ui[7] the RP leaves to the input Pmod."""
+    """SCK defaults to clock / 16 and can go up to clock / 8. To change the clock, make a
+    new one (the PIO divider depends on the system clock the PWM picked). programs are the
+    caller's own programs on PIO 1, unloaded along with ours. Set a bit in ui_inputs for
+    each of ui[3..7] that should be left to the input Pmod."""
 
     def __init__(self, project=PROJECT, clock_hz=48_000_000, sck_hz=None, programs=(),
                  ui_inputs=0):
@@ -97,8 +97,8 @@ class DemoBoardSpi:
         self.select()
 
     def select(self):
-        """Enable the design, clock it, reset it and start the PIO. Again after another
-        design ran, which may also have moved the system clock the PIO divides."""
+        """Enable, clock and reset the design, then start the PIO. Call it again after
+        another design has run, since that may have changed the system clock."""
         tt = self.tt
         tt.mode = RPMode.ASIC_RP_CONTROL
         if not tt.shuttle.has(self.project):
@@ -107,10 +107,10 @@ class DemoBoardSpi:
         if not tt.shuttle.get(self.project).enable():
             raise RuntimeError("the SDK would not enable %s: see its log" % self.project)
         self.enables = ENABLES[0]
-        # DB v3.3's button would clock the project once, over the PWM
+        # on DB v3.3 the button would clock the project on top of the PWM
         if getattr(tt, "manual_project_clock", None) is not None:
             tt.manual_project_clock.monitoring = False
-        # config.ini or info.yaml's clock_hz may have started one at enable
+        # config.ini or info.yaml may have started a clock on enable
         tt.clock_project_stop()
         tt.uio_oe_pico.value = 0
         for bit in range(3):
@@ -134,7 +134,7 @@ class DemoBoardSpi:
         self.sm.active(1)
 
     def selected(self):
-        """Whether the design is enabled and nothing else has been since select."""
+        """True if our design is still enabled and nothing else was enabled since select."""
         enabled = self.tt.shuttle.enabled
         return (ENABLES[0] == self.enables and enabled is not None
                 and enabled.name == self.project)
@@ -162,9 +162,8 @@ class DemoBoardSpi:
 
 
 class DemoBoardHost(Host):
-    """Host that keeps each engine's config and program loads and the data loads, so
-    reload can put them back after a reselect. Engines come back halted with empty
-    fifos: starting them again is the caller's."""
+    """Host that remembers configs and loads so reload() can restore them after a
+    reselect. Engines come back halted with empty fifos; restarting them is up to you."""
 
     def __init__(self, spi):
         super().__init__(spi.transfer)
@@ -182,7 +181,7 @@ class DemoBoardHost(Host):
         Host.configure(self, config)
 
     def load(self, words, address=0):
-        """A load from 0 overwrites every earlier one, as it zero-fills to the end."""
+        """A load at 0 zero-fills the rest, so it replaces every earlier load."""
         loads = self._engine()["loads"]
         if address == 0:
             loads.clear()
