@@ -346,7 +346,7 @@ let%expect_test "i2c logger in lockstep" =
     |}]
 ;;
 
-(* The master's bounds at a quarter, if the analyser takes it. *)
+(* The master's bounds at a given quarter, or nothing if the analyser rejects it. *)
 let bounds ~clock_mhz timings quarter =
   let program = Asm.assemble (I2c.master ~quarter) |> ok_exn in
   match Analyser.check ~config:(Asm.Program.configure program I2c.config) program with
@@ -364,7 +364,7 @@ let failing bounds =
          ~f:Interval.to_string}"])
 ;;
 
-(* [set p] takes 31 at most *)
+(* [set p] waits at most 31 cycles *)
 let smallest_quarter ~clock_mhz timings =
   List.find_map (List.range 1 32) ~f:(fun quarter ->
     Option.bind (bounds ~clock_mhz timings quarter) ~f:(fun bounds ->
@@ -386,9 +386,9 @@ let print_bounds ~clock_mhz ~mode (bounds : I2c_timing.Bound.t list) =
 ;;
 
 (* The smallest quarter at which the certified master meets UM10204 Fast-mode Plus at 50
-   MHz, and its bounds. These are edges at the pins: the master does not wait for SCL
-   high, so rise time comes off tHIGH, tSU;STA and tSU;STO, the last two exactly at their
-   limits here. A full 120 ns Fm+ rise would need a quarter of 22. *)
+   MHz, with its bounds. These are edges at the pins. The master doesn't wait for SCL
+   high, so the rise time comes off tHIGH, tSU;STA and tSU;STO (the last two sit exactly
+   at their limits here). A full 120 ns Fm+ rise would need a quarter of 22. *)
 let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
   let clock_mhz = 50 in
   let timings = I2c_timing.fast_mode_plus in
@@ -439,7 +439,7 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
         slave := I2c_slave.step !slave ~sda:(bus_sda t) ~scl:(bus_scl t);
         t, bus_scl t :: levels)
   in
-  (* the runs between the first and the last, which are the idle bus *)
+  (* drop the first and last runs, which are the idle bus *)
   let runs = List.drop (List.drop_last_exn (runs (List.rev levels))) 1 in
   let shortest level =
     List.filter_map runs ~f:(fun (l, n) -> Option.some_if (l = level) n)
@@ -477,8 +477,9 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
     |}]
 ;;
 
-(* Standard mode's 4.7 us tSU;STA is one quarter, past [set p]'s 31 cycles above 6 MHz:
-   the fastest whole clock at which the master meets it, its bus clear included. *)
+(* Standard mode's 4.7 us tSU;STA is one quarter, which is more than [set p]'s 31 cycles
+   above 6 MHz. This finds the fastest whole clock where the master still meets it,
+   including its bus-clear wait. *)
 let%expect_test "the master's pins keep to standard mode at 6 MHz" =
   let timings = I2c_timing.standard_mode in
   let clock_mhz, (quarter, bounds) =
@@ -505,7 +506,7 @@ let%expect_test "the master's pins keep to standard mode at 6 MHz" =
     |}]
 ;;
 
-(* Bit runs, one bit per SCL rise at SDA's level, between the STARTs and STOPs. *)
+(* Bit runs between the STARTs and STOPs: one bit per SCL rise, at SDA's level. *)
 let bus_events levels =
   let flush run events = if String.is_empty run then events else run :: events in
   let (_ : int * int), run, events =
@@ -525,8 +526,8 @@ let bus_events levels =
   List.rev (flush run events)
 ;;
 
-(* The master from reset beside [slave], or with SDA held low throughout, then [words]
-   from the host. *)
+(* Runs the master from reset next to [slave] (or with SDA held low throughout) and feeds
+   it [words] from the host. *)
 let clear_bus ?slave ?(words = []) ~cycles () =
   let t =
     Machine.create ~config:I2c.config ~program:(assemble (I2c.master ~quarter:8))
@@ -556,8 +557,8 @@ let clear_bus ?slave ?(words = []) ~cycles () =
         (t.pc : int)]
 ;;
 
-(* A slave at 0x50 left holding SDA low by a master reset mid-read, once [bits] of [byte],
-   MSB first, are clocked out. It may not yet have seen SCL's last fall. *)
+(* A slave at 0x50 that a master reset mid-read leaves holding SDA low, after [bits] bits
+   of [byte] (MSB first) have been clocked out. It may not have seen SCL's last fall yet. *)
 let slave_mid_read ~byte ~bits =
   let rec go peer slave ~rises =
     if rises > bits && I2c_peer.scl peer = 0 && I2c_slave.drive_low slave
@@ -579,10 +580,11 @@ let slave_mid_read ~byte ~bits =
     ~rises:0
 ;;
 
-(* A free bus gets a START and a STOP. A slave stopped after the address's ack and three
-   bits of 0 lets go after the other five and the ack's rise, where the master's NACK ends
-   its read. Stopped after five bits of 0x5a, its 1 ends the pulses, and the START frees
-   the 0 behind it. SDA held for good gets nine pulses and the STOP's rise. *)
+(* A free bus gets a START and a STOP. If the slave is stopped after the address ack and
+   three 0 bits, it lets go after the other five and the ack's rise, where the master's
+   NACK ends the read. If it's stopped after five bits of 0x5a, its 1 ends the pulses and
+   the START frees the 0 behind it. With SDA held for good we get nine pulses and the
+   STOP's rise. *)
 let%expect_test "the bus clear frees a slave stuck mid-read" =
   clear_bus
     ~slave:(I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0))
@@ -630,7 +632,7 @@ let%expect_test "the bus clear frees a slave stuck mid-read" =
     |}]
 ;;
 
-(* The pulses' way out of the loop, on the RTL, to the host wait at pc 17. *)
+(* On the RTL, how the pulses leave the loop and reach the host wait at pc 17. *)
 let%expect_test "the bus clear in lockstep, SDA held low" =
   let bus_scl = ref 1 in
   let (m : Machine.t) =
@@ -649,9 +651,9 @@ let%expect_test "the bus clear in lockstep, SDA held low" =
     |}]
 ;;
 
-(* The bench's bus, SCL on IO2 and SDA on IO3: a START held 150 cycles, as pio/i2c holds
-   it at 48 MHz, a data bit whose SDA falls with SCL low, a repeated START held 212, as
-   the RP2040's I2C block holds it, and a STOP. *)
+(* The bench's bus (SCL on IO2, SDA on IO3): a START held 150 cycles as pio/i2c holds it
+   at 48 MHz, a data bit whose SDA falls with SCL low, a repeated START held 212 as the
+   RP2040's I2C block holds it, and a STOP. *)
 let%expect_test "the start hold stamper is accepted and reads each hold in lockstep" =
   let scl = 14 in
   let sda = 15 in

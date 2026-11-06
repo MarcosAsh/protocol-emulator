@@ -10,8 +10,8 @@ module L = Lws_cyclesim.With_interface (Host_fifo.I) (Host_fifo.O)
 let ( <--. ) = Bits.( <--. )
 let depth = Host_fifo.depth
 
-(* What formal/fifo_order.sv proves, as simulation assertions beside the fifo rather than
-   in it, so the chip's Verilog does not change. Like the proof, not in a clear cycle. *)
+(* What formal/fifo_order.sv proves, as simulation assertions beside the fifo so the
+   chip's Verilog doesn't change. Like the proof, they skip cycles with a clear. *)
 let with_assertions ~tamper scope (i : Signal.t Host_fifo.I.t) =
   let open Signal in
   let o : Signal.t Host_fifo.O.t = tamper i (Host_fifo.hierarchical scope i) in
@@ -34,15 +34,15 @@ module Op = struct
   let quickcheck_generator =
     let open Quickcheck.Generator.Let_syntax in
     let%bind push = Option.quickcheck_generator (Int.gen_incl 0 0xffff) in
-    (* push-heavy, so the fifo reaches full and the corners around it *)
+    (* push-heavy, so the fifo fills up and we hit the corners around full *)
     let%bind pop = Int.gen_incl 0 2 >>| ( = ) 0 in
     let%map flush = Int.gen_incl 0 15 >>| ( = ) 0 in
     { push; pop; flush }
   ;;
 end
 
-(* The cycle's pop comes first, so a full fifo that pops takes the push; a flush loses the
-   push with the rest. *)
+(* The pop comes first in a cycle, so a full fifo that pops accepts the push. A flush
+   drops the push along with everything else. *)
 let model_step queue { Op.push; pop; flush } =
   if flush
   then Queue.clear queue
@@ -103,7 +103,7 @@ let%expect_test "the fifo matches a queue" =
       Option.iter (Queue.peek queue) ~f:(fun head ->
         require_equal ~message:"head" (module Int) (Bits.to_unsigned_int !(o.head)) head)
     in
-    (* [h] is local, so the trials are drawn first rather than run by [Quickcheck.test] *)
+    (* [h] is local, so we draw the trials first instead of using [Quickcheck.test] *)
     let trials =
       Quickcheck.random_sequence
         ~seed:(`Deterministic "host_fifo")
@@ -119,7 +119,7 @@ let%expect_test "the fifo matches a queue" =
         let op = trials.(trial).(n) in
         drive inputs op;
         Lws.step h;
-        (* the outputs are those before the edge, so the state this op found *)
+        (* the outputs are from before the edge, so they show the state this op found *)
         check queue op;
         model_step queue op
       done
@@ -194,7 +194,7 @@ let%expect_test "waveform of the corners at full and flush" =
 ;;
 
 (* Reports empty low in a cycle that pushes to an empty fifo, which breaks
-   [empty_iff_level_zero] in each such cycle. *)
+   [empty_iff_level_zero] every time. *)
 let%expect_test "an assertion shows the cycles a broken fifo violates it" =
   let sim =
     simulate ~waves:true (fun i (o : _ Host_fifo.O.t) ->

@@ -85,7 +85,7 @@ let%expect_test "the analyser and the kernel accept the compiled firmware" =
     |}]
 ;;
 
-(* The circuit sees a byte with [data_in_valid] high for one cycle; the engine sees the
+(* The circuit sees a byte with [data_in_valid] high for one cycle. The engine sees the
    host write it into the tx fifo before the same edge. *)
 let circuit_trace ~clocks_per_bit ~cycles ~arrivals =
   let trace = ref [] in
@@ -127,20 +127,20 @@ let engine_trace (firmware : Fsm_compiler.Firmware.t) ~cycles ~arrivals =
     machine, (machine.pin_out lsr Isa.first_output_pin) land 1)
 ;;
 
-(* The cycles where a high line goes low. *)
+(* Cycles where a high line goes low. *)
 let falling_edges trace =
   List.zip_exn (List.drop_last_exn (List.hd_exn trace :: trace)) trace
   |> List.filter_mapi ~f:(fun i (was, level) -> Option.some_if (was = 1 && level = 0) i)
 ;;
 
-(* The engine pin's lag behind the circuit's, and the first cycle after the prologue where
-   it then differs. *)
+(* How far the engine's pin lags the circuit's, and the first cycle after the prologue
+   where they differ. *)
 let compare_traces ~clocks_per_bit ~cycles ~arrivals =
   let firmware = compile ~clocks_per_bit |> ok_exn in
   let circuit = circuit_trace ~clocks_per_bit ~cycles ~arrivals in
   let engine = engine_trace firmware ~cycles ~arrivals in
   let lag = List.hd_exn (falling_edges engine) - List.hd_exn (falling_edges circuit) in
-  (* the engine's pin is low until its prologue sets it *)
+  (* the engine's pin stays low until its prologue sets it *)
   let prologue = fst (List.findi_exn engine ~f:(fun _ level -> level = 1)) in
   let mismatch =
     List.zip_exn (List.drop engine lag) (List.take circuit (cycles - lag))
@@ -297,7 +297,7 @@ let%expect_test "a state that does not fit in the tick is refused" =
     |}]
 ;;
 
-(* The compiler counts the cycles itself; the analyser agrees where the tick runs out. *)
+(* The compiler counts the cycles itself, and the analyser agrees where the tick runs out. *)
 let%expect_test "the analyser draws the same line" =
   let firmware = compile ~clocks_per_bit:16 |> ok_exn in
   List.iter [ 3; 4 ] ~f:(fun period ->
@@ -348,7 +348,7 @@ let%expect_test "the engine runs the compiled firmware as the model does" =
     |}]
 ;;
 
-(* A toggle is ordinary Hardcaml, but not yet an instruction the compiler knows. *)
+(* A toggle is ordinary Hardcaml, but the compiler has no instruction for it yet. *)
 module Blink = struct
   module I = struct
     type 'a t =

@@ -70,7 +70,7 @@ let show (o : Outcome.t) =
   ^ if o.refused then " refused" else ""
 ;;
 
-(* Every k on the model and on [Engines] beside it, runs of equal outcome on a line. *)
+(* For every k, the model and [Engines] side by side, as runs of equal outcome per line. *)
 let%expect_test "the sweep" =
   let seen =
     List.map pulses ~f:(fun k ->
@@ -101,7 +101,7 @@ let%expect_test "the sweep" =
     List.count seen ~f:(fun (_, p, m, r) -> not (Outcome.equal p m && Outcome.equal p r))
   in
   print_s [%message (List.length seen : int) (differ : int)];
-  (* where each data bit was seen against the kernel's window for it *)
+  (* where each data bit was seen, against the kernel's window for it *)
   List.iteri
     (List.filter (samples Kernel) ~f:(fun s -> s.pc = 10))
     ~f:(fun bit kernel ->

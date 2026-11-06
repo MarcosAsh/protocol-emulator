@@ -59,8 +59,8 @@ module Fuzz (Config : Host_port.Config) = struct
   module Dut = Host_port.Make (Config)
   module Harness = Hardcaml_test_harness.Lws_harness.Make (Dut.I) (Dut.O)
 
-  (* Random frames until port and model disagree. A frame is judged just before the next
-     frame's first clock edge, keeping inter-frame gaps minimal. *)
+  (* Random frames until the port and the model disagree. We judge a frame just before the
+     next one's first clock edge, so the gaps between frames stay minimal. *)
   let fuzz ?(halves = [ 4; 4; 5; 7; 12 ]) ?(edge = 1) ~seed ~frames () =
     let random = Splittable_random.of_int seed in
     Harness.run

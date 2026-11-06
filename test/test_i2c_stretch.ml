@@ -3,8 +3,9 @@ open Protocol_emulator
 open Firmware
 open Protocol_models
 
-(* A slave that holds SCL low from each fall for the next of [holds] cycles, round and
-   round; a hold no longer than the master's own low phase stretches nothing. *)
+(* A slave that holds SCL low after each fall for the next entry of [holds] cycles,
+   cycling through the list. A hold no longer than the master's own low phase stretches
+   nothing. *)
 module Stretcher = struct
   type t =
     { holds : int list
@@ -32,15 +33,16 @@ end
 
 module Run = struct
   type t =
-    { levels : (int * int) list (** SDA and SCL on the bus, a pair per cycle. *)
-    ; replies : (int * int) list (** Each word the core pushed, and the cycle. *)
+    { levels : (int * int) list (** SDA and SCL on the bus, one pair per cycle. *)
+    ; replies : (int * int) list (** Each word the core pushed, with its cycle. *)
     ; log : string list
     ; machine : Machine.t
     }
 end
 
-(* [program] beside an [I2c_slave] at 0x50 and [stretcher], [words] queued, then [later]
-   from its cycle on; SCL is held low over [stuck], from its first cycle up to its last. *)
+(* Runs [program] next to an [I2c_slave] at 0x50 and [stretcher], with [words] queued up
+   front and [later] queued from its cycle on. SCL is held low over [stuck], first cycle
+   to last. *)
 let run
   ?(stretcher = Stretcher.create [])
   ?(stuck = 0, 0)
@@ -105,7 +107,7 @@ let write_then_read =
   ]
 ;;
 
-(* SCL's runs at [level] between the first and the last, which are the idle bus *)
+(* SCL's runs at [level], minus the first and last, which are the idle bus *)
 let scl_runs (run : Run.t) ~level =
   List.map run.levels ~f:snd
   |> runs
@@ -115,7 +117,7 @@ let scl_runs (run : Run.t) ~level =
   |> List.dedup_and_sort ~compare
 ;;
 
-(* Like the plain master, the quarter is the deadlines' and the sample's slack. *)
+(* The quarter is the slack on the deadlines and the sample, same as the plain master. *)
 let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
   List.iter [ 8; 7 ] ~f:(fun quarter ->
     match
@@ -158,9 +160,10 @@ let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
     |}]
 ;;
 
-(* One data bit's SCL high. The phase is unknown while SCL is polled, as after any wait on
-   a pin; [mov t, now] fixes it, so the deadlines after, and the edges and the sample on
-   them, are certified from the poll that saw SCL high, wherever the slave let it go. *)
+(* One data bit's SCL high. While SCL is polled the phase is unknown, as after any wait on
+   a pin. [mov t, now] fixes it, so the later deadlines (and the edges and sample that
+   depend on them) are certified from the poll that saw SCL high, wherever the slave let
+   go. *)
 let%expect_test "the certificate starts again from the poll that sees SCL high" =
   let timed =
     Timed_program.of_source_exn
@@ -173,7 +176,7 @@ let%expect_test "the certificate starts again from the poll that sees SCL high" 
       | Op { op = Mov { dest = Y; op = Invert; source = Null }; _ } -> true
       | _ -> false)
   in
-  (* the second is a data bit's, after the repeated START's *)
+  (* the second is a data bit's, after the repeated START *)
   let release = (List.nth_exn releases 1).pc in
   let rows =
     List.filter (Timed_program.rows timed) ~f:(fun row ->
@@ -196,8 +199,8 @@ let%expect_test "the certificate starts again from the poll that sees SCL high" 
     |}]
 ;;
 
-(* In the model, whose inputs take no time; on the RTL every high is longer by the input
-   path's delay. *)
+(* In the model inputs take no time. On the RTL every high is longer by the input path's
+   delay. *)
 let%expect_test "without a stretch the bus is the plain master's, cycle for cycle" =
   List.iter [ 8; 13 ] ~f:(fun quarter ->
     let bus (config, program) =
@@ -225,9 +228,10 @@ let%expect_test "without a stretch the bus is the plain master's, cycle for cycl
     |}]
 ;;
 
-(* Holds of 17 to 21 cycles end one to five past the master's 16 low, 40, 100 and 33 well
-   past. The plain master's highs come short and the slave misreads the pointer; the
-   stretching master's highs are two quarters and up to three cycles more, a poll's gap. *)
+(* Holds of 17 to 21 cycles end one to five cycles past the master's 16 low. Holds of 40,
+   100 and 33 end well past it. The plain master's highs come out short and the slave
+   misreads the pointer. The stretching master's highs are two quarters plus up to three
+   cycles, which is one poll gap. *)
 let%expect_test "a slave stretching by varying amounts" =
   let quarter = 8 in
   let holds = [ 0; 17; 18; 19; 20; 21; 40; 3; 100; 33 ] in
@@ -276,9 +280,10 @@ let%expect_test "a slave stretching by varying amounts" =
     |}]
 ;;
 
-(* Held from reset, every word is answered at once. Held mid-address, that word is
-   answered after 65536 polls and the rest at once. Once SCL is back a write goes through;
-   the model slave, cut off mid-address, first takes the next rises as the rest. *)
+(* With SCL held from reset, every word is answered at once. Held mid-address, that word
+   is answered after 65536 polls and the rest at once. Once SCL is back a write goes
+   through. The model slave, cut off mid-address, reads the next rises as the rest of that
+   byte. *)
 let%expect_test "SCL held low answers 0xffff" =
   let config, program = stretching ~quarter:8 in
   let held ?later ~stuck ~cycles () =
@@ -326,7 +331,7 @@ let%expect_test "SCL held low answers 0xffff" =
     |}]
 ;;
 
-(* SCL comes back after the timeout but before the rest of the transfer: those words are
+(* SCL comes back after the timeout but before the transfer ends. The remaining words are
    answered 0xffff and kept off the bus, and the next START word goes through. *)
 let%expect_test "after a timeout only a START goes back on the bus" =
   let config, program = stretching ~quarter:8 in
@@ -372,9 +377,9 @@ let%expect_test "after a timeout only a START goes back on the bus" =
     |}]
 ;;
 
-(* Held at the STOP, after the stop word's reply: nothing more is pushed for it. No STOP
-   reaches the bus, so the model slave takes the next START as a repeated one and writes
-   on from 6. *)
+(* SCL is held at the STOP, after the stop word's reply, so nothing more is pushed for it.
+   No STOP reaches the bus, so the model slave treats the next START as a repeated one and
+   keeps writing from 6. *)
 let%expect_test "SCL held at the STOP adds no reply" =
   let config, program = stretching ~quarter:8 in
   let words = [ I2c.word ~start:true 0xa0; I2c.word 5; I2c.word ~stop:true 0x77 ] in
@@ -415,7 +420,7 @@ let%expect_test "SCL held at the STOP adds no reply" =
     |}]
 ;;
 
-(* The core against its RTL beside the stretching slave. *)
+(* The core against its RTL, both next to the stretching slave. *)
 let%expect_test "the stretching master in lockstep with a stretching slave" =
   let memory = Array.create ~len:16 0 in
   let slave = ref (I2c_slave.create ~address:0x50 ~memory) in

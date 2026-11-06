@@ -1,13 +1,13 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Frumbleglide.firmware));
   [%expect {| 34 words, 11 deadline waits, worst slack 18 |}]
 ;;
 
-(* tCELL against whole cycles at the chip's clock: none lies inside the limits *)
+(* No whole number of cycles at the chip's clock falls inside the tCELL limits. *)
 let%expect_test "tCELL in cycles at 48 MHz" =
   let cycles ns = ns *. Float.of_int Bench.clock_hz /. 1e9 in
   printf "%.2f to %.2f cycles\n" (cycles 2_005.) (cycles 2_015.);
@@ -36,8 +36,8 @@ let levels ~cycles words =
   |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
 ;;
 
-(* Section 6's 0x8001: six 1s, a 1, fourteen 0s and a 1, read at each mid-cell transition,
-   a fall a 1, and each cell's width *)
+(* Section 6's 0x8001: six 1s, a 1, fourteen 0s and a 1. We read it at each mid-cell
+   transition, where a fall is a 1, and print each cell's width. *)
 let%expect_test "section 6's word, cell by cell" =
   let levels = levels ~cycles:5_000 [ 0x8001 ] in
   let mids = List.hd_exn (Frumbleglide.mids ~clock_hz:Bench.clock_hz levels) in
@@ -88,8 +88,8 @@ let%expect_test "what refuses it, at its edge" =
     |}]
 ;;
 
-(* the clocks a cell of each whole number of cycles clears tCELL at, the chip's 48 MHz
-   among none of them *)
+(* For each whole number of cycles per cell, the clock at which tCELL becomes legal. None
+   of them is the chip's 48 MHz. *)
 let%expect_test "where tCELL's cliffs fall" =
   List.iter
     (Datasheet.cliffs Frumbleglide.limits Frumbleglide.bench)

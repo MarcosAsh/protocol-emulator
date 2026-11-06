@@ -146,7 +146,7 @@ let%expect_test "status and fifo reads" =
     |}]
 ;;
 
-(* the fields reach the engine and read as zero, since nothing on the host reads them *)
+(* the fields reach the engine, and the host reads them back as zero *)
 let%expect_test "config registers are write only" =
   run ~half:4 (fun m ~watch inputs o ->
     (List.hd_exn inputs.status).halted := Bits.vdd;
@@ -194,7 +194,7 @@ let%expect_test "config registers are write only" =
     |}]
 ;;
 
-(* reserved registers ignore writes and read zero; control bits 6 and up do nothing *)
+(* reserved registers ignore writes and read zero, and control bits 6 and up do nothing *)
 let%expect_test "the reserved registers and control bits do nothing" =
   run ~half:4 (fun m ~watch inputs o ->
     Host_port.Status.iter (List.hd_exn inputs.status) ~f:(fun port ->
@@ -219,9 +219,8 @@ let%expect_test "the reserved registers and control bits do nothing" =
     |}]
 ;;
 
-(* The line table's words go to the selected engine and step the state, which reads back.
-   Control bit 5 reaches every engine as one start, and status bit 14 is the assumption
-   fault. *)
+(* Line table words go to the selected engine and step its state, which reads back.
+   Control bit 5 starts every engine at once, and status bit 14 is the assumption fault. *)
 let%expect_test "the line table, the start of every engine and the assumption fault" =
   Two.run ~half:4 (fun m ~watch inputs _ ->
     (List.nth_exn inputs.status 1).fault.assumption := Bits.vdd;
@@ -244,7 +243,7 @@ let%expect_test "the line table, the start of every engine and the assumption fa
     |}]
 ;;
 
-(* The check's registers: what the host sets reaches the load checker and reads back, the
+(* The check registers: what the host sets reaches the load checker and reads back. The
    check strobes only the selected engine, and the verdict and that engine's bits read
    back. *)
 let%expect_test "the load checker's registers" =
@@ -281,7 +280,7 @@ let%expect_test "the load checker's registers" =
     |}]
 ;;
 
-(* the program a core runs was checked against the configuration it started with *)
+(* the program a core runs was checked against the config it started with *)
 let%expect_test "config writes wait until the core is halted" =
   run ~half:4 (fun m ~watch inputs o ->
     let status = List.hd_exn inputs.status in
@@ -303,7 +302,7 @@ let%expect_test "config writes wait until the core is halted" =
     |}]
 ;;
 
-(* a select of the absent fourth engine reads nothing, not even another engine's irq *)
+(* selecting the absent fourth engine reads nothing, not even another engine's irq *)
 let%expect_test "a select past the last engine reads zeros" =
   Three.run ~half:4 (fun m ~watch inputs _ ->
     List.iter inputs.status ~f:(fun status ->
@@ -321,7 +320,7 @@ let%expect_test "a select past the last engine reads zeros" =
     |}]
 ;;
 
-(* on three engines the frame receivers' owner takes two bits, the top of the control *)
+(* with three engines the frame receiver's owner takes two bits at the top of control *)
 let%expect_test "the frame owner names each of three engines" =
   Three.run ~half:4 (fun m ~watch _ _ ->
     let owners =
@@ -384,7 +383,7 @@ let%expect_test "select routes every register but the program address" =
     |}]
 ;;
 
-(* the select keeps its low bits, so on two engines 2 is engine 0 *)
+(* the select keeps its low bits, so with two engines 2 selects engine 0 *)
 let%expect_test "a select past the last of two engines wraps to the first" =
   Two.run ~half:4 (fun m ~watch inputs _ ->
     List.iteri inputs.status ~f:(fun n status ->
@@ -401,8 +400,8 @@ let%expect_test "a select past the last of two engines wraps to the first" =
     |}]
 ;;
 
-(* every bit of every engine's config, of the select and of the data address set and then
-   cleared, with the third engine read through the select *)
+(* set and then clear every bit of every engine's config, the select and the data address,
+   reading the third engine through the select *)
 let%expect_test "every config bit goes both ways on every engine" =
   Three.run ~half:4 (fun m ~watch inputs o ->
     List.iteri inputs.status ~f:(fun n status ->
@@ -517,8 +516,8 @@ let%expect_test "every config bit goes both ways on every engine" =
     |}]
 ;;
 
-(* the checker's, the line table's, the frame's and the stamps' registers read back what
-   was written, each bit set and then cleared *)
+(* set and then clear each bit of the checker, line table, frame and stamp registers,
+   checking they read back what was written *)
 let%expect_test "every host register bit goes both ways" =
   let regs =
     Reg.
@@ -542,7 +541,7 @@ let%expect_test "every host register bit goes both ways" =
     in
     sweep 0xffff;
     sweep 0;
-    (* and the registers only read, so every one the port answers is asked *)
+    (* then the read-only registers: we ask for every one the port answers *)
     let read_only =
       List.map
         Reg.
