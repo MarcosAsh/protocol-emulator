@@ -81,9 +81,6 @@ Start with [Getting started](getting-started.md), or paste firmware into the pla
 <!-- corpus -->
 <li><a href="corpus/">Protocol corpus</a>: each protocol's limits, firmware, certificate and board runs, failures included.</li>
 <!-- /corpus -->
-<!-- 8x4 -->
-<li><a href="8x4/">8x4 tiles</a>: the staged 8x4 chip.</li>
-<!-- /8x4 -->
 <li><a id="viewer" href="https://gds-viewer.tinytapeout.com/?pdk=ihp-sg13cmos5l&amp;model=https%3A%2F%2Fmarcosash.github.io%2Fprotocol-emulator%2Ftinytapeout.oas">3D viewer</a>: the last green gds run on main in Tiny Tapeout's GDS viewer, also as <a href="tinytapeout.gds">GDS</a> and <a href="tinytapeout.oas">OASIS</a>, and its <a href="gds_render.png">render</a>.</li>
 </ul>
 
