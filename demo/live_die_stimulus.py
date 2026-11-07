@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# The live die's run: loads uart_tx over SPI, starts it, then feeds it "Jane St!" while it
-# sends. Writes the pins at every falling edge to $LIVE_DIE_PINS, so the RTL and gate-level
+# The live die's run: loads uart_tx over SPI, has the chip check it against its
+# certificate, starts it, then feeds it "Jane St!" while it sends. Writes the pins at every falling edge to $LIVE_DIE_PINS, so the RTL and gate-level
 # runs can be compared cycle by cycle. demo/live_die.py runs it on both.
 
 import json
@@ -11,19 +11,24 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge
 
 from protocol_emulator import (
+    CHECK_STATUS,
     CONTROL,
     DEFAULT_CONFIG,
     PROGRAM,
     PROGRAM_ADDR,
+    PROGRAM_WORDS,
+    REJECT_PC,
+    REJECT_REASON,
     STATUS,
     TX,
     Host,
+    certify_writes,
     config_writes,
 )
 
 MESSAGE = b"Jane St!"
-# SCK = clock / 4, which halves the cycles the load takes compared with test.py
-HALF = 2
+# SCK = clock / 8, the fastest the host port takes
+HALF = 4
 BIT = 16
 
 
@@ -99,8 +104,21 @@ async def live_die(dut):
         if word:
             await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    with open(os.environ["LIVE_DIE_PROGRAM"]) as f:
-        await host.write(PROGRAM, [int(line, 16) for line in f])
+    program = os.environ["LIVE_DIE_PROGRAM"]
+    with open(program) as f:
+        words = [int(line, 16) for line in f]
+    # the check reads every word, so zero the rest as Host.load does
+    await host.write(PROGRAM, words + [0] * (PROGRAM_WORDS - len(words)))
+    # the chip won't start a program it hasn't checked
+    with open(program.replace(".hex", ".cert.hex")) as f:
+        for reg, words in certify_writes([int(line, 16) for line in f]):
+            await host.write(reg, words)
+    check = (await host.read(CHECK_STATUS))[0]
+    while check & 1:
+        check = (await host.read(CHECK_STATUS))[0]
+    if not check & 4:
+        pc, reason = (await host.read(REJECT_PC))[0], (await host.read(REJECT_REASON))[0]
+        raise AssertionError("the chip refused uart_tx at pc %d, reason %d" % (pc, reason))
     await host.write(CONTROL, [1])
     await host.write(TX, list(MESSAGE))
 

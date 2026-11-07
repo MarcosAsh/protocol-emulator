@@ -26,7 +26,9 @@ import live_die_stimulus  # noqa: E402
 STEP = 20
 SRAM = "SRAM macros"
 LAYERS = ["Metal1", "Metal2", "Metal3", "Metal4", "Metal5", "TopMetal1", "TopMetal2"]
-REGISTERS = {0: "control", 1: "status", 7: "tx", 9: "program address", 10: "program"}
+REGISTERS = {0: "control", 1: "status", 7: "tx", 9: "program address", 10: "program",
+             12: "data address", 13: "data", 64: "check base", 65: "check loaded",
+             66: "check flags", 67: "check status", 68: "reject pc", 69: "reject reason"}
 
 
 def read_routes(path):
