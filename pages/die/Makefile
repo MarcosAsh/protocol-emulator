@@ -1,6 +1,6 @@
 # The live die's data: the cells and wires of gds run RUN, and its netlist simulated
 # sending "Jane St!". Needs gh, dune, and env.sh sourced for cocotb, icarus and the PDK.
-RUN ?= 36922636022
+RUN ?= 42268510223
 GDS ?= _build/$(RUN)
 PROVENANCE = _build/provenance.json
 
@@ -9,7 +9,7 @@ $(PROVENANCE): $(wildcard ../../src/*.ml) ../../bin/generate.ml
 	mkdir -p _build
 	cd ../.. && dune exec -- bin/generate.exe provenance -sram -engines 2 > pages/die/$@
 
-die.bin: ../../demo/live_die.py ../../demo/live_die_stimulus.py ../../demo/live_die_tb.v ../../demo/die.py ../../test/uart_tx.hex $(PROVENANCE)
+die.bin: ../../demo/live_die.py ../../demo/live_die_stimulus.py ../../demo/live_die_tb.v ../../demo/die.py ../../test/uart_tx.hex ../../test/uart_tx.cert.hex $(PROVENANCE)
 	[ -d $(GDS)/runs ] || gh run download $(RUN) -R MarcosAsh/protocol-emulator -n GDS_logs -D $(GDS)
 	cmp $(GDS)/src/protocol_emulator.v ../../src/protocol_emulator.v
 	python3 ../../demo/live_die.py $(GDS) --provenance $(PROVENANCE) -o $@ --build _build/sim

@@ -22,8 +22,9 @@ sys.path[:0] = [HERE, os.path.join(REPO, "python")]
 import die  # noqa: E402
 import live_die_stimulus  # noqa: E402
 
-# coordinates are in steps of 20 nm, so a 6 x 4 tile die fits in 16 bits
-STEP = 20
+# coordinates are in steps of 30 nm, so an 8 x 4 tile die fits in 16 bits and a cell row
+# (3.78 um) and a site (0.48 um) are whole steps
+STEP = 30
 SRAM = "SRAM macros"
 LAYERS = ["Metal1", "Metal2", "Metal3", "Metal4", "Metal5", "TopMetal1", "TopMetal2"]
 REGISTERS = {0: "control", 1: "status", 7: "tx", 9: "program address", 10: "program",

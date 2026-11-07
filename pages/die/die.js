@@ -1,6 +1,6 @@
 // The live die: die.bin from demo/live_die.py, drawn on a canvas. Cells are coloured
 // faintly by block, and a net that switches lights its wires and the cell driving it, fading
-// over a few cycles. Coordinates are in the file's steps (20 nm), y up. Each cell knows the
+// over a few cycles. Coordinates are in the file's steps (step_nm), y up. Each cell knows the
 // src line it came from, which the search box lights.
 "use strict";
 
@@ -520,7 +520,7 @@ function updatePanel() {
   const h = d.head;
   const cycle = state.cycle;
   $("s-cycle").textContent = `${cycle} / ${h.cycles - 1}`;
-  $("s-time").textContent = `${((cycle * 20) / 1000).toFixed(2)} us at 50 MHz`;
+  $("s-time").textContent = `${(cycle / 48).toFixed(2)} us at 48 MHz`;
   const spi = frameAt(h.spi, cycle);
   $("s-host").textContent = spi ? spi[2].replace(/\b([0-9a-f]{4})\b/g, (w) => {
     const v = parseInt(w, 16);
@@ -1143,9 +1143,9 @@ async function main() {
   }
   wireInput();
   $("loading").remove();
-  // a first visit starts as the host starts the engine
+  // a first visit starts as the host starts the engine, after the chip's check
   if (!params.has("cycle")) {
-    const start = data.head.spi.find((f) => f[2].startsWith("write control"));
+    const start = data.head.spi.find((f) => f[2] === "write control 0001");
     state.cycle = start ? start[0] : 0;
   }
   if (params.has("play") || !params.has("cycle")) play(true);
