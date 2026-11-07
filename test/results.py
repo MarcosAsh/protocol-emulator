@@ -510,6 +510,8 @@ def minutes(s):
     if s is None:
         return ""
     s = int(round(s))
+    if s >= 3600:
+        return f"{s // 3600} h {s % 3600 // 60:02d} min"
     return f"{s // 60} min {s % 60:02d} s" if s >= 60 else f"{s} s"
 
 
