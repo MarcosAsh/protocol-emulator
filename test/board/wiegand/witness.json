@@ -1,0 +1,97 @@
+{
+  "demo": "wiegand",
+  "time": "2026-11-07T19:31:47",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "-",
+  "sums_sha256": "6240d097cf8fb8265035fc8be06c09cc42441fef082c0a400855d1a95db494da",
+  "capture": {
+    "file": "wiegand.sr",
+    "sha256": "a75dc921b7481bf8712ecf01096f60fca1964ce4fa51579d4cf904633a477fab",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "DATA0, OUT0",
+      "D5": "DATA1, OUT1 through CAN board A's R"
+    }
+  },
+  "decode": {
+    "arguments": "-P wiegand:d0=D4:d1=D5:bitwidth_ms=1 -A wiegand=state",
+    "sha256": "56d70a5ab569594ffb55bf1e05a778d75c259ffc2c5e1014ca6e73f3415e140e"
+  },
+  "timing": [
+    {
+      "parameter": "pulse",
+      "limit": ">= 25.00 us",
+      "sheet": "2400 cycles at 48 MHz, the firmware's pulse, to half of it (the page gives no timing)",
+      "spans": 26,
+      "measured": "49.95 us to 50.09 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "pulse",
+      "limit": "<= 75.00 us",
+      "sheet": "2400 cycles at 48 MHz, the firmware's pulse, to half of it (the page gives no timing)",
+      "spans": 26,
+      "measured": "49.95 us to 50.09 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "pulse to pulse",
+      "limit": ">= 475.00 us",
+      "sheet": "10 pulses, the firmware's interval, to half a pulse (the page gives no timing)",
+      "spans": 25,
+      "measured": "499.74 us to 500.30 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "pulse to pulse",
+      "limit": "<= 525.00 us",
+      "sheet": "10 pulses, the firmware's interval, to half a pulse (the page gives no timing)",
+      "spans": 25,
+      "measured": "499.74 us to 500.30 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "pulse to pulse",
+      "limit": "<= 1000.00 us",
+      "sheet": "sigrok's wiegand, bitwidth_ms=1: past it the read ends",
+      "spans": 25,
+      "measured": "499.74 us to 500.30 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "lines low at once",
+      "limit": "<= 1 lines",
+      "sheet": "Wikipedia, Wiegand interface, oldid 1374164469, page 1, lines 91 and 94",
+      "spans": 26,
+      "measured": "1 to 1 lines",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the first pulse moved from DATA0 to DATA1",
+    "the first pulse 30 us long"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "WIEGAND": "cecd30af31c4aca9a71822e9134a2d6ceb45fb6c338825e8a2ea76a16354adae"
+  },
+  "host_scripts": {
+    "python/demo_wiegand.py": "dd2b0d24e699bb13474ba2d77286a79708513527c0da421aec3895c0d0a78140"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico B as a CAN node holding the bus recessive, so CAN board A's R follows OUT1, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of wiegand, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
+    "the page gives no timing, so the pulse windows are the firmware's and sigrok's, not a spec's",
+    "D5's edges carry the SN65HVD230's delay"
+  ]
+}

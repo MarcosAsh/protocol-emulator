@@ -1,0 +1,127 @@
+{
+  "demo": "ir_nec",
+  "time": "2026-11-07T19:32:11",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "-",
+  "sums_sha256": "bb96d0e990a18168a3edb89670b37e8ff600e156eb55f165e270aa0dd77aedc0",
+  "capture": {
+    "file": "ir_nec.sr",
+    "sha256": "6850e7d6f2493ba72da6d304e0b7680727e9f8d80cbbf9cc80db588e40177f39",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0, high for the carrier's on third"
+    }
+  },
+  "decode": {
+    "arguments": "-P ir_nec:ir=D4:polarity=active-high:cd_freq=38000 -A ir_nec=addr:cmd:repeat-code",
+    "sha256": "1f5ce36d8a4d19549e45cbd3588ff4bd7665bb32ba2cd2cc3c30a1590553ab1d"
+  },
+  "timing": [
+    {
+      "parameter": "Carrier frequency, as its period",
+      "limit": ">= 26.32 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 17",
+      "spans": 1398,
+      "measured": "26.33 us to 26.46 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Bit time, logical 0",
+      "limit": ">= 1125.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18",
+      "spans": 16,
+      "measured": "1134.01 us to 1134.36 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Bit time, logical 1",
+      "limit": ">= 2250.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18",
+      "spans": 16,
+      "measured": "2259.27 us to 2259.85 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Carrier burst length",
+      "limit": ">= 560.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 21",
+      "spans": 34,
+      "measured": "562.57 us to 562.81 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "AGC burst, message start",
+      "limit": ">= 9000.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 28",
+      "spans": 1,
+      "measured": "9028.56 us to 9030.44 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Space after AGC burst, message start",
+      "limit": ">= 4500.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 29",
+      "spans": 1,
+      "measured": "4509.84 us to 4510.83 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Extra burst at end of message",
+      "limit": ">= 560.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 34",
+      "spans": 1,
+      "measured": "562.61 us to 562.81 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "AGC pulse, repeat code",
+      "limit": ">= 9000.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37",
+      "spans": 1,
+      "measured": "9028.56 us to 9030.44 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Space after AGC pulse, repeat code",
+      "limit": ">= 2250.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37",
+      "spans": 1,
+      "measured": "2259.32 us to 2259.85 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "Burst, repeat code",
+      "limit": ">= 560.00 us",
+      "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37",
+      "spans": 1,
+      "measured": "562.57 us to 562.76 us",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the first command's bits 0 and 1 swapped",
+    "the first AGC burst 1 ms short"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "IR_NEC": "fbb7acfdc8c6da2bc5fb6408bfc67deabfe93dfc5f87581e9ed726cb5d91fb7a"
+  },
+  "host_scripts": {
+    "python/demo_ir_nec.py": "e01743aee1f947b1fca685a7ae551ab88c5afa6a63f9ced27060c6c22d13ed8e"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of ir_nec, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
+    "the page gives nominal times only, held as least times, as the kernel holds them"
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "demo": "lin",
+  "time": "2026-11-07T19:32:26",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "-",
+  "sums_sha256": "a50ac00e2a71f10bd6cc0b5dd28bb23668b59230175903511b109843546c59c4",
+  "capture": {
+    "file": "lin.sr",
+    "sha256": "8c86239185f954b816acc21a09f9b506c48a8d5b77e71f94ea23ae4a16b5cd94",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D7": "LIN, IO5, open drain, 4k7 pull-up"
+    }
+  },
+  "decode": {
+    "arguments": "-P uart:rx=D7:baudrate=19200,lin -A lin=data:control",
+    "sha256": "0a0c820a82dce2b41bab259958c64993d67ea04bbc9c2957db4ab37ea768b07c"
+  },
+  "timing": [
+    {
+      "parameter": "break field",
+      "limit": ">= 677.08 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30",
+      "spans": 1,
+      "measured": "703.22 us to 703.45 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "break delimiter",
+      "limit": ">= 52.08 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30",
+      "spans": 1,
+      "measured": "77.91 us to 78.01 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "break field length (dominant + delimiter)",
+      "limit": ">= 729.17 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A Table 2.3, p. 52",
+      "spans": 1,
+      "measured": "781.17 us to 781.41 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit",
+      "limit": "<= 2479.17 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A 2.3.2 eq. (3), p. 32, eq. (6), p. 33",
+      "spans": 1,
+      "measured": "1822.79 us to 1823.13 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "FTOL_RES_MASTER, bit",
+      "limit": ">= 51.82 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113",
+      "spans": 13,
+      "measured": "51.83 us to 52.34 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "FTOL_RES_MASTER, bit",
+      "limit": "<= 52.34 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113",
+      "spans": 13,
+      "measured": "51.83 us to 52.34 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit rate, 20 kbit/s",
+      "limit": ">= 50.00 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112",
+      "spans": 13,
+      "measured": "51.83 us to 52.34 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit rate, 1 kbit/s",
+      "limit": "<= 1000.00 us",
+      "sheet": "LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112",
+      "spans": 13,
+      "measured": "51.83 us to 52.34 us",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "half of the PID's bit 0 inverted",
+    "the break 30 us short"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "LIN": "820e8be620c6bf312948a80a0b5009a768f75ea0294744fff63e2a6c7da63b91"
+  },
+  "host_scripts": {
+    "python/demo_lin.py": "38ae90f2835181e62230c1222608d5340a069830ecb5686af4cfa40c41af635b"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing: no slave answers the header, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of lin, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
+    "IO5 is open drain, so at the analyser's threshold a low reads a little long and a high as much short",
+    "THeader_Maximum adds the PID's ten nominal bits to the break's fall to the PID's, as test/lin.ml does"
+  ]
+}

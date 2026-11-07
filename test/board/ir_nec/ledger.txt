@@ -1,0 +1,13 @@
+demo: ir_nec
+result: PASS
+pico_a_says: PASS
+traffic: held to the capture
+expected: PASS
+time: 2026-11-07T19:32:11
+commit: 87f76069e5f9268687fdc3e39366d9d3ebc77a06
+bitstream: /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+bitstream_sha256: 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009
+netlist_sha256: -
+pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 micropython
+rate: 24M

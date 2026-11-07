@@ -1,0 +1,144 @@
+{
+  "demo": "dmx512",
+  "time": "2026-11-07T19:30:25",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "-",
+  "sums_sha256": "ce0d07f5567fe6100ceec0bd1620b9895ba6543b9598de886cb397de3692e79d",
+  "capture": {
+    "file": "dmx512.sr",
+    "sha256": "9eebecfceb7c59e22a480ea615b9e1044078d01abfd75ed299bc652ede6c3993",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0"
+    }
+  },
+  "decode": {
+    "arguments": "-P dmx512:dmx=D4 -A dmx512=break:mab:startcode:channel:data",
+    "sha256": "cbfcfbb7ce1b28fba993c2ece5474137b3c89da44b679a3d3d36b33e9b1d9bd4"
+  },
+  "timing": [
+    {
+      "parameter": "bit at 250 kbit/s, a low per bit",
+      "limit": ">= 4000 ns",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291, no tolerance",
+      "spans": 2819,
+      "measured": "3916 ns to 4084 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "bit at 250 kbit/s, a low per bit",
+      "limit": "<= 4000 ns",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291, no tolerance",
+      "spans": 2819,
+      "measured": "3916 ns to 4084 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "bit, a low per bit",
+      "limit": ">= 3778 ns",
+      "sheet": "192 cycles at 48 MHz, the firmware's bit, to half a bit over nine (Wikipedia's DMX512 page gives 250 kbit/s no tolerance)",
+      "spans": 2819,
+      "measured": "3916 ns to 4084 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit, a low per bit",
+      "limit": "<= 4222 ns",
+      "sheet": "192 cycles at 48 MHz, the firmware's bit, to half a bit over nine (Wikipedia's DMX512 page gives 250 kbit/s no tolerance)",
+      "spans": 2819,
+      "measured": "3916 ns to 4084 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "BREAK transmitted",
+      "limit": ">= 92.00 us",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303-306",
+      "spans": 3,
+      "measured": "99.95 us to 100.05 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "BREAK receiver recognized",
+      "limit": ">= 88.00 us",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303, 308-309",
+      "spans": 3,
+      "measured": "99.95 us to 100.05 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "MAB transmitted",
+      "limit": ">= 12.00 us",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304-305, 307",
+      "spans": 3,
+      "measured": "15.96 us to 16.04 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "MAB receiver recognized",
+      "limit": ">= 8000 ns",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304, 308, 310",
+      "spans": 3,
+      "measured": "15957 ns to 16043 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "MAB since 1990",
+      "limit": ">= 8000 ns",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 301",
+      "spans": 3,
+      "measured": "15957 ns to 16043 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "break to break transmitted",
+      "limit": ">= 1204.00 us",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313",
+      "spans": 2,
+      "measured": "31723.08 us to 35546.80 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "break to break receivers handle",
+      "limit": ">= 1196.00 us",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313",
+      "spans": 2,
+      "measured": "31723.08 us to 35546.80 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "refresh rate of 512 channels, at most 44 Hz",
+      "limit": ">= 22727.27 us",
+      "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 312",
+      "spans": 2,
+      "measured": "31723.08 us to 35546.80 us",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "half of the second packet's channel 1 bit 0 inverted",
+    "the first break 10 us short"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "DMX512": "4e79461e6b26d1c1d2885d4c1074e350339b560f0be07c62ecb991ed16da16d8"
+  },
+  "host_scripts": {
+    "python/demo_dmx512.py": "ed7363d232d12d3dd1fe7ba0d4b3401dbdc9f2e3865204bf944cc2673c3b5c5b"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of dmx512, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
+    "the page gives 250 kbit/s no tolerance, which a sample either way can't settle, so each low is also held to the firmware's bit within half a bit over nine",
+    "the first packet reads misframed, as the line is low from reset, so the bytes are the second's"
+  ]
+}

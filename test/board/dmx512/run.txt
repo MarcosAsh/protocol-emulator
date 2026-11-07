@@ -1,0 +1,22 @@
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [========                                          ] 15.25%
+Loading: [================                                  ] 30.51%
+Loading: [=======================                           ] 45.76%
+Loading: [===============================                   ] 61.02%
+Loading: [=======================================           ] 76.27%
+Loading: [==============================================    ] 91.53%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ CAPTURES=/home/marcos/frozen-8x4/evidence/heldout/2026-11-07/ledger/dmx512 PICO=id:e66548545717552e demo/outside.sh dmx512 > /home/marcos/frozen-8x4/evidence/heldout/2026-11-07/ledger/dmx512/outside.txt
+Pico A says PASS, every step ran

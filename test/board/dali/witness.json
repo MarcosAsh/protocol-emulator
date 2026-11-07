@@ -1,0 +1,88 @@
+{
+  "demo": "dali",
+  "time": "2026-11-07T19:30:09",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "-",
+  "sums_sha256": "98196813d861566176d8fde7d827dff07891ea98fb6996b22037cbb00ec2c573",
+  "capture": {
+    "file": "dali.sr",
+    "sha256": "b57a2480eaa995e678eab5a26d9873bac4cd3953f0291912aef0126b8c1b0fdf",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0, high when idle"
+    }
+  },
+  "decode": {
+    "arguments": "-P dali:dali=D4 -A dali=address:command:reply",
+    "sha256": "1638cf28916ef7b8b3c328a782e4ccd464ab018ad354fe10e186dcaf3e9c5caf"
+  },
+  "timing": [
+    {
+      "parameter": "1 half bit",
+      "limit": ">= 395.83 us",
+      "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "spans": 40,
+      "measured": "416.58 us to 416.79 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "1 half bit",
+      "limit": "<= 437.50 us",
+      "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "spans": 40,
+      "measured": "416.58 us to 416.79 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "2 half bits",
+      "limit": ">= 791.67 us",
+      "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "spans": 6,
+      "measured": "833.25 us to 833.50 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "2 half bits",
+      "limit": "<= 875.00 us",
+      "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "spans": 6,
+      "measured": "833.25 us to 833.50 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "idle after a frame",
+      "limit": ">= 2450.00 us",
+      "sheet": "DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 178",
+      "spans": 2,
+      "measured": "12909.92 us to open",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the forward frame's opcode MSB inverted",
+    "the forward frame's start bit edge 50 us late"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "DALI": "607b7a79d382840aeece96ff9de2ca40e0ccd7a1026624883520330146075c5c"
+  },
+  "host_scripts": {
+    "python/demo_dali.py": "d32e44fc830f294a22402ba7c14c7372bbd99016cf371b758cddc293c41cef34"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of dali, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
+    "the page gives the rate no tolerance, so the half bits are held to 1200 bit/s within Dali.read's 5%",
+    "one forward frame, so forward frames 25 ms apart (line 188) has nothing to hold"
+  ]
+}
