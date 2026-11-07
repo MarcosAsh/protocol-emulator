@@ -4,7 +4,8 @@
 # python/demo_kernel_vs_board.py, and reloads the bitstream after a fault (faults stick until
 # reset). A variant the kernel accepts must run on time. One the kernel refuses that still
 # runs on time counts as the kernel being pessimistic. With --chip the chip checks each
-# variant's certificate itself and must refuse exactly what the kernel refuses.
+# variant's certificate itself and must match chip_model. A refusal the kernel would accept
+# counts as the gap the README names.
 # Usage: PICO=id:<serial> python3 demo/kernel_vs_board.py VARIANTS --bitstream BIT --out DIR
 #            [--python DIR] [--chip] [--batch N] [--only FIRMWARE...]
 import argparse
@@ -67,43 +68,66 @@ def parse(line):
             "out": out, "fault0": fault0, "fault1": fault1}
 
 
+def late(result):
+    return result["out"] > 0 or result["fault0"] != 0
+
+
 def outcome(variant, result):
-    """Compares the kernel and board outcomes. The first word is the verdict: ok, pessimism or a bug."""
-    accepted = variant["accepted"]
+    """Compares the kernel and board outcomes. The first word is the verdict: ok, pessimism,
+    gap or a bug."""
+    if result["chip"]:
+        return chip_outcome(variant, result)
     if result["board"] == "refused":
-        if accepted:
+        if variant["accepted"]:
             return "MISMATCH the chip refused what the kernel accepts"
         if not result["stays_halted"]:
             return "BUG a refused program started"
         return "ok refused by both"
-    late = result["out"] > 0 or result["fault0"] != 0
-    if accepted:
-        return "UNSOUND accepted but late" if late else "ok accepted, on time"
-    if result["chip"]:
-        return "MISMATCH the chip ran what the kernel refuses"
-    return "ok refused, late" if late else "pessimism refused, on time"
+    if variant["accepted"]:
+        return "UNSOUND accepted but late" if late(result) else "ok accepted, on time"
+    return "ok refused, late" if late(result) else "pessimism refused, on time"
+
+
+def chip_outcome(variant, result):
+    """The board against chip_model, with the kernel's verdict only to name the gap."""
+    model = variant["chip_model"]
+    if result["board"] == "refused":
+        if not result["stays_halted"]:
+            return "BUG a refused program started"
+        if model == "accepted":
+            return "MISMATCH the chip refused what its model accepts"
+        if variant["accepted"]:
+            return "gap the chip refuses what the kernel accepts, %s" % model
+        return "ok refused by both"
+    if model != "accepted":
+        return "MISMATCH the chip ran what its model refuses"
+    if late(result):
+        return "UNSOUND the chip accepted it but it ran late"
+    if not variant["accepted"]:
+        return "pessimism the kernel refuses, the chip ran it on time"
+    return "ok accepted, on time"
 
 
 def summary(variants, results):
     """Returns one line per firmware: the kernel's last accepted k, the first k where the
     board ran late, and the count of each verdict that isn't ok."""
     lines = ["firmware           wait pc  slack  kernel accepts  board late from  "
-             "unsound  pessimism  mismatches"]
+             "unsound  pessimism  gap  mismatches"]
     for name in dict.fromkeys(v["firmware"] for v in variants):
         mine = [v for v in variants if v["firmware"] == name]
         got = {r["k"]: r for r in results if r["firmware"] == name}
         accepted = [v["k"] for v in mine if v["accepted"]]
-        late = [k for k, r in got.items()
-                if r["board"] == "ran" and (r["out"] or r["fault0"])]
+        ran_late = [k for k, r in got.items() if r["board"] == "ran" and late(r)]
 
         def count(word):
             return sum(r["outcome"].startswith(word) for r in got.values())
 
-        lines.append("%-18s %7d  %5d  %14s  %15s  %7d  %9d  %10d" % (
+        lines.append("%-18s %7d  %5d  %14s  %15s  %7d  %9d  %3d  %10d" % (
             name, mine[0]["wait_pc"], mine[0]["slack"],
             "k <= %d" % max(accepted) if accepted else "none",
-            "k = %d" % min(late) if late else "none ran late",
-            count("UNSOUND"), count("pessimism"), count("MISMATCH") + count("BUG")))
+            "k = %d" % min(ran_late) if ran_late else "none ran late",
+            count("UNSOUND"), count("pessimism"), count("gap"),
+            count("MISMATCH") + count("BUG")))
         missing = [v["k"] for v in mine if v["k"] not in got]
         if missing:
             lines.append("    not run: %d of %d, k from %d to %d" % (
