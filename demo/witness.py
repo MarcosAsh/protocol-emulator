@@ -1042,6 +1042,512 @@ def tdm_audio(sclk, fsync, sdata):
     return timing, byte_tooth, edge_tooth
 
 
+# The held-out protocols (test/heldout.txt). The windows are the rows the kernel certified
+# each firmware against (the limits in test/<name>.ml), with the same sheet; where the spec
+# gives no tolerance, the firmware's nominal to a stated fraction.
+
+
+def difference(n, m, rate):
+    """Returns where n samples less m samples lies, in seconds, as span() does."""
+    return span(n, rate)[0] - span(m, rate)[1], span(n, rate)[1] - span(m, rate)[0]
+
+
+def nearest(sorted_at, sample, within):
+    """Returns the entry of sorted_at nearest sample if it is within `within`, else sample."""
+    near = [a for a in (before(sorted_at, sample + 1), after(sorted_at, sample)) if a is not None]
+    best = min(near, key=lambda a: abs(a - sample), default=None)
+    return best if best is not None and abs(best - sample) <= within else sample
+
+
+DALI = "DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line %d"
+DALI_HALF = 20000 / 48e6
+DALI_RATE = ("1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% "
+             "(the page gives no tolerance)")
+
+
+def dali(line):
+    def frames(samples, rate):
+        """Returns each frame's runs from its start bit's fall, and the high after it (None if
+        the capture ends first). The line's first high is its rise from reset."""
+        found = runs(samples, line)
+        start = next(i for i, (level, _, _) in enumerate(found) if level) + 1
+        out, frame = [], []
+        for run in found[start:]:
+            if run[0] and run[2] > 2.5 * DALI_HALF * rate:
+                out.append((frame, run))
+                frame = []
+            else:
+                frame.append(run)
+        return out + [(frame, None)] if frame else out
+
+    def timing(samples, rate, _capture, _decode, _log):
+        half = DALI_HALF * rate
+        n = {1: [], 2: []}
+        idle = []
+        for frame, high in frames(samples, rate):
+            for _, _, w in frame:
+                n.setdefault(round(w / half), []).append(span(w, rate))
+            # a last bit of 1 ends high into the idle, so take a half (the start bit's low) off it
+            odd = sum(round(w / half) for _, _, w in frame) % 2
+            start = frame[0][2] if odd else 0
+            if high:
+                idle.append(difference(high[2], start, rate))
+            elif samples[-1] >> line & 1:
+                at = frame[-1][1] + frame[-1][2]
+                idle.append((difference(len(samples) - at, start, rate)[0], math.inf))
+        records = []
+        for k in sorted(n):
+            name = "1 half bit" if k == 1 else "%d half bits" % k
+            records += [bound(name, DALI_RATE, n[k], at_least=0.95 * k * DALI_HALF),
+                        bound(name, DALI_RATE, n[k], at_most=1.05 * k * DALI_HALF)]
+        return records + [bound("idle after a frame", DALI % 178, idle, at_least=2.45e-3)]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Swaps the halves of the forward frame's opcode MSB, 18 half bits in, so the opcode
+        reads 0x20."""
+        frame, _ = frames(samples, rate)[0]
+        at = edges(samples, line)[0]
+        half = DALI_HALF * rate
+        first, last = (nearest(at, round(frame[0][1] + k * half), half / 4) for k in (18, 20))
+        return changed(samples, line, first, last), "the forward frame's opcode MSB inverted"
+
+    def edge_tooth(samples, rate):
+        """Moves the start bit's middle edge 50 us late."""
+        frame, _ = frames(samples, rate)[0]
+        at = frame[0][1] + frame[0][2]
+        return (moved(samples, line, at, at + round(50e-6 * rate)),
+                "the forward frame's start bit edge 50 us late", "1 half bit")
+
+    return timing, byte_tooth, edge_tooth
+
+
+DMX = "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, %s"
+DMX_BIT = 192 / 48e6
+
+
+def dmx512(line):
+    def breaks(samples, rate):
+        """Returns the line's runs and the index of each break, a low of more than ten bits."""
+        found = runs(samples, line)
+        return found, [i for i, (level, _, n) in enumerate(found)
+                       if not level and n > 10 * DMX_BIT * rate]
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found, at = breaks(samples, rate)
+        bit = DMX_BIT * rate
+        # a low is a start bit and any zeros after it, so whole bits
+        per_bit = [tuple(x / round(n / bit) for x in span(n, rate))
+                   for level, _, n in found if not level and n <= 10 * bit]
+        brk = [span(found[i][2], rate) for i in at]
+        mab = [span(found[i + 1][2], rate) for i in at if i + 1 < len(found)]
+        apart = [span(found[j][1] - found[i][1], rate) for i, j in zip(at, at[1:])]
+        exact = DMX % "line 291, no tolerance"
+        fraction = ("192 cycles at 48 MHz, the firmware's bit, to half a bit over nine "
+                    "(Wikipedia's DMX512 page gives 250 kbit/s no tolerance)")
+        return [bound("bit at 250 kbit/s, a low per bit", exact, per_bit, at_least=4e-6),
+                bound("bit at 250 kbit/s, a low per bit", exact, per_bit, at_most=4e-6),
+                bound("bit, a low per bit", fraction, per_bit, at_least=(1 - 1 / 18) * DMX_BIT),
+                bound("bit, a low per bit", fraction, per_bit, at_most=(1 + 1 / 18) * DMX_BIT),
+                bound("BREAK transmitted", DMX % "table, lines 303-306", brk, at_least=92e-6),
+                bound("BREAK receiver recognized", DMX % "table, lines 303, 308-309", brk,
+                      at_least=88e-6),
+                bound("MAB transmitted", DMX % "table, lines 304-305, 307", mab, at_least=12e-6),
+                bound("MAB receiver recognized", DMX % "table, lines 304, 308, 310", mab,
+                      at_least=8e-6),
+                bound("MAB since 1990", DMX % "line 301", mab, at_least=8e-6),
+                bound("break to break transmitted", DMX % "line 313", apart, at_least=1204e-6),
+                bound("break to break receivers handle", DMX % "line 313", apart,
+                      at_least=1196e-6),
+                bound("refresh rate of 512 channels, at most 44 Hz", DMX % "line 312", apart,
+                      at_least=1 / 44)]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Inverts the second packet's channel 1 bit 0 at its middle. The first packet reads
+        misframed, from the line's low from reset."""
+        found, at = breaks(samples, rate)
+        # the break, MAB, the start code's low and high, then channel 1's start bit
+        fall, bit = found[at[1] + 4][1], DMX_BIT * rate
+        return (changed(samples, line, round(fall + 1.25 * bit), round(fall + 1.75 * bit)),
+                "half of the second packet's channel 1 bit 0 inverted")
+
+    def edge_tooth(samples, rate):
+        """Ends the first break 10 us early."""
+        found, at = breaks(samples, rate)
+        _, first, n = found[at[0]]
+        return (moved(samples, line, first + n, first + n - round(10e-6 * rate)),
+                "the first break 10 us short", "BREAK transmitted")
+
+    return timing, byte_tooth, edge_tooth
+
+
+SPDIF = "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, %s"
+SPDIF_HALF = (8 + 32991 / 65536) / 48e6
+SPDIF_CELL = ("8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it "
+              "(the page gives no tolerance)")
+
+
+def spdif(line):
+    def subframes(samples, rate):
+        """Returns the line's runs, the index of the first preamble's, and each subframe's
+        start with whether it starts a frame. A preamble opens with three half slots low, which
+        biphase mark never holds, then one or three high for B or M, two for W."""
+        found = runs(samples, line)
+        half = SPDIF_HALF * rate
+        at = [i for i, (level, _, n) in enumerate(found[:-1]) if not level and n > 2.5 * half]
+        return found, at[0], [(found[i][1], round(found[i + 1][2] / half) != 2) for i in at]
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found, first, starts = subframes(samples, rate)
+        half = SPDIF_HALF * rate
+        n = {}
+        for _, _, w in found[first:]:
+            n.setdefault(max(1, round(w / half)), []).append(span(w, rate))
+        frames = [s for s, b in starts if b]
+        each = [span(b - a, rate) for a, b in zip(frames, frames[1:])]
+        # the capture holds fewer than a block's 192, so the block is 192 of their mean
+        block = [tuple(192 * x / (len(frames) - 1) for x in span(frames[-1] - frames[0], rate))]
+        records = []
+        for k in sorted(n):
+            name = "%d half slot%s" % (k, "" if k == 1 else "s")
+            records += [bound(name, SPDIF_CELL, n[k], at_least=(k - 0.5) * SPDIF_HALF),
+                        bound(name, SPDIF_CELL, n[k], at_most=(k + 0.5) * SPDIF_HALF)]
+        byte_3 = SPDIF % "S/PDIF control word components, byte 3, spec.txt l.222-224"
+        return records + [
+            bound("a block of 192 frames, 44.1 kHz and 1100 ppm", byte_3, block,
+                  at_least=192 / 44100 * (1 - 1100e-6)),
+            bound("a block of 192 frames, 44.1 kHz less 1100 ppm", byte_3, block,
+                  at_most=192 / 44100 * (1 + 1100e-6)),
+            bound("a frame, Mode 0's 192 kHz at most", SPDIF % "text, spec.txt l.180", each,
+                  at_least=1 / 192e3)]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Removes the middle edges of slots 14 and 15 in the first right subframe, sigrok's
+        first, which turns the sample's bits 2 and 3 (both 1) to 0 and keeps the parity."""
+        _, _, starts = subframes(samples, rate)
+        at, half = edges(samples, line)[0], SPDIF_HALF * rate
+        start = starts[1][0]
+        first, last = (nearest(at, round(start + (2 * slot + 1) * half), half / 2)
+                       for slot in (14, 15))
+        return changed(samples, line, first, last), "the first right sample's bits 2 and 3 cleared"
+
+    def edge_tooth(samples, rate):
+        """Cuts the first one-half-slot run after the first preamble's low to a sample."""
+        found, first, _ = subframes(samples, rate)
+        half = SPDIF_HALF * rate
+        _, at, n = next(r for r in found[first + 1:] if round(r[2] / half) == 1)
+        return (moved(samples, line, at + n, at + 1), "the first half slot cut to a sample",
+                "1 half slot")
+
+    return timing, byte_tooth, edge_tooth
+
+
+def spdif_problems(capture, _decoded, log):
+    """sigrok's spdif reads nothing past a line low from reset, so this judges its decode
+    from the firmware's idle high on, as demo/traffic.py does."""
+    rate, _, samples = sigrok.read(capture)
+    joined = traffic.joined("spdif", rate, samples)
+    return traffic.judge("spdif", traffic.lines("spdif", samples),
+                         joined.splitlines() if joined else [], log)
+
+
+PD = "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 %s"
+
+
+def usb_power_delivery(line):
+    def packets(samples, rate):
+        """Returns each packet's bit cells as (first sample, samples), as test/
+        usb_power_delivery.ml cuts them: a level under 2.5 us is a half and pairs with the
+        next, a longer one is a cell, and a low past 5 us is idle."""
+        found = runs(samples, line)
+
+        def idle(run):
+            return not run[0] and run[2] > 5e-6 * rate
+
+        out, cells, i = [], [], 0
+        while i < len(found):
+            if idle(found[i]):
+                if cells:
+                    out.append(cells)
+                cells, i = [], i + 1
+            elif (found[i][2] < 2.5e-6 * rate and i + 1 < len(found)
+                  and not idle(found[i + 1])):
+                cells.append((found[i][1], found[i][2] + found[i + 1][2]))
+                i += 2
+            else:
+                cells.append(found[i][1:])
+                i += 1
+        return out + [cells] if cells else out
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found = packets(samples, rate)
+        cells = [span(n, rate) for cells in found for _, n in cells]
+        # each 32 cells from the preamble's last on, against the preamble's last 32
+        drift = []
+        for packet in found:
+            widths = [n for _, n in packet]
+            reference = sum(widths[32:64])
+            for last in range(64, len(widths)):
+                d = abs(sum(widths[last - 31:last + 1]) - reference)
+                drift.append((max(0, d - 2) / rate * (1 - PPM), (d + 2) / rate * (1 + PPM)))
+        lows = [r for r in runs(samples, line) if not r[0]]
+        gaps = [span(n, rate) for _, _, n in lows if n > 5e-6 * rate]
+        # the idle lows cut by the capture's ends
+        at, _ = sigrok.edges(samples, line)
+        if len(at) and not samples[0] >> line & 1:
+            gaps.append((span(int(at[0]), rate)[0], math.inf))
+        if len(at) and not samples[-1] >> line & 1:
+            gaps.append((span(len(samples) - int(at[-1]), rate)[0], math.inf))
+        table_9, table_10 = PD % "Table 5.9, p.110", PD % "Table 5.10, p.110"
+        return [bound("fBitRate max 330 kbps: each bit cell", table_9, cells, at_least=1 / 330e3),
+                bound("fBitRate min 270 kbps: each bit cell", table_9, cells, at_most=1 / 270e3),
+                bound("tUnitInterval min", table_9, cells, at_least=3030e-9),
+                bound("tUnitInterval max", table_9, cells, at_most=3700e-9),
+                bound("pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at "
+                      "300 kbps", PD % "Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps "
+                      "nominal, Table 5.9", drift, at_most=0.0025 * 32 / 300e3),
+                bound("tHoldLowBMC: every low", table_10, [span(n, rate) for _, _, n in lows],
+                      at_least=1000e-9),
+                bound("tInterFrameGap: each idle low", table_10, gaps, at_least=25e-6)]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Inverts the middle half of line bit 22 after the preamble, in the header, as
+        test/usb_power_delivery.ml's first tooth does."""
+        first, n = packets(samples, rate)[0][64 + 22]
+        return (changed(samples, line, first + round(n / 4), first + round(3 * n / 4)),
+                "a stray half bit in the header")
+
+    def edge_tooth(samples, rate):
+        """Cuts the packet's first half-bit low to 0.8 us."""
+        _, first, n = next(r for r in runs(samples, line)
+                           if not r[0] and r[2] < 2.5e-6 * rate)
+        return (moved(samples, line, first + n, first + round(0.8e-6 * rate)),
+                "the first half-bit low cut to 0.8 us", "tHoldLowBMC: every low")
+
+    return timing, byte_tooth, edge_tooth
+
+
+WIEGAND = "Wikipedia, Wiegand interface, oldid 1374164469, page 1, lines 91 and 94"
+WIEGAND_PULSE = 2400 / 48e6
+
+
+def wiegand(d0, d1):
+    def pulses(samples):
+        """Returns each pulse on either line as (first sample, samples, its bit), in order."""
+        return sorted((f, n, b) for b in (d0, d1) for level, f, n in runs(samples, b)
+                      if not level)
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found = pulses(samples)
+        levels = np.frombuffer(samples, np.uint8)
+        # the bench sends one read
+        apart = [span(b[0] - a[0], rate) for a, b in zip(found, found[1:])]
+        low = [1 + bool(np.any((levels[f:f + n] >> (d1 if b == d0 else d0) & 1) == 0))
+               for f, n, b in found]
+        width = ("2400 cycles at 48 MHz, the firmware's pulse, to half of it (the page gives "
+                 "no timing)")
+        interval = ("10 pulses, the firmware's interval, to half a pulse (the page gives no "
+                    "timing)")
+        return [bound("pulse", width, [span(n, rate) for _, n, _ in found],
+                      at_least=0.5 * WIEGAND_PULSE),
+                bound("pulse", width, [span(n, rate) for _, n, _ in found],
+                      at_most=1.5 * WIEGAND_PULSE),
+                bound("pulse to pulse", interval, apart, at_least=9.5 * WIEGAND_PULSE),
+                bound("pulse to pulse", interval, apart, at_most=10.5 * WIEGAND_PULSE),
+                bound("pulse to pulse", "sigrok's wiegand, bitwidth_ms=1: past it the read "
+                      "ends", apart, at_most=1e-3),
+                count("lines low at once", WIEGAND, low, at_most=1, unit="lines")]
+
+    def byte_tooth(samples, _rate, _capture, _decode):
+        """Moves the first pulse, a 0, from DATA0 to DATA1."""
+        f, n, _ = pulses(samples)[0]
+        return (changed(changed(samples, d0, f, f + n, 1), d1, f, f + n, 0),
+                "the first pulse moved from DATA0 to DATA1")
+
+    def edge_tooth(samples, rate):
+        """Ends the first pulse 30 us late."""
+        f, n, b = pulses(samples)[0]
+        return (moved(samples, b, f + n, f + n + round(30e-6 * rate)),
+                "the first pulse 30 us long", "pulse")
+
+    return timing, byte_tooth, edge_tooth
+
+
+IR_NEC = "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line %d"
+
+
+def ir_nec(line):
+    def messages(samples, rate):
+        """Returns each AGC burst, 4 ms or more, with the bursts after it up to the next, as
+        test/ir_nec.ml cuts them. A burst is (rise, fall, its pulses' rises); a low of two
+        carrier periods ends one."""
+        bursts = []
+        for level, f, n in runs(samples, line):
+            if not level:
+                continue
+            if bursts and f - bursts[-1][1] < 2 / 38e3 * rate:
+                bursts[-1][1] = f + n
+                bursts[-1][2].append(f)
+            else:
+                bursts.append([f, f + n, [f]])
+        out = []
+        for b in bursts:
+            if b[1] - b[0] >= 4e-3 * rate:
+                out.append((b, []))
+            elif out:
+                out[-1][1].append(b)
+        return out
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found = messages(samples, rate)
+        frames = [m for m in found if len(m[1]) > 1]
+        repeats = [m for m in found if len(m[1]) == 1]
+
+        def widths(xs):
+            return [span(x, rate) for x in xs]
+
+        def length(b):
+            return b[1] - b[0]
+
+        bits = [b[0] - a[0] for _, rest in frames for a, b in zip(rest, rest[1:])]
+        one = 1.6875e-3 * rate
+        windows = [
+            ("Carrier frequency, as its period", 17, 1 / 38e3,
+             [b - a for agc, rest in found for x in [agc] + rest for a, b in zip(x[2], x[2][1:])]),
+            ("Bit time, logical 0", 18, 1.125e-3, [x for x in bits if x < one]),
+            ("Bit time, logical 1", 18, 2.25e-3, [x for x in bits if x >= one]),
+            ("Carrier burst length", 21, 560e-6, [length(b) for _, rest in found for b in rest]),
+            ("AGC burst, message start", 28, 9e-3, [length(agc) for agc, _ in frames]),
+            ("Space after AGC burst, message start", 29, 4.5e-3,
+             [rest[0][0] - agc[1] for agc, rest in frames]),
+            ("Extra burst at end of message", 34, 560e-6, [length(rest[-1]) for _, rest in frames]),
+            ("AGC pulse, repeat code", 37, 9e-3, [length(agc) for agc, _ in repeats]),
+            ("Space after AGC pulse, repeat code", 37, 2.25e-3,
+             [rest[0][0] - agc[1] for agc, rest in repeats]),
+            ("Burst, repeat code", 37, 560e-6, [length(rest[0]) for _, rest in repeats])]
+        return [bound(p, IR_NEC % at, widths(xs), at_least=least) for p, at, least, xs in windows]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Swaps the first command's bits 0 and 1 (a zero then a one) by moving bit 1's burst
+        to where a one's would end, so the command reads 0x15."""
+        _, rest = messages(samples, rate)[0]
+        (a, _, _), (b, end, _), (c, _, _) = rest[16:19]
+        mask = np.uint8(1 << line)
+        out = np.frombuffer(samples, np.uint8).copy()
+        burst = out[b:end] & mask
+        out[b:end] &= ~mask
+        to = c - (b - a)
+        out[to:to + end - b] = (out[to:to + end - b] & ~mask) | burst
+        return out.tobytes(), "the first command's bits 0 and 1 swapped"
+
+    def edge_tooth(samples, rate):
+        """Ends the first AGC burst 1 ms early."""
+        (_, fall, _), _ = messages(samples, rate)[0]
+        return (moved(samples, line, fall, fall - round(1e-3 * rate)),
+                "the first AGC burst 1 ms short", "AGC burst, message start")
+
+    return timing, byte_tooth, edge_tooth
+
+
+LIN = "LIN master, LIN Specification Package Revision 2.2A %s"
+LIN_BIT = 1 / 19200
+
+
+def lin(line):
+    def headers(samples, rate):
+        """Returns the line's runs from each break on, a low of 11 bits or more."""
+        found = runs(samples, line)
+        return [found[i:] for i, (level, _, n) in enumerate(found)
+                if not level and n >= 11 * LIN_BIT * rate]
+
+    def timing(samples, rate, _capture, _decode, _log):
+        n = {k: [] for k in ["break", "delimiter", "field", "header", "bits"]}
+        for header in headers(samples, rate):
+            n["break"].append(span(header[0][2], rate))
+            n["delimiter"].append(span(header[1][2], rate))
+            n["field"].append(span(header[2][1] - header[0][1], rate))
+            # the PID's stop bit ends ten bits after its start bit's fall
+            falls = [f for level, f, _ in header if not level]
+            lo, hi = span(falls[6] - header[0][1], rate)
+            n["header"].append((lo + 10 * LIN_BIT, hi + 10 * LIN_BIT))
+            # from after the delimiter, which a slow rise can bring under a bit and a half
+            n["bits"] += [span(w, rate) for _, _, w in header[2:] if w < 1.5 * LIN_BIT * rate]
+        field, table = LIN % "2.3.1.1, p. 30", LIN % "Table 6.1, p. 113"
+        return [bound("break field", field, n["break"], at_least=13 * LIN_BIT),
+                bound("break delimiter", field, n["delimiter"], at_least=LIN_BIT),
+                bound("break field length (dominant + delimiter)", LIN % "Table 2.3, p. 52",
+                      n["field"], at_least=14 * LIN_BIT),
+                bound("THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit",
+                      LIN % "2.3.2 eq. (3), p. 32, eq. (6), p. 33", n["header"],
+                      at_most=1.4 * 34 * LIN_BIT),
+                bound("FTOL_RES_MASTER, bit", table, n["bits"], at_least=0.995 * LIN_BIT),
+                bound("FTOL_RES_MASTER, bit", table, n["bits"], at_most=1.005 * LIN_BIT),
+                bound("bit rate, 20 kbit/s", LIN % "6.3, p. 112", n["bits"], at_least=50e-6),
+                bound("bit rate, 1 kbit/s", LIN % "6.3, p. 112", n["bits"], at_most=1e-3)]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Inverts half of the PID's bit 0 at its middle."""
+        header = headers(samples, rate)[0]
+        fall, bit = [f for level, f, _ in header if not level][6], LIN_BIT * rate
+        return (changed(samples, line, round(fall + 1.25 * bit), round(fall + 1.75 * bit)),
+                "half of the PID's bit 0 inverted")
+
+    def edge_tooth(samples, rate):
+        """Ends the first break 30 us early."""
+        _, first, n = headers(samples, rate)[0][0]
+        return (moved(samples, line, first + n, first + n - round(30e-6 * rate)),
+                "the break 30 us short", "break field")
+
+    return timing, byte_tooth, edge_tooth
+
+
+ADI = "SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 %s"
+
+
+def swd_blind(swclk, swdio):
+    def resets(samples):
+        """Returns SWDIO's high runs that span more SWCLK rises than a read nobody answers,
+        each with its first sample, its rises and the run after it."""
+        rises = [a for a, t in zip(*edges(samples, swclk)) if t]
+        found = runs(samples, swdio)
+        out = []
+        for i, (level, first, n) in enumerate(found):
+            clocks = [r for r in rises if first <= r < first + n]
+            if level and len(clocks) > 39 and i + 1 < len(found):
+                _, f, m = found[i + 1]
+                out.append((first, clocks, [r for r in rises if f <= r < f + m]))
+        return out
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found = runs(samples, swclk)
+        half = ("24 cycles at 48 MHz, the firmware's half period, to half of it (IHI 0031C "
+                "gives no times, p.4-94)")
+        return [bound("SWCLK high", half, [span(n, rate) for level, _, n in found if level],
+                      at_least=0.5 * 24 / 48e6),
+                bound("SWCLK low", half, [span(n, rate) for level, _, n in found if not level],
+                      at_least=0.5 * 24 / 48e6),
+                count("line reset", ADI % "4.4.3, p.4-104",
+                      [len(clocks) for _, clocks, _ in resets(samples)], at_least=50,
+                      unit="cycles"),
+                count("idle cycles", ADI % "4.4.3, p.4-104",
+                      [len(idle) for _, _, idle in resets(samples)], at_least=2, unit="cycles")]
+
+    def byte_tooth(samples, _rate, capture, decode):
+        """Inverts SWDIO over one bit of the DPIDR the RP2040 answers."""
+        first, last, _ = next(a for a in annotations(capture, decode, "swd")
+                              if a[2] == "swd-1: 0x0bc12477")
+        falls = [a for a, t in zip(*edges(samples, swclk)) if not t and first <= a <= last]
+        return (changed(samples, swdio, falls[3] + 2, falls[4] + 2),
+                "SWDIO inverted over a bit of the DPIDR")
+
+    def edge_tooth(samples, _rate):
+        """Moves the line reset's SWDIO rise 10 SWCLK rises later."""
+        first, clocks, _ = resets(samples)[0]
+        return (moved(samples, swdio, first, clocks[10] - 3),
+                "the line reset's rise 10 cycles late", "line reset")
+
+    return timing, byte_tooth, edge_tooth
+
+
 @dataclass(frozen=True)
 class Demo:
     # sigrok arguments from demo/outside.sh, or from demo/ledger.py
@@ -1096,6 +1602,8 @@ def outside(name):
 
 
 DRAWN = ("drawn at random and written blind from its spec (docs/flexibility.md)",)
+HELD_OUT = ("sealed on the held-out list and written blind from its spec "
+            "(docs/flexibility.md)",)
 
 
 def sweep_i2c(mode, firmware):
@@ -1192,6 +1700,64 @@ DEMOS = {
                       DRAWN + ("AN301 gives no times, so the SCLK window is the firmware's own "
                                "period to half a period, and the frame is held in SCLK "
                                "periods",)),
+    "dali": Demo(outside("dali"), "A", {"D4": "OUT0, high when idle"}, ("DALI",),
+                 ("python/demo_dali.py",), "nothing, Pico B idle on OUT0", dali(4),
+                 HELD_OUT + ("the page gives the rate no tolerance, so the half bits are held "
+                             "to 1200 bit/s within Dali.read's 5%",
+                             "one forward frame, so forward frames 25 ms apart (line 188) has "
+                             "nothing to hold")),
+    "dmx512": Demo(outside("dmx512"), "A", {"D4": "OUT0"}, ("DMX512",),
+                   ("python/demo_dmx512.py",), "nothing, Pico B idle on OUT0", dmx512(4),
+                   HELD_OUT + ("the page gives 250 kbit/s no tolerance, which a sample either "
+                               "way can't settle, so each low is also held to the firmware's "
+                               "bit within half a bit over nine",
+                               "the first packet reads misframed, as the line is low from "
+                               "reset, so the bytes are the second's")),
+    "spdif": Demo(outside("spdif"), "A", {"D4": "OUT0"}, ("SPDIF",), ("python/demo_spdif.py",),
+                  "nothing, Pico B idle on OUT0", spdif(4),
+                  HELD_OUT + ("sigrok's spdif reads nothing past the line's low from reset, so "
+                              "the samples are judged from its decode once the line idles high",
+                              "the capture holds fewer frames than a 192-frame block, so the "
+                              "block's windows hold 192 times their mean",
+                              "a half slot is about four samples, so its windows can stay "
+                              "unresolved"),
+                  judge=spdif_problems),
+    "usb_power_delivery": Demo(outside("usb_power_delivery"), "A",
+                               {"D4": "OUT0, the BMC level, low when idle"},
+                               ("USB_POWER_DELIVERY",), ("python/demo_usb_power_delivery.py",),
+                               "nothing, Pico B idle on OUT0", usb_power_delivery(4),
+                               HELD_OUT + ("OUT0 has no third state, so tStartDrive, "
+                                           "tEndDriveBMC and the slew are not held",
+                                           "the idle lows run to the capture's ends, so "
+                                           "tInterFrameGap holds only their least")),
+    "wiegand": Demo(outside("wiegand"), "A",
+                    {"D4": "DATA0, OUT0", "D5": "DATA1, OUT1 through CAN board A's R"},
+                    ("WIEGAND",), ("python/demo_wiegand.py",),
+                    "Pico B as a CAN node holding the bus recessive, so CAN board A's R "
+                    "follows OUT1", wiegand(4, 5),
+                    HELD_OUT + ("the page gives no timing, so the pulse windows are the "
+                                "firmware's and sigrok's, not a spec's",
+                                "D5's edges carry the SN65HVD230's delay")),
+    "ir_nec": Demo(outside("ir_nec"), "A", {"D4": "OUT0, high for the carrier's on third"},
+                   ("IR_NEC",), ("python/demo_ir_nec.py",), "nothing, Pico B idle on OUT0",
+                   ir_nec(4),
+                   HELD_OUT + ("the page gives nominal times only, held as least times, as "
+                               "the kernel holds them",)),
+    "lin": Demo(outside("lin"), "A", {"D7": "LIN, IO5, open drain, 4k7 pull-up"}, ("LIN",),
+                ("python/demo_lin.py",), "nothing: no slave answers the header", lin(7),
+                HELD_OUT + ("IO5 is open drain, so at the analyser's threshold a low reads a "
+                            "little long and a high as much short",
+                            "THeader_Maximum adds the PID's ten nominal bits to the break's "
+                            "fall to the PID's, as test/lin.ml does")),
+    "swd_blind": Demo(outside("swd_blind"), "A",
+                      {"D6": "SWCLK, OUT2", "D7": "SWDIO, IO5, 4k7 pull-up"}, ("SWD_BLIND",),
+                      ("python/demo_swd_blind.py",), "Pico B's RP2040 as the SWD target",
+                      swd_blind(6, 7),
+                      HELD_OUT + ("sigrok misreads the dormant wake and TARGETSEL, so only the "
+                                  "DPIDR read is held to the bytes",
+                                  "Trn is SWDIO's direction, which the analyser can't see",
+                                  "the demo's one line reset ends dormant to SWD; it has no "
+                                  "JTAG-to-SWD, SWD-to-DS or JTAG-to-DS")),
     "self_timing": Demo("-P uart:rx=D4:baudrate=9600 -A uart=rx-data", "A",
                         {"D4": "OUT0, engine 1's echo of wire 20"},
                         ("test/uart_tx_host_rate.hex", "test/edge_logger_echo.hex"),
