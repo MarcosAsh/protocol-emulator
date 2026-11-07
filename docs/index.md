@@ -85,6 +85,7 @@ Start with [Getting started](getting-started.md), or paste firmware into the pla
 </ul>
 
 ```{toctree}
+:hidden:
 :caption: Start
 :maxdepth: 1
 
@@ -92,6 +93,7 @@ getting-started
 ```
 
 ```{toctree}
+:hidden:
 :caption: Design
 :maxdepth: 1
 
@@ -102,6 +104,7 @@ protocols
 ```
 
 ```{toctree}
+:hidden:
 :caption: Evidence
 :maxdepth: 1
 
@@ -111,6 +114,7 @@ ai-use
 ```
 
 ```{toctree}
+:hidden:
 :caption: Hardware
 :maxdepth: 1
 
@@ -118,6 +122,7 @@ hardware
 ```
 
 ```{toctree}
+:hidden:
 :caption: Site
 :maxdepth: 1
 
