@@ -28,7 +28,7 @@ checked, and 10BASE-T frames when clocked at 40 or 50 MHz.
 | Clock | 48 MHz | `info.yaml` |
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
-| Hardened | 47,958 standard cells at 65.7% utilisation, setup slack +4.034 ns at the slow corner, precheck clean | gds run [42088498103](https://github.com/MarcosAsh/protocol-emulator/actions/runs/42088498103) |
+| Hardened | 47,958 standard cells at 65.7% utilisation, setup slack +4.034 ns at the slow corner, precheck clean | gds run [42268510223](https://github.com/MarcosAsh/protocol-emulator/actions/runs/42268510223) |
 | Firmware | 68 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
 | Board | the 8 x 4 RTL on an Icepi Zero (ECP5 FPGA): all 21 bench demos PASS, self-timing and USB keyboard included, witnesses recorded 2026-11-03. No silicon yet | `test/board/` |
@@ -196,7 +196,7 @@ a way to make them fail.
 |---|---|---|
 | Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
 | One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 791 of 845 refused by the kernel. The other 54, all of ir_rc6, nec_tx and dali and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
-| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 41723309873, 2026-11-03). The other one is equivalent, see `test/mutation_allow.txt` |
+| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 42283817727, 2026-11-06). The other one is equivalent, see `test/mutation_allow.txt` |
 | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth`) | every copy fails, as it must |
 | Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
 
@@ -268,7 +268,7 @@ board in about 75 minutes. Each claim's last green run in CI is on the
 [results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
-`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 42088498103, on
+`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 42268510223, on
 this Verilog, signs off with setup slack +4.034 ns at the slow corner, at 65.7%
 utilisation. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
 `GDS_logs` artifact. 4,282 of 4,294 flops map by RTL line and net name. Each gate goes with
