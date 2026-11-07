@@ -481,22 +481,29 @@ CHECKS = {
 JOINED = {"spdif": (4, 34)}
 
 
-def joined_decode(name, d, rate, samples):
+def joined(name, rate, samples):
     """Returns sigrok's decode of the capture, using the demo's outside: arguments, starting
-    once channel JOINED[name] has idled high long enough."""
+    once channel JOINED[name] has idled high long enough, or None if it never does."""
     bit, cycles = JOINED[name]
     count = round(cycles * rate / 48e6)
     levels = samples.translate(bytes((b >> bit) & 1 for b in range(256)))
     at = levels.find(b"\x01" * count)
     if at < 0:
-        return []
+        return None
     script = Path(__file__).resolve().parent.parent / "python" / ("demo_%s.py" % name)
     args = re.search(r"^# outside: .*decode=(.*)$", script.read_text(), re.M).group(1)
     with tempfile.TemporaryDirectory() as scratch:
         path = Path(scratch) / "joined.sr"
         sigrok.write(path, rate, samples[at + count:])
-        out = subprocess.run(["sigrok-cli", "-i", str(path), *args.split()],
-                             capture_output=True, text=True).stdout
+        return subprocess.run(["sigrok-cli", "-i", str(path), *args.split()],
+                              capture_output=True, text=True).stdout
+
+
+def joined_decode(name, d, rate, samples):
+    """Returns joined()'s lines, saving them beside the capture."""
+    out = joined(name, rate, samples)
+    if out is None:
+        return []
     (d / (name + ".joined.decode")).write_text(out)
     return out.splitlines()
 
