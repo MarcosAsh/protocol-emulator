@@ -1,0 +1,14 @@
+/* let a long path in a table cell wrap, so the table fits the column */
+.bd-article td code, .bd-article td span.pre { white-space: normal; overflow-wrap: anywhere; }
+
+/* a wide table scrolls, so pin its first column to show that it does */
+.pst-scrollable-table-container { scrollbar-width: thin; scrollbar-color: var(--pst-color-border) transparent; }
+.bd-article table:has(th:nth-child(8)) { font-size: 0.85rem; }
+.bd-article table:has(th:nth-child(8)) :is(th, td):first-child {
+  position: sticky; left: 0; z-index: 1;
+  background-color: var(--pst-color-background); border-right: 1px solid var(--pst-color-border);
+}
+
+@media (max-width: 720px) {
+  .bd-article div.highlight pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+}

@@ -13,6 +13,8 @@ myst_heading_anchors = 3
 
 html_theme = "sphinx_book_theme"
 templates_path = ["_templates"]
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 html_title = "protocol-emulator"
 html_theme_options = {
     "show_toc_level": 2,
