@@ -723,6 +723,7 @@ def html_page(rows, now):
 <style>{PAGE_STYLE}</style>
 </head>
 <body>
+<p><a href="../">protocol-emulator</a></p>
 <h1>Results</h1>
 <p class="muted">The claims CI checks, the job that checks each, and its last run on main where
 every job behind it was green. Written by <code>test/results.py</code> at {e(now)} from the

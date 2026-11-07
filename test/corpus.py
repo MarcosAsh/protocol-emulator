@@ -67,12 +67,14 @@ def esc(x):
 
 
 def page(title, body, up=None):
-    nav = f'<p><a href="{up}">all protocols</a></p>' if up else ""
+    nav = '<a href="../">protocol-emulator</a>'
+    if up:
+        nav += f' / <a href="{up}">all protocols</a>'
     return (f'<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<meta name="color-scheme" content="light dark">\n<title>{esc(title)}</title>\n'
             f'<link rel="icon" href="data:,">\n<style>{CSS}</style>\n</head>\n<body>\n'
-            f'{nav}\n<h1>{esc(title)}</h1>\n{body}\n</body>\n</html>\n')
+            f'<p>{nav}</p>\n<h1>{esc(title)}</h1>\n{body}\n</body>\n</html>\n')
 
 
 def table(head, rows, cls=None):

@@ -86,6 +86,8 @@
     padding: 8px 12px 10px;
   }
   .timeline canvas { width: 100%; height: 96px; display: block; cursor: ew-resize; touch-action: none; }
+  .panel .home { margin: 0 0 4px; font-size: 13px; }
+  .panel .home a { color: var(--muted); }
   .panel {
     grid-row: 1 / span 2;
     grid-column: 2;
@@ -220,6 +222,7 @@
   </section>
 
   <aside class="panel">
+    <p class="home"><a href="../">protocol-emulator</a></p>
     <header>
       <h1>Live die</h1>
       <button id="theme" title="Light or dark" aria-label="Switch between light and dark"><svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2v10a5 5 0 0 1 0-10z"/></svg></button>
