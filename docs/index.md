@@ -119,6 +119,7 @@ ai-use
 :maxdepth: 1
 
 hardware
+lab
 ```
 
 ```{toctree}
