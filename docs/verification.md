@@ -89,8 +89,8 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
   2026-10-15 (release evidence-2026-10-15). The 8 x 4 chip's RTL has since run all 21 bench
   demos on the same board, self-timing and keyboard included, and each one's witness in
-  `test/board/` (capture, decode, bitstream hash, recorded 2026-11-03) says PASS. Those
-  runs are not in a pinned evidence release yet.
+  `test/board/` (capture, decode, bitstream hash, recorded 2026-11-03) says PASS
+  (release evidence-2026-11-03).
 
 ## Trying to break it
 
