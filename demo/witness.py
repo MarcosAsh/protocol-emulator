@@ -1463,8 +1463,11 @@ def write(run, directory, carrier, bitstream):
     else:
         with tempfile.TemporaryDirectory() as scratch:
             made, _ = witness(directory, scratch)
-    built = ("the bitstream is named by its sha256, and its netlist's, built from %s by the "
-             "bench's notes, which CI does not rebuild" % bitstream if bitstream else
+    # a run without a netlist records it as "-"
+    named = ("its sha256, and its netlist's," if fields.get("netlist_sha256", "-") != "-"
+             else "its sha256,")
+    built = ("the bitstream is named by %s built from %s by the bench's notes, which CI does "
+             "not rebuild" % (named, bitstream) if bitstream else
              "the bitstream is named by its sha256, which CI cannot rebuild, and its source "
              "commit was not recorded")
     dirty = ("the run's tree had uncommitted changes, so its firmware and scripts are hashed "
