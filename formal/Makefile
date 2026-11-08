@@ -1168,51 +1168,8 @@ witness_reject:
 	    case $$? in 10) echo "$(W): $$check fails"; exit 0 ;; 20) ;; *) exit 1 ;; esac; \
 	  done; exit 1
 
-# The witnesses as a bundle that witness/check.sh rechecks without OCaml. Per witness it
-# holds the prove task's Verilog, read.ys, model.aig and witness.aig; per tooth its read.ys,
-# model.aig and aigsim's counterexample; and cake_lpr's heap if it isn't the default. Run it
-# after witness_proof. A witness of another task (W=fail_safe_table_witness_prove_0
-# TASK=prove_0) has no teeth.
-BUNDLE = proof_bundle
-SHA256 = $(if $(shell command -v sha256sum),sha256sum,shasum -a 256)
-witness_bundle: W = $(LEMMA)_witness
-witness_bundle: TASK = prove
-witness_bundle:
-	rm -rf $(BUNDLE)/$(subst _witness,,$(W)) && mkdir -p $(BUNDLE)/$(subst _witness,,$(W))/teeth
-	for file in $$(sby --dumpfiles $(LEMMA).sby $(TASK)) read.ys model.aig witness.aig; do \
-	  cp $(W)/$$(basename $$file) $(BUNDLE)/$(subst _witness,,$(W)) || exit 1; \
-	done
-	for tooth in $(W)_*/cex.aiw; do \
-	  [ -f $$tooth ] || continue; \
-	  dir=$(BUNDLE)/$(subst _witness,,$(W))/teeth/$$(dirname $$tooth | sed 's/^$(W)_//'); \
-	  mkdir $$dir && cp $$(dirname $$tooth)/read.ys $$(dirname $$tooth)/model.aig $$tooth $$dir || exit 1; \
-	done
-	[ $$(ls $(BUNDLE)/$(subst _witness,,$(W))/teeth | wc -l) -ge "$(or $(WITNESS_TEETH_$(LEMMA)),0)" ]
-	[ -z "$(WITNESS_HEAP_$(LEMMA))" ] || echo $(WITNESS_HEAP_$(LEMMA)) > $(BUNDLE)/$(subst _witness,,$(W))/heap
-
-# check.sh, model.ys, tools.sh with the SAT tools' commits, and a sha256 of each file
-proof_bundle:
-	cp witness/check.sh witness/model.ys $(BUNDLE)
-	sed -e 's/@CADICAL@/$(CADICAL)/' -e 's/@CAKE_LPR@/$(CAKE_LPR)/' \
-	  -e 's/@CERTIFAIGER@/$(CERTIFAIGER)/' -e 's/@AIGER@/$(AIGER)/' witness/tools.sh > $(BUNDLE)/tools.sh
-	chmod +x $(BUNDLE)/check.sh $(BUNDLE)/tools.sh
-	cd $(BUNDLE) && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
-	tar czf $(BUNDLE).tar.gz $(BUNDLE)
-
-# A copy of the bundle whose $(LEMMA) witness has one latch's next state inverted, with its
-# sum made to match, has to fail check.sh at one of the nine checks.
-proof_bundle_tooth:
-	rm -rf bundle_tooth && cp -R $(BUNDLE) bundle_tooth
-	cd bundle_tooth/$(LEMMA) && aigtoaig witness.aig witness.aag \
-	  && awk 'NR == 1 { inputs = $$3 } NR == inputs + 2 { $$2 += $$2 % 2 ? -1 : 1 } 1' witness.aag \
-	  > flipped.aag && aigtoaig flipped.aag witness.aig && rm witness.aag flipped.aag
-	! cmp -s $(BUNDLE)/$(LEMMA)/witness.aig bundle_tooth/$(LEMMA)/witness.aig
-	cd bundle_tooth && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
-	! bundle_tooth/check.sh $(LEMMA) > bundle_tooth/check.log
-	grep -E '^$(LEMMA): FAIL, [A-Za-z]+ not verified' bundle_tooth/check.log
-
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
-  witness_reject witness_bundle proof_bundle proof_bundle_tooth
+  witness_reject
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order unreachable phase_step phase_table guard_teeth \
   powerup_cold \
