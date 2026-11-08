@@ -48,6 +48,9 @@ class Corpus(unittest.TestCase):
         self.assertIn("<td>FAIL</td>", ps2)
         self.assertIn("nop &lt;1&gt;", ps2)
         self.assertIn("Not available", ps2)
+        # no ledger, refusal or transcript given, so no section for them
+        self.assertNotIn("Board evidence", ps2)
+        self.assertNotIn("Refusals", ps2)
         self.assertIn("a</code>: proved in CI by inductive_certificate", ps2)
         self.assertIn("no limits", (self.out / "nosuch.html").read_text())
         self.assertIn("not in CI's certificate matrix", (self.out / "nosuch.html").read_text())

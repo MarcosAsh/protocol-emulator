@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Builds one static page per protocol plus an index, from data files only: the output of
 # write_corpus.exe (firmware.tsv, limits.tsv, firmware/), test/<protocol>.ml and
-# demo/speed.tsv. These inputs are optional, and a page says when one is missing: board
-# ledgers, clock windows (python/clock_cliffs.py), named-refusal pictures, agent transcripts.
+# demo/speed.tsv. These inputs are optional, and a page says when one is missing: clock
+# windows (python/clock_cliffs.py). Board ledgers, named-refusal pictures and agent
+# transcripts get a section only where there is one.
 # Writes corpus.sha256 next to the pages in sha256sum's format, and --check verifies a tree
 # against it. There are no timestamps, so the same inputs give the same bytes.
 # Usage: python3 test/corpus.py --data DIR --out DIR [--speed TSV] [--ledger TSV]...
@@ -34,6 +35,34 @@ DEMO_PROTOCOL = {
 }
 SPEED_NOTE = ("Times are the first mark of each stage in demo/speed.tsv; a protocol "
               "nobody timed has no row.")
+# specs written for the blind rehearsal of 2026-10-18, with no public datasheet behind them
+REHEARSAL = ("snorble", "plinkoo", "frumbleglide")
+FLEXIBILITY = "../flexibility.html"
+
+
+def spec_ids(tsv):
+    """The protocol ids a demo/*_specs.tsv lists, under the corpus's names. The library's swd
+    entered after the seal, so the held-out SWD is swd_blind."""
+    ids = [line.split("\t")[0] for line in (ROOT / tsv).read_text().splitlines()
+           if line and not line.startswith("#")]
+    return [{"swd": "swd_blind"}.get(i, i.replace("-", "_")) for i in ids]
+
+
+ORIGIN = {
+    **{n: "drawn" for n in spec_ids("demo/corpus_specs.tsv")},
+    **{n: "held out" for n in spec_ids("demo/heldout_specs.tsv")},
+    **{n: "invented spec" for n in REHEARSAL},
+}
+# said on the index and on each page of that origin
+ORIGINS = {
+    "drawn": "Drawn: picked from sigrok's decoders by drand round 33346612 "
+    "(demo/corpus_draw_33346612.json).",
+    "held out": "Held out: sealed in test/heldout.sha256 on 2026-10-02 and opened on "
+    "2026-11-02 (test/heldout.txt).",
+    "invented spec": "Invented spec: written for a blind rehearsal on 2026-10-18, with no "
+    "public datasheet.",
+}
+RUNS_ON = f'The drawn and held-out runs are on <a href="{FLEXIBILITY}">Flexibility</a>.'
 
 CSS = """
 :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --line: #ddd;
@@ -96,8 +125,14 @@ def missing(what):
     return f'<p class="muted">Not available: {esc(what)}.</p>'
 
 
-def minutes(a, b):
-    return "-" if a is None or b is None else "%.1f" % ((b - a).total_seconds() / 60)
+def took(a, b):
+    """The time from a to b in minutes, or in hours or days once it runs that long."""
+    if a is None or b is None:
+        return "-"
+    m = (b - a).total_seconds() / 60
+    if m < 120:
+        return "%.1f min" % m
+    return "%.1f h" % (m / 60) if m < 48 * 60 else "%.1f days" % (m / 60 / 24)
 
 
 def literal(path, names):
@@ -200,6 +235,9 @@ def protocol_page(inp, name, out):
     names = sorted({r["firmware"] for r in fw})
     limits = [r for r in inp.limits if r["protocol"] == name]
     parts = []
+    if name in ORIGIN:
+        parts.append(f"<p>{esc(ORIGINS[ORIGIN[name]])}"
+                     + (f" {RUNS_ON}" if ORIGIN[name] != "invented spec" else "") + "</p>")
     # spec source
     sheets = sorted({(r["part"], r["document"], r["page"]) for r in limits})
     parts.append(section("Spec source", table(
@@ -256,8 +294,7 @@ def protocol_page(inp, name, out):
     if s:
         t = [s.get(k, (None,))[0] for k in STAGES]
         rows = [[esc(k), esc(s[k][2]), esc(s[k][1])] for k in STAGES if k in s]
-        gaps = [f"spec to {k}: {minutes(t[0], t[STAGES.index(k)])} min"
-                for k in STAGES[1:]]
+        gaps = [f"spec to {k}: {took(t[0], t[STAGES.index(k)])}" for k in STAGES[1:]]
         body = table(["stage", "time", "note"], rows) + f"<p>{esc('; '.join(gaps))}</p>"
         body += f'<p class="muted">{esc(SPEED_NOTE)}</p>'
         parts.append(section("Time taken", body))
@@ -274,22 +311,17 @@ def protocol_page(inp, name, out):
         rows.sort(key=lambda pr: (pr[1]["date"], pr[0].parent.name))
         parts.append(section("Board evidence", ledger_table(rows)
                              + "<p class=\"muted\">The latest entry is the last row.</p>"))
-    else:
-        parts.append(section("Board evidence", missing(
-            "no ledger entry for this protocol" if inp.ledgers else "no ledger given")))
     # refusals
-    if inp.refusals is None:
-        parts.append(section("Refusals", missing("no refusal directory given")))
-    else:
-        svgs = sorted(p for p in inp.refusals.glob("*.svg")
-                      if any(p.name.startswith(n + "-") for n in names))
-        body = ""
-        for p in svgs:
-            dest = out / "refusals" / p.name
-            dest.parent.mkdir(exist_ok=True)
-            shutil.copyfile(p, dest)
-            body += f'<p><img src="refusals/{esc(p.name)}" alt="{esc(p.stem)}"></p>'
-        parts.append(section("Refusals", body or missing("no picture for this protocol")))
+    svgs = sorted(p for p in inp.refusals.glob("*.svg")
+                  if any(p.name.startswith(n + "-") for n in names)) if inp.refusals else []
+    body = ""
+    for p in svgs:
+        dest = out / "refusals" / p.name
+        dest.parent.mkdir(exist_ok=True)
+        shutil.copyfile(p, dest)
+        body += f'<p><img src="refusals/{esc(p.name)}" alt="{esc(p.stem)}"></p>'
+    if body:
+        parts.append(section("Refusals", body))
     # transcript
     found = []
     if inp.transcripts:
@@ -301,7 +333,8 @@ def protocol_page(inp, name, out):
         dest.parent.mkdir(exist_ok=True)
         shutil.copyfile(p, dest)
         body += f'<p><a href="transcripts/{esc(p.name)}">{esc(p.name)}</a></p>'
-    parts.append(section("Agent transcript", body or missing("none for this protocol")))
+    if body:
+        parts.append(section("Agent transcript", body))
     return page(name, "\n".join(parts), up="index.html")
 
 
@@ -314,16 +347,19 @@ def summary(inp, name):
     t = [s.get(k, (None,))[0] for k in STAGES]
     led = ledger_rows(inp, name)
     bad = sum(failed_ledger(r) for _, r in led)
-    return [f'<a href="{esc(name)}.html">{esc(name)}</a>', len(fw), cert, len(lim),
-            f'<span class="bad">{fails}</span>' if fails else "0",
-            minutes(t[0], t[3]), f"{board_runs(inp, name)}" + (f' ({bad} off)' if bad else ""),
+    return [f'<a href="{esc(name)}.html">{esc(name)}</a>', esc(ORIGIN.get(name, "")), len(fw),
+            cert, len(lim), f'<span class="bad">{fails}</span>' if fails else "0",
+            took(t[0], t[2]), took(t[0], t[3]),
+            f"{board_runs(inp, name)}" + (f' ({bad} off)' if bad else ""),
             len(witness_rows(inp, name))]
 
 
 def index_page(inp, names):
     rows = [summary(inp, n) for n in names]
-    body = table(["protocol", "firmware", "certified", "limits", "limits failed",
-                  "spec to bench (min)", "board runs", "witnessed in CI"], rows)
+    note = " ".join(ORIGINS.values()) + " The rest is the library. "
+    body = f"<p>{esc(note)}{RUNS_ON}</p>" + table(
+        ["protocol", "origin", "firmware", "certified", "limits", "limits failed",
+         "spec to certificate", "spec to bench", "board runs", "witnessed in CI"], rows)
     body += f'<p class="muted">{esc(SPEED_NOTE)}</p>'
     rest = [(p, r) for p, r in inp.ledgers if ledger_protocol(r) not in names]
     if rest:
