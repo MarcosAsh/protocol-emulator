@@ -1832,6 +1832,7 @@ class LogDemo:
     limits: tuple = ()
     # the run's files besides ledger.txt and run.txt, the first named in witness.json
     kept: tuple = ("{}.log",)
+    clock: str = "48 MHz"
 
 
 def text(directory, name):
@@ -2098,7 +2099,8 @@ LOG_DEMOS = {
         ("10 Mb/s is past the analyser, so the log is the run's only record: CI judges its "
          "frames again from the bytes it says were sent",
          "the line is Pico A's 3.3 V logic, as a line receiver with squelch would give "
-         "the chip, not a twisted pair through a transformer")),
+         "the chip, not a twisted pair through a transformer"),
+        clock="40 MHz"),
     "kernel_vs_board": LogDemo(
         (), ("python/demo_kernel_vs_board.py", "python/demo_sweep.py",
              "python/demo_self_timing.py", "python/sweep_firmware.py"),
@@ -2357,7 +2359,7 @@ def write(run, directory, carrier, bitstream):
         "host_scripts": {f: sha256(ran(f)) for f in d.scripts},
         "bench": ("an Icepi Zero (ECP5 LFE5U-25F) running the chip at %s on bench carrier "
                   "%s, Pico A as the host on SPI, %s%s" % (
-                      "40 MHz" if demo in LOG_DEMOS else "48 MHz", carrier, d.peer,
+                      d.clock if demo in LOG_DEMOS else "48 MHz", carrier, d.peer,
                       "" if demo in LOG_DEMOS else ", analyser %s (fx2lafw) at %g MS/s" % (
                           d.analyser, made["capture"]["rate_hz"] / 1e6))),
         "scope": ("each frame's bytes and the receiver's verdict in one run of %s, as Pico "
