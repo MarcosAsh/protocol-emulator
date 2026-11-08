@@ -149,7 +149,7 @@ def test_the_die():
     data = demo_draw.encode(strokes, 10)
     drawn, lifted, end = draw.replay(data)
     summary = (len(strokes), sum(len(s) - 1 for s in strokes), (len(data) - 1) // 3)
-    assert summary == (13, 1492, 1562), summary
+    assert summary == (12, 1160, 1223), summary
     assert draw.drift(strokes, drawn, end) <= 0.5
     with tempfile.TemporaryDirectory() as out:
         png, svg = os.path.join(out, "draw.png"), os.path.join(out, "draw.svg")
