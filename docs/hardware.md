@@ -30,18 +30,20 @@ its 50 MHz oscillator through the PLL to 48 MHz, or 40 MHz for 10BASE-T, and the
 the 40-pin header. The SRAM macro is its IHP behavioural model, mapped to block RAM. 48 MHz
 is tight and placement moves with the seed, so the build takes the first of 16 seeds whose
 clock reaches 1.6 MHz over 48 MHz.
-`make -C icepi equiv` proves the bitstream's netlist equal to the RTL (`formal/icepi_equiv`,
-the `icepi_equiv` job).
+`make -C icepi equiv` proves yosys's netlist, before nextpnr places and routes it, equal to
+the RTL (`formal/icepi_equiv`, the `icepi_equiv` job).
 
 ## Bench
 
 The bench has one permanent wiring, the carrier PCB's. The PCB is
 [protocol-emulator-bench](https://github.com/MarcosAsh/protocol-emulator-bench), KiCad,
 CERN-OHL-P v2. `src/bench_wiring.ml` says which logic analyser channel each chip pin
-reaches. `demo/bench_run.py` runs one bench demo unattended: it loads the chip, runs
-`demo/outside.sh`, measures the capture against the datasheet limits and keeps the
-evidence. `test/test_outside.py` runs the same demos' Python on the RTL at the bench's
-48 MHz and decodes the pins with the sigrok decoders the bench uses.
+reaches. `demo/ledger.py` runs every bench demo in turn, each from a fresh load of the
+bitstream, and keeps its capture, decode and logs. `demo/witness.py` turns a run into a
+witness in `test/board/` and checks one again offline
+(`python3 demo/witness.py check test/board/eeprom/`). `test/test_outside.py` runs the same
+demos' Python on the RTL at the bench's 48 MHz and decodes the pins with the sigrok
+decoders the bench uses.
 
 ## Downloads
 
