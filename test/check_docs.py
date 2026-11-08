@@ -754,7 +754,7 @@ def check_glance(doc, text):
         metrics = gds_numbers(run_id[1])[0] if ONLINE and run(run_id[1]) else None
         if metrics:
             hardened = [metrics["std_cells"], float(metrics["utilisation"]) * 100,
-                        metrics["setup_slow_ns"]]
+                        metrics["setup_slow_ns"], metrics["hold_ns"]]
     elif "Hardened" in table:
         yield "the table's Hardened row cites no gds run"
     expected = {
@@ -851,6 +851,7 @@ TEETH = [
     ("a transcript's edit", first(r"\$ sed '([^']*)'", bump), None,
      "docs/getting-started.md"),
     ("the slack", first(r"([+-][\d.]+) ns at the slow corner", bump), "metrics"),
+    ("the hold slack", first(r"hold slack ([+-][\d.]+)", bump), "metrics"),
     ("the utilisation", first(r"([\d.]+)% utilisation", bump), "metrics"),
     ("the cells", first(r"([\d,]+) standard cells", bump), "metrics"),
     ("a run id", first(r"run \[?(\d{10,12})", bump), "gh"),

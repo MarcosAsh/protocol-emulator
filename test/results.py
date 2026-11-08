@@ -789,6 +789,7 @@ def readme_table(readme):
             (r"[\d,]+(?= standard cells)", f"{int(m['std_cells']):,}"),
             (r"[\d.]+(?=% utilisation)", f"{round(float(m['utilisation']) * 100, 6):g}"),
             (r"[+-][\d.]+(?= ns at the slow corner)", f"{float(m['setup_slow_ns']):+.3f}"),
+            (r"(?<=hold slack )[+-][\d.]+", f"{float(m['hold_ns']):+.3f}"),
             (r"(?<=gds run \[)\d+|(?<=actions/runs/)\d+|(?<=gds run )\d+", best)]
         if bad := docs.failed_jobs(best, "precheck"):
             print(f"gds run {best}'s precheck job is {', '.join(bad)}", file=sys.stderr)
