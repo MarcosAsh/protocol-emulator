@@ -124,10 +124,11 @@ APART = {
     "src/kernel_accepts.ml": [["kernel-accepts"]],
     "src/kernel_table.ml": [],
     "src/osr_kernel.ml": [["osr"]],
+    # and in the chip, where Frame_rx runs it at two rates
     "src/manchester_rx.ml": [
         ["manchester-rx"],
         ["manchester-rx", "-samples-per-bit", "8", "-samples-per-cycle", "2", "-gain-shift", "3"],
-    ],
+    ] + CHIP,
 }
 ELABORATE = {f: CHIP for f in RTL} | APART
 # engine is the published score's four files, with five mutants per operator. wide is
