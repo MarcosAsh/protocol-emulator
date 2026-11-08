@@ -136,6 +136,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": "without the first packet: the line's low from reset misframes it",
   "teeth": [
     "half of the second packet's channel 1 bit 0 inverted",
     "the first break 10 us short"

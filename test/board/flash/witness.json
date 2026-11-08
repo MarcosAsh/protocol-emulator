@@ -85,6 +85,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "MISO inverted over the first bit of the JEDEC ID's manufacturer byte",
     "the JEDEC frame's CS fall 2 us after ABh"

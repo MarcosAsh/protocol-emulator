@@ -83,6 +83,7 @@
     "decoder": 1,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "the first pulse moved from DATA0 to DATA1",
     "the first pulse 30 us long"

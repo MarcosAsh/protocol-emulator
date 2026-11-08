@@ -1586,6 +1586,8 @@ class Demo:
     # text and Pico A's log
     also: tuple = ()
     also_problems: object = None
+    # what a run that passes on only part of the protocol leaves out
+    partial: str = ""
 
     def name(self, demo):
         return self.stem or demo
@@ -1728,7 +1730,8 @@ DEMOS = {
                                "way can't settle, so each low is also held to the firmware's "
                                "bit within half a bit over nine",
                                "the first packet reads misframed, as the line is low from "
-                               "reset, so the bytes are the second's")),
+                               "reset, so the bytes are the second's"),
+                   partial="without the first packet: the line's low from reset misframes it"),
     "spdif": Demo(outside("spdif"), "A", {"D4": "OUT0"}, ("SPDIF",), ("python/demo_spdif.py",),
                   "nothing, Pico B idle on OUT0", spdif(4),
                   HELD_OUT + ("sigrok's spdif reads nothing past the line's low from reset, so "
@@ -1737,7 +1740,9 @@ DEMOS = {
                               "block's windows hold 192 times their mean",
                               "a half slot is about four samples, so its windows can stay "
                               "unresolved"),
-                  judge=spdif_problems),
+                  judge=spdif_problems,
+                  partial="without the frames before the line first idles high: sigrok's "
+                          "spdif reads nothing past the low from reset"),
     "usb_power_delivery": Demo(outside("usb_power_delivery"), "A",
                                {"D4": "OUT0, the BMC level, low when idle"},
                                ("USB_POWER_DELIVERY",), ("python/demo_usb_power_delivery.py",),
@@ -1764,7 +1769,8 @@ DEMOS = {
                 HELD_OUT + ("IO5 is open drain, so at the analyser's threshold a low reads a "
                             "little long and a high as much short",
                             "THeader_Maximum adds the PID's ten nominal bits to the break's "
-                            "fall to the PID's, as test/lin.ml does")),
+                            "fall to the PID's, as test/lin.ml does"),
+                partial="without the response: no slave on the bench answers the header"),
     "swd_blind": Demo(outside("swd_blind"), "A",
                       {"D6": "SWCLK, OUT2", "D7": "SWDIO, IO5, 4k7 pull-up"}, ("SWD_BLIND",),
                       ("python/demo_swd_blind.py",), "Pico B's RP2040 as the SWD target",
@@ -2229,7 +2235,7 @@ def proved(timing):
 
 
 def says(w):
-    """Returns what a PASS line says of a capture's windows."""
+    """Returns what a PASS or PARTIAL line says of a capture's windows."""
     n = w["proved"]
     rest = "".join(", %d %s" % (n[s], s) for s in SOURCES[2:] if n[s])
     return "%s, bitstream %s, %d of %d windows proved (%d spec, %d own%s), %d unresolved" % (
@@ -2263,6 +2269,7 @@ def witness(directory, scratch):
         "decode": {"arguments": d.decode, "sha256": sums(directory)["%s.decode" % name]},
         "timing": timing,
         "proved": proved(timing),
+        "partial": d.partial or None,
         "teeth": [what for what, _ in bitten],
     }, bitten
 
@@ -2417,6 +2424,8 @@ def main():
             print("PASS %s: sigrok reads the chip's message, the edges are the captures'" % name)
         elif not problems and "tally" in w:
             print("PASS %s: %s" % (name, LOG_DEMOS[w["demo"]].says(w["tally"])))
+        elif not problems and w.get("partial"):
+            print("PARTIAL %s: %s, %s" % (name, says(w), w["partial"]))
         elif not problems:
             print("PASS %s: %s" % (name, says(w)))
         ok = ok and not problems and all(why for _, why in bitten)

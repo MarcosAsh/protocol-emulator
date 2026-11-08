@@ -109,6 +109,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "the first payload's first bit inverted",
     "the first sync bit 1.8 bits long"

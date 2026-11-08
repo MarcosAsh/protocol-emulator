@@ -163,6 +163,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "the first command's bits 3 and 4 swapped",
     "the first leader mark a unit short"

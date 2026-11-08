@@ -46,6 +46,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "half of the first byte's bit 0 inverted",
     "the first frame's second edge 12 samples late",

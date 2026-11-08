@@ -100,6 +100,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "the first bit held high 700 ns",
     "the first 1 held high 400 ns longer"

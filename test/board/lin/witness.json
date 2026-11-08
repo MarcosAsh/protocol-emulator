@@ -100,6 +100,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": "without the response: no slave on the bench answers the header",
   "teeth": [
     "half of the PID's bit 0 inverted",
     "the break 30 us short"

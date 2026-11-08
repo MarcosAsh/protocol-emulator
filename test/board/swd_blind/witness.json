@@ -65,6 +65,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "SWDIO inverted over a bit of the DPIDR",
     "the line reset's rise 10 cycles late"

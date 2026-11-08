@@ -118,6 +118,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "the first command's bits 0 and 1 swapped",
     "the first AGC burst 1 ms short"

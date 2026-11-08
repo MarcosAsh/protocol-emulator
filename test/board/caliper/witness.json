@@ -74,6 +74,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "DATA inverted over the first bit",
     "the first clock low 1 us short"

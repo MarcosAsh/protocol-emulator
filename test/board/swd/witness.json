@@ -56,6 +56,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "SWDIO inverted over a bit of AP 0's IDR",
     "the first line reset's rise 20 cycles late"

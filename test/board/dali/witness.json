@@ -73,6 +73,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "the forward frame's opcode MSB inverted",
     "the forward frame's start bit edge 50 us late"

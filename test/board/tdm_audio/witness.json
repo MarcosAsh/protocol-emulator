@@ -75,6 +75,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "SDATA inverted over channel 1's MSB",
     "the second FSYNC six bits early"

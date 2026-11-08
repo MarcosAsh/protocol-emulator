@@ -112,6 +112,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "DI inverted over EWEN's first opcode bit",
     "EWEN's CS rise 0.5 us before SK's first rise"

@@ -91,6 +91,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "a stray half bit in the header",
     "the first half-bit low cut to 0.8 us"

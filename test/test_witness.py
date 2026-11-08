@@ -2,12 +2,13 @@
 """Checks that demo/witness.py actually rejects bad input, on a copy of
 test/board/self_timing. Each of these must fail: an edited file, a SHA256SUMS regenerated
 to match it, firmware the board didn't run, and a witness.json that claims more than the
-capture shows. Window sources get theirs on copies too. The
+capture shows. Window sources and PARTIAL get theirs on copies too. The
 kernel-vs-board and fault judges get what their teeth don't try."""
 
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -121,6 +122,29 @@ class Sources(unittest.TestCase):
         run = copy("self_timing")
         edit(run, lambda w: w["proved"].update(spec=3, own=0))
         self.assertTrue(any("witness.json's proved is not what the run makes" in p
+                            for p in witness.check(run)[0]))
+
+
+class Partial(unittest.TestCase):
+    """A run that passes on part of the protocol it names says PARTIAL and what it leaves out."""
+
+    def test_the_partial_runs(self):
+        self.assertEqual(sorted(n for n, d in witness.DEMOS.items() if d.partial),
+                         ["dmx512", "lin", "spdif"])
+
+    def test_the_line_says_partial(self):
+        done = subprocess.run([sys.executable, "demo/witness.py", "check", str(copy("lin"))],
+                              cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout)
+        line = done.stdout.splitlines()[-1]
+        self.assertTrue(line.startswith("PARTIAL lin: "), line)
+        self.assertTrue(line.endswith("without the response: no slave on the bench answers "
+                                      "the header"), line)
+
+    def test_partial_dropped(self):
+        run = copy("lin")
+        edit(run, lambda w: w.update(partial=None))
+        self.assertTrue(any("witness.json's partial is not what the run makes" in p
                             for p in witness.check(run)[0]))
 
 

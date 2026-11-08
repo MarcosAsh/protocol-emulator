@@ -154,6 +154,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "READ ROM's first slot held low 66 us",
     "the first reset cut to 470 us"

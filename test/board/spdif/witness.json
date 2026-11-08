@@ -109,6 +109,7 @@
     "decoder": 0,
     "derived": 2
   },
+  "partial": "without the frames before the line first idles high: sigrok's spdif reads nothing past the low from reset",
   "teeth": [
     "the first right sample's bits 2 and 3 cleared",
     "the first half slot cut to a sample"

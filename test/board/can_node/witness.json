@@ -91,6 +91,7 @@
     "decoder": 0,
     "derived": 0
   },
+  "partial": null,
   "teeth": [
     "CAN R inverted over the first data byte's fourth bit",
     "an edge of the first frame a quarter bit late"
