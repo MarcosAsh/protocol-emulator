@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# One outside-chip demo from BRINGUP.md. Runs the demo's script on Pico A while its analyser
+# One outside-chip demo. Runs the demo's script on Pico A while its analyser
 # captures, then prints the Pico's log and sigrok's decode. The last line is FAIL if the
 # capture lacks the demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip
 # before every demo, because faults stick until reset. Analyser A sees the host port, OUT0,

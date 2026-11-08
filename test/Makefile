@@ -99,7 +99,7 @@ icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/ic
 	$(MAKE) -C ../icepi build/usb1.json
 	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
 
-# The outside-chip demos from BRINGUP.md on the RTL, against picosoc's SPI flash model,
+# The outside-chip demos (docs/hardware.md) on the RTL, against picosoc's SPI flash model,
 # cocotbext-i2c's memory and cocotbext-spi's loopback slave, checked with sigrok decoders.
 # Needs cocotbext-i2c 0.1.2, cocotbext-spi 0.5.0, cocotb-bus 0.3.0 and sigrok-cli.
 outside:
