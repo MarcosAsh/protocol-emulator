@@ -136,7 +136,7 @@ a way to make them fail.
 | One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 791 of 845 refused by the kernel. The other 54, all of ir_rc6, nec_tx and dali and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
 | Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 42283817727, 2026-11-06). The other one is equivalent, see `test/mutation_allow.txt` |
 | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth` and the other `*_teeth` targets) | every copy fails, as it must |
-| Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
+| Loose limits | which firmware its datasheet limits don't hold within a factor of two, faster or slower (`test/test_datasheet.ml`) | lfast and swd could run twice as fast. 20 bench firmwares, DALI, CAN, XY2-100, caliper and the I2C and SPI flash ones among them, have no upper limit. ir_rc6 and nec_tx have no limits, each listed with why |
 
 Counted on 2026-09-30, of 13 bugs fixed in commits of their own, model tests found 3, the
 analyser's soundness check 3, AI review 3, proofs 2, the analyser 1 and a mutant 1. Among

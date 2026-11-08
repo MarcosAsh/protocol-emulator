@@ -269,9 +269,9 @@ let%expect_test "every bench firmware has its limits, or a reason it has none" =
   [%expect {| (Error ("no datasheet limits, and no reason why" new_demo)) |}]
 ;;
 
-(* A certificate is only as strong as the limits it is held to. For each firmware, its
-   tightest limit as a share of its bound: under a half means the firmware could run at
-   twice or half its speed and still pass, so the limit is loose. *)
+(* A certificate is only as strong as the limits it is held to. Each firmware's tightest
+   limit on each side, as a share of its bound: under a half means it could run twice as
+   fast, or half as fast, and still pass. *)
 let%expect_test "firmware its limits do not hold within a factor of two" =
   let share (v : Datasheet.Verdict.t) =
     Option.map v.bound ~f:(fun bound ->
@@ -279,40 +279,73 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
       | At_least _ -> Float.of_int v.needed /. Float.of_int bound
       | At_most _ -> Float.of_int bound /. Float.of_int v.needed)
   in
+  let side (v : Datasheet.Verdict.t) =
+    match v.limit with
+    | At_least _ -> "faster"
+    | At_most _ -> "slower"
+  in
   List.iter (Uart.log :: Library.bench) ~f:(fun bench ->
-    let tightest =
+    let rows =
       Datasheet.check Library.limits bench
       |> List.filter_map ~f:(fun ((t : Datasheet.t), v) ->
         Option.map (share v) ~f:(fun share -> share, t, v))
-      |> List.max_elt ~compare:(fun (a, _, _) (b, _, _) -> Float.compare a b)
     in
-    match tightest with
-    | Some (share, _, _) when Float.( >= ) share 0.5 -> ()
-    | Some (share, t, v) ->
-      printf
-        "%-18s loose  %-24s needs %d of %d cycles (%.0f%%)\n"
-        bench.name
-        t.parameter
-        v.needed
-        (Option.value_exn v.bound)
-        (100. *. share)
-    | None ->
+    match rows with
+    | [] ->
       printf
         "%-18s none   %s\n"
         bench.name
         (List.Assoc.find Library.exempt bench.name ~equal:String.equal
-         |> Option.value ~default:""));
+         |> Option.value ~default:"")
+    | rows ->
+      List.iter [ "faster"; "slower" ] ~f:(fun way ->
+        let tightest =
+          List.filter rows ~f:(fun (_, _, v) -> String.equal (side v) way)
+          |> List.max_elt ~compare:(fun (a, _, _) (b, _, _) -> Float.compare a b)
+        in
+        match tightest with
+        | Some (share, _, _) when Float.( >= ) share 0.5 -> ()
+        | Some (share, t, v) ->
+          printf
+            "%-18s %s loose  %-24s needs %d of %d cycles (%.0f%%)\n"
+            bench.name
+            way
+            t.parameter
+            v.needed
+            (Option.value_exn v.bound)
+            (100. *. share)
+        | None -> printf "%-18s %s unbounded\n" bench.name way));
   [%expect
     {|
+    i2c_master         slower unbounded
+    i2c_master_stretch slower unbounded
     start_hold         none   it drives no pin: it listens to Pico B's I2C
+    i2c_standard       slower unbounded
+    i2c_fast           slower unbounded
+    i2c_standard_asym  slower unbounded
+    i2c_fast_asym      slower unbounded
     ethernet           none   no demo on the bench: it needs the Icepi's 40 MHz build
-    swd                loose  SWCLK high               needs 2 of 7 cycles (29%)
+    can                slower unbounded
+    can_sender         slower unbounded
+    can_receiver       slower unbounded
+    spi_cs_mode0       slower unbounded
+    spi_cs_mode1       slower unbounded
+    spi_cs_mode2       slower unbounded
+    spi_cs_mode3       slower unbounded
+    swd                faster loose  SWCLK high               needs 2 of 7 cycles (29%)
+    swd                slower unbounded
     nec_tx             none   no datasheet at hand; Nec.decode holds each mark and space to 5%
     nec_rx             none   a receiver: it samples, and drives nothing
     ir_rc6             none   the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
-    lfast              loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
+    caliper            slower unbounded
+    xy2_100            slower unbounded
+    lfast              faster loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
+    lfast              slower unbounded
     tdm_audio          none   AN301 has no timing table: SCLK 12.288 MHz (p.2) is typical only, the example for 8 x 32-bit blocks at 48 kHz, with no minimum or maximum
+    dali               slower unbounded
     wiegand            none   the spec, Wikipedia's Wiegand interface page, gives no pulse width, interval or any other timing
+    swd_blind          slower unbounded
+    ir_nec             slower unbounded
     |}]
 ;;
 
