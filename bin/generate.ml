@@ -435,6 +435,14 @@ let load_check_step_rtl_command =
           C.create_exn ~name (Load_check.Step.hierarchical scope))]
 ;;
 
+(* a missing file ends the command with the system's message, not a backtrace *)
+let read_source file =
+  try In_channel.read_all file with
+  | Sys_error message ->
+    eprintf "%s\n" message;
+    exit 1
+;;
+
 (* Parses [FIELD=VALUE], going through the record's sexp so fields keep their names. *)
 let config_field =
   Command.Arg_type.create (fun text ->
@@ -616,7 +624,7 @@ let assemble_command =
       fun () ->
         let assembled =
           let open Or_error.Let_syntax in
-          let source = In_channel.read_all file in
+          let source = read_source file in
           let%bind program = Asm.assemble source in
           let%bind rows = timing_check ~config ~source program in
           let%map words = Asm.Program.words program in
@@ -692,7 +700,7 @@ let run_command =
           ~doc:"WORD,... the data memory from address 0"
       and vcd = flag "-vcd" (optional string) ~doc:"FILE write the pins there as a VCD" in
       fun () ->
-        let source = In_channel.read_all file in
+        let source = read_source file in
         let machine =
           let open Or_error.Let_syntax in
           let%bind program = Asm.assemble source in
@@ -751,7 +759,7 @@ let self_check_command =
       fun () ->
         let rows =
           let open Or_error.Let_syntax in
-          let%bind program = In_channel.read_all file |> Asm.assemble in
+          let%bind program = read_source file |> Asm.assemble in
           let%bind edges =
             Self_check.edges ?period ~config:Program_config.default program ~first ~last
           in
