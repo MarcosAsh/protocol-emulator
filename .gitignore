@@ -45,7 +45,6 @@ formal/bridge.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/self_check*.sv
-formal/tolerance_*
 formal/*_*/
 formal/proof_bundle.tar.gz
 formal/powerup/
