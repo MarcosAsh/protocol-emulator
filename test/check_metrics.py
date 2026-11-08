@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 SLOW = "timing__setup__ws__corner:nom_slow_1p08V_125C"
+POWER_NETS = ["VPWR", "VGND"]
 
 AT_LEAST_ZERO = [SLOW, "timing__hold__ws"]
 EXACTLY_ZERO = [
@@ -53,6 +54,23 @@ def failures(metrics):
         print(f"{'ok  ' if ok else 'FAIL'} {key} = {value}{limit}")
         if not ok:
             yield key
+
+
+def unpowered(metrics_path):
+    """What the IR drop step found unconnected on the routed layout, after the SRAM stripes.
+    metrics.json's power grid count predates them."""
+    logs = sorted(Path(metrics_path).parents[1].glob("*-openroad-irdropreport/*.log"))
+    log = logs[-1].read_text() if logs else ""
+    unconnected = re.findall(r".*PSM-00(?:38|39|69).*", log)
+    for line in unconnected[:10]:
+        print(f"FAIL {line.strip()}")
+    if unconnected:
+        yield f"{len(unconnected)} unconnected power shapes or pins"
+    for net in POWER_NETS:
+        ok = f"All shapes on net {net} are connected" in log
+        print(f"{'ok  ' if ok else 'FAIL'} {net} connected")
+        if not ok:
+            yield f"{net} connectivity"
 
 
 def versions(metrics_path):
@@ -100,9 +118,9 @@ def main():
         return csv(metrics, args.metrics)
     flow, pdk = versions(args.metrics)
     print(f"flow {flow or 'unknown'}, pdk {pdk or 'unknown'}")
-    failed = list(failures(metrics))
+    failed = list(failures(metrics)) + list(unpowered(args.metrics))
     if failed:
-        sys.exit(f"{len(failed)} of the signoff metrics failed: {', '.join(failed)}")
+        sys.exit(f"{len(failed)} of the signoff checks failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":
