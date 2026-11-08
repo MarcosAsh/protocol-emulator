@@ -35,7 +35,7 @@ WITNESS = re.compile(r"^(\w+): (\w+) (verified|fails)$")
 SYNC_RUN = re.compile(r"^cd sync_\w+ && if \[ -z '(.*?)' \]")
 COCOTB = re.compile(r"\*\* TESTS=(\d+) PASS=(\d+) FAIL=(\d+)")
 DECODE = re.compile(r"^(PASS|XFAIL|TOOTH|FAIL|MISSED) \w+: ")
-BOARD_LINE = re.compile(r"^(PASS|TOOTH|FAIL|MISSED) (\w+): (.*)$")
+BOARD_LINE = re.compile(r"^(PASS|PARTIAL|TOOTH|FAIL|MISSED) (\w+): (.*)$")
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -287,16 +287,19 @@ def summed(pattern, fmt):
 
 def board(names, single=False):
     """demo/witness.py check's verdicts on the test/board directories names gives. A PASS is
-    a pass, a refused tooth a tooth, and a fail or a tooth that passed is wrong. Each name
-    must have a PASS. With single, the note is the one PASS line's own words."""
+    a pass, a PARTIAL a pass named in the note, a refused tooth a tooth, and a fail or a tooth
+    that passed is wrong. Each name must have a PASS or PARTIAL. With single, the note is the
+    one line's own words."""
     def read(lines):
-        r, passed, bitstreams = Result(), {}, []
+        r, passed, partial, bitstreams = Result(), {}, [], []
         for _, text in lines:
             m = BOARD_LINE.match(text)
             if not m or m[2] not in names:
                 continue
-            if m[1] == "PASS":
+            if m[1] in ("PASS", "PARTIAL"):
                 r.passes += 1
+                if m[1] == "PARTIAL":
+                    partial.append(m[2])
                 passed[m[2]] = m[3]
                 bitstreams += re.findall(r"bitstream ([0-9a-f]{16})", m[3])
             elif m[1] == "TOOTH":
@@ -308,6 +311,8 @@ def board(names, single=False):
             r.note = next(iter(passed.values()))
         elif bitstreams and len(set(bitstreams)) == 1 and len(bitstreams) == len(names):
             r.note = f"all on bitstream {bitstreams[0]}"
+        if partial and not single:
+            r.note = "; ".join(filter(None, [r.note, "partial: " + ", ".join(partial)]))
         return r
     return read
 

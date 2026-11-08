@@ -208,11 +208,17 @@ def board_runs(inp, name):
     return len(seen | {w["sums_sha256"] for _, w in witness_rows(inp, name)})
 
 
+def proved(w):
+    """Windows proved out of all, split by where each limit comes from."""
+    n = sum(t["verdict"] == "proved" for t in w["timing"])
+    by = ", ".join("%d %s" % (k, s) for s, k in w.get("proved", {}).items() if k)
+    return "%d of %d" % (n, len(w["timing"])) + (" (%s)" % by if by else "")
+
+
 def witness_table(rows):
     body = [[esc(d), esc(w["time"]), esc(w["demo"]), esc(w["result"]), esc(w["commit"][:10]),
              # eth_rx judges frames, not timing windows
-             esc("%d of %d" % (sum(t["verdict"] == "proved" for t in w["timing"]),
-                               len(w["timing"])) if "timing" in w else "-"),
+             esc(proved(w) if "timing" in w else "-"),
              esc("; ".join(w["teeth"]))] for d, w in rows]
     return table(["test/board", "time", "demo", "result", "commit", "windows proved",
                   "teeth"], body, lambda r: "bad" if r[3] != "PASS" else None)
