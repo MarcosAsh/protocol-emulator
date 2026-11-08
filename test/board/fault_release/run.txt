@@ -1,0 +1,7 @@
+Not a transcript. fault.sh ran the demo on the pc and its output was not kept. What ran is
+fault.sh, fault_board.py (python/demo_fault_release.py) on Pico A and edges.py, as the run's
+SHA256SUMS.run hashed them when it ended. ledger.txt was written on 2026-11-08 from these:
+commit: ~/frozen-8x4/repo's HEAD, which its reflog checked out at 18:52:43 and never moved;
+fault.sh echoed it to the output that was not kept
+time: fault.sr's mtime on the pc, the end of the capture
+pico_a: fault.sh's P

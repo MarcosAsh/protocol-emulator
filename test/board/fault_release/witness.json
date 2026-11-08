@@ -1,0 +1,64 @@
+{
+  "demo": "fault_release",
+  "time": "2026-11-07T20:02:20",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "not recorded",
+  "sums_sha256": "5aee8aeed5dbb7a546c0ba9e45af85252147771644c510d248efa2aeb59c511c",
+  "log": {
+    "file": "fault.log",
+    "sha256": "6f40098db7b8507ba3e5b0e1b16b157d7b5c6931dfb4267a1d253ee5586e2cef"
+  },
+  "tally": {
+    "capture": {
+      "file": "fault.sr",
+      "sha256": "d520dc6df74a0afe7a6b38dcbc1b6801f2767b476b7c1ae98219830422b5fe96",
+      "rate_hz": 24000000,
+      "seconds": 4.0,
+      "analyser": "A",
+      "channels": {
+        "D4": "OUT0, fault_release's side-set pin",
+        "D6": "OUT2, engine 1's blink"
+      }
+    },
+    "out0_rise_s": 1.268595,
+    "out0_fall_s": 1.569499,
+    "out2_edges_after_fall": 25924003,
+    "status": {
+      "before": "0x0000",
+      "after": "0x0005",
+      "after a start": "0x0005",
+      "engine 1": "0x0000"
+    },
+    "pc": {
+      "after": 6,
+      "after a start": 6
+    }
+  },
+  "teeth": [
+    "OUT0 driven high again for 1 ms, 0.5 s after its fall",
+    "OUT2 held still from 1 s after OUT0's fall",
+    "the log's start leaving engine 0 running"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "test/fault_release.hex": "c904313f2580ae31603f4d10d7ce776f7d791977a7b1138cad8c6ffbba7fb7d5",
+    "test/fault_release.cert.hex": "86b59daec6dbb138064b7b6801fe424dc3369a3199a6abd85d6ed2e98df6af01",
+    "test/blink.hex": "166009d4ef0df198b3594ca619a9df52aafb182e523478c46b4e6e80b39ef8a3",
+    "test/blink.cert.hex": "e61a1b848fe5b039640f0b734601065f75945eaef941cbc41a9ca269a90d6087"
+  },
+  "host_scripts": {
+    "python/demo_fault_release.py": "844d3e0b12070b0a27f08309a1a3f17ceaf5792c25d6e207d407e24e1cc071c2"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, analyser A (fx2lafw) at 24 MS/s on OUT0 and OUT2",
+  "scope": "OUT0 and OUT2 as the analyser saw them and both engines' status as Pico A read it, in one run of fault_release",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "the run went through fault.sh, not demo/ledger.py: fault.sr, fault.log, edges.txt and SHA256SUMS.run are its own, and ledger.txt, run.txt and SHA256SUMS were written on 2026-11-08 from them (run.txt says how)",
+    "fault_board.py ran from outside the repo at 87f76069, and python/demo_fault_release.py is it byte for byte, held to SHA256SUMS.run",
+    "OUT0 is an output and the program's next instruction sets it low too, so the capture can't tell the chip letting go of it from the program driving it low. It shows engine 0 stopped driving it high and that the start the script sends after did not drive it again"
+  ]
+}

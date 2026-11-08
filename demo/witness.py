@@ -8,6 +8,7 @@
 #        python3 demo/witness.py write LEDGER_RUN test/board/RUN [--bitstream FROM]
 
 import argparse
+import ast
 import hashlib
 import json
 import math
@@ -1947,6 +1948,124 @@ def kvb_says(tally):
         ", ".join("%d %s" % (n, o) for o, n in tally["outcomes"].items()))
 
 
+# fault_release's side-set pin and blink's set pin on analyser A
+FAULT_OUT0, FAULT_OUT2 = 4, 6
+# blink's longest level, set pins 0 [2] then jmp
+BLINK_LEVEL = 5 / 48e6
+# the script starts engine 0 again 10 ms after the push, well inside this
+FAULT_LOW = 1.0
+FAULT_SCRIPT = "python/demo_fault_release.py"
+
+
+def fault_run(directory):
+    rate, _, samples = sigrok.read(Path(directory) / "fault.sr")
+    return {"rate": rate, "samples": samples, "log": text(directory, "fault.log"),
+            "sums": recorded(text(directory, "SHA256SUMS.run")),
+            "kept": {name: sha256((Path(directory) / name).read_bytes())
+                     for name in ("fault.sr", "fault.log")},
+            "fields": ledger_fields(directory)}
+
+
+def words_of(script, name):
+    """Returns the (words, certificate) the script assigns to name."""
+    return tuple(map(list, ast.literal_eval(re.search(r"^%s = (.*)$" % name, script, re.M)[1])))
+
+
+def hex_words(path):
+    return [int(line, 16) for line in in_tree(path).decode().split()]
+
+
+def fault_judge(run):
+    """Engine 0 underflows, so OUT0 rises and falls once and stays low past the script's
+    start after it. Engine 1's blink toggles OUT2 throughout, and the log has engine 0
+    halted with the underflow at one pc through that start."""
+    rate, samples, problems = run["rate"], run["samples"], []
+    at, to = sigrok.edges(samples, FAULT_OUT0)
+    if to.tolist() != [1, 0] or samples[0] >> FAULT_OUT0 & 1:
+        problems.append("OUT0 has %d edges, not one rise and one fall" % len(at))
+        rise = fall = len(samples)
+    else:
+        rise, fall = at.tolist()
+    if (len(samples) - fall) / rate < FAULT_LOW:
+        problems.append("OUT0 is low only %.3f s after its fall" % ((len(samples) - fall) / rate))
+    blink, _ = sigrok.edges(samples, FAULT_OUT2)
+    if not len(blink) or blink[0] > fall:
+        problems.append("OUT2 toggles only after OUT0's fall")
+    else:
+        # the level after the last edge runs to the capture's end, so a stop there shows
+        held = np.diff(np.append(blink, len(samples)))
+        i = int(np.argmax(held))
+        if span(int(held[i]), rate)[0] > BLINK_LEVEL:
+            problems.append("OUT2 holds a level %.6f s from %.3f s, longer than blink's 5 "
+                            "cycles" % (span(int(held[i]), rate)[0], blink[i] / rate))
+    status = dict(re.findall(r"^(before|after|after a start|engine 1) 0x(\w+)", run["log"], re.M))
+    pcs = dict(re.findall(r"^(after|after a start) 0x\w+ pc (\d+)", run["log"], re.M))
+    if len(status) != 4 or len(pcs) != 2:
+        problems.append("fault.log lacks a status line")
+    else:
+        s = {k: int(v, 16) & 0x3D for k, v in status.items()}
+        if s["before"] or s["engine 1"]:
+            problems.append("an engine faulted or halted besides engine 0's underflow")
+        if s["after"] != 0x05:
+            problems.append("engine 0 did not halt with an underflow: STATUS 0x%s" % status["after"])
+        if s["after a start"] != 0x05 or pcs["after"] != pcs["after a start"]:
+            problems.append("a start ran engine 0 again: STATUS 0x%s pc %s" % (
+                status["after a start"], pcs["after a start"]))
+    if run["log"].splitlines()[-1:] != ["PASS"]:
+        problems.append("fault.log does not end in PASS")
+    problems += ["%s is not the one the run's SHA256SUMS.run lists" % name
+                 for name, sha in run["kept"].items() if run["sums"].get(name) != sha]
+    if [sha for name, sha in run["sums"].items() if name.endswith(".bit")] != [
+            run["fields"]["bitstream_sha256"]]:
+        problems.append("SHA256SUMS.run names another bitstream than the ledger's")
+    script = in_tree(FAULT_SCRIPT)
+    if run["sums"].get("fault_board.py") != sha256(script):
+        problems.append("%s is not fault_board.py as the run hashed it" % FAULT_SCRIPT)
+    for name, firmware in [("FAULT", "fault_release"), ("BLINK", "blink")]:
+        if words_of(script.decode(), name) != (hex_words("test/%s.hex" % firmware),
+                                               hex_words("test/%s.cert.hex" % firmware)):
+            problems.append("%s's %s is not test/%s.hex" % (FAULT_SCRIPT, name, firmware))
+    tally = {"capture": {"file": "fault.sr", "sha256": run["kept"]["fault.sr"],
+                         "rate_hz": int(rate), "seconds": len(samples) / rate,
+                         "analyser": "A",
+                         "channels": {"D4": "OUT0, fault_release's side-set pin",
+                                      "D6": "OUT2, engine 1's blink"}},
+             "out0_rise_s": round(rise / rate, 6), "out0_fall_s": round(fall / rate, 6),
+             "out2_edges_after_fall": int((blink > fall).sum()),
+             "status": {k: "0x" + v for k, v in status.items()},
+             "pc": {k: int(v) for k, v in pcs.items()}}
+    return tally, problems
+
+
+def fault_teeth(directory):
+    run = fault_run(directory)
+    rate, samples = run["rate"], run["samples"]
+    fall = int(sigrok.edges(samples, FAULT_OUT0)[0][-1])
+
+    def bitten(what, **changes):
+        wrong = fault_judge(dict(run, **changes))[1]
+        return what, wrong[0] if wrong else None
+
+    later = fall + round(0.5 * rate)
+    still = fall + round(1.0 * rate)
+    return [
+        bitten("OUT0 driven high again for 1 ms, 0.5 s after its fall",
+               samples=changed(samples, FAULT_OUT0, later, later + round(1e-3 * rate), 1)),
+        bitten("OUT2 held still from 1 s after OUT0's fall",
+               samples=changed(samples, FAULT_OUT2, still, len(samples),
+                               samples[still] >> FAULT_OUT2 & 1)),
+        bitten("the log's start leaving engine 0 running",
+               log=re.sub(r"(?m)^after a start 0x\w+", "after a start 0x0000", run["log"])),
+    ]
+
+
+def fault_says(tally):
+    return ("OUT0 fell at %.3f s and stayed low, OUT2 toggled %d times after, engine 0 halted "
+            "with STATUS %s at pc %d through a start" % (
+                tally["out0_fall_s"], tally["out2_edges_after_fall"],
+                tally["status"]["after a start"], tally["pc"]["after a start"]))
+
+
 LOG_DEMOS = {
     "eth_rx": LogDemo(
         ("test/ethernet_rx.hex", "test/ethernet_rx.cert.hex"),
@@ -1967,6 +2086,12 @@ LOG_DEMOS = {
         lambda directory: kvb_judge(kvb_run(directory)), kvb_teeth, kvb_says,
         kept=("results.jsonl", "board.log", "summary.txt", "verdicts.tsv", "SHA256SUMS.inputs",
               "kvb.sh", "kvb-small.out", "kvb-big.out")),
+    "fault_release": LogDemo(
+        ("test/fault_release.hex", "test/fault_release.cert.hex", "test/blink.hex",
+         "test/blink.cert.hex"), (FAULT_SCRIPT,),
+        "analyser A (fx2lafw) at 24 MS/s on OUT0 and OUT2",
+        lambda directory: fault_judge(fault_run(directory)), fault_teeth, fault_says,
+        kept=("fault.log", "fault.sr", "SHA256SUMS.run", "fault.sh", "edges.py", "edges.txt")),
 }
 
 

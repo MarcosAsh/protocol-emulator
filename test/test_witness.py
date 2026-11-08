@@ -2,7 +2,7 @@
 """Checks that demo/witness.py actually rejects bad input, on a copy of
 test/board/self_timing. Each of these must fail: an edited file, a SHA256SUMS regenerated
 to match it, firmware the board didn't run, and a witness.json that claims more than the
-capture shows. The kernel-vs-board judge gets what its teeth don't try."""
+capture shows. The kernel-vs-board and fault judges get what their teeth don't try."""
 
 import hashlib
 import json
@@ -88,6 +88,23 @@ class KernelVsBoard(unittest.TestCase):
         problems = self.problems(
             lambda run: run["variants"][0].update(chip_model="refused: pc 9: in time"))
         self.assertIn("uart_tx k=0: MISMATCH the chip ran what its model refuses", problems)
+
+
+class FaultRelease(unittest.TestCase):
+    def test_another_script(self):
+        tree = witness.in_tree
+
+        def edited(path):
+            data = tree(path)
+            return data.replace(b"61444", b"61445", 1) if path == witness.FAULT_SCRIPT else data
+
+        witness.in_tree = edited
+        self.addCleanup(setattr, witness, "in_tree", tree)
+        problems = witness.fault_judge(witness.fault_run(ROOT / "test/board/fault_release"))[1]
+        self.assertIn("python/demo_fault_release.py is not fault_board.py as the run hashed it",
+                      problems)
+        self.assertIn("python/demo_fault_release.py's FAULT is not test/fault_release.hex",
+                      problems)
 
 
 if __name__ == "__main__":
