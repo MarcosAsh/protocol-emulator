@@ -3,7 +3,7 @@
 # (faults stick until reset). A shot prints a heading, its essential lines and PASS or FAIL.
 # Full logs go to RUN/<shot>/. Run it through demo/video.sh, which takes the bench lock.
 #   late      test/uart_tx.asm with `out pins, 1 [13]`, the sed in docs/getting-started.md,
-#             which the chip's check refuses, leaving the engine halted
+#             which the chip refuses at pc 8 (reason 0, in time), leaving the engine halted
 #   fixed     the same with [12], accepted at slack 0, run and decoded by sigrok on OUT0
 #   heldout, keyboard  DALI and the USB keyboard, through demo/ledger.py
 # demo/video.sh assembles late and fixed on the machine with the OxCaml switch, into a PROGRAMS json
@@ -23,8 +23,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# reason numbers are the index of the failed check
-REASONS = {0: "a deadline wait may be missed"}
+# reason numbers are the index of the failed check, named as in Load_check.names
+REASONS = {0: "in time"}
 FILES = ["python/protocol_emulator.py", "python/pico_board.py", "python/demo_video.py"]
 DETACH = "from machine import Pin; Pin(8, Pin.OUT, value=1)"
 # 16 cycles a bit at 48 MHz
@@ -32,6 +32,8 @@ SENT = b"video"
 BAUD = 3_000_000
 # the `out` delay of the late copy, and the most the assembler accepts
 LATE_K, FIXED_K = 13, 12
+# the chip refuses the late copy at the bit loop's deadline wait, reason in time
+LATE_PC, LATE_REASON = 8, 0
 SOURCE = "test/uart_tx.asm"
 # the analyser needs this long to start sampling
 ARM_S = 3
@@ -71,11 +73,27 @@ def assemble(generate, k, check):
     said = (summary.stdout + summary.stderr).splitlines()
     line = next((x for x in said if "deadline waits" in x), "")
     return {"words": hex_words(words.stdout), "certificate": hex_words(certificate.stdout),
-            "summary": line.replace(f.name + ": ", "")}
+            "summary": line.replace(f.name + ": ", ""),
+            "exit": {"words": words.returncode, "certificate": certificate.returncode,
+                     "summary": summary.returncode}}
 
 
 def programs(generate):
     return {"late": assemble(generate, LATE_K, False), "fixed": assemble(generate, FIXED_K, True)}
+
+
+def unassembled(which, v):
+    """Returns what is wrong with the late or fixed copy as assembled. Both need words and a
+    certificate, and the assembler's own check must refuse late and accept fixed."""
+    exits = v.get("exit", {})
+    wrong = ["%s: assemble for its %s exited %s" % (which, step, exits.get(step))
+             for step in ("words", "certificate") if exits.get(step) != 0]
+    if not v["words"] or not v["certificate"]:
+        wrong.append("%s: no words or no certificate" % which)
+    refused = exits.get("summary") != 0
+    if refused != (which == "late"):
+        wrong.append("%s: the assembler's check %s it" % (which, "refuses" if refused else "accepts"))
+    return wrong
 
 
 def upload(log):
@@ -103,6 +121,9 @@ def shot_late(args, log, shot_dir):
     print("test/uart_tx.asm with `out pins, 1 [13]`, its own certificate (%d words)"
           % len(v["certificate"]))
     print("assembler: %s" % v["summary"])
+    if wrong := unassembled("late", v):
+        print("\n".join(wrong))
+        return False
     upload(log)
     got = reset(args, log) and on_pico(args, log, "late", [])
     if not got or got[0] != "refused":
@@ -110,9 +131,11 @@ def shot_late(args, log, shot_dir):
         return False
     pc, reason, halted = int(got[1]), int(got[2]), int(got[3])
     print("chip check: REFUSED at pc %d, reason %d (%s)" % (
-        pc, reason, REASONS.get(reason, "check %d failed" % reason)))
+        pc, reason, REASONS.get(reason, "check %d" % reason)))
+    if (pc, reason) != (LATE_PC, LATE_REASON):
+        print("expected pc %d, reason %d (%s)" % (LATE_PC, LATE_REASON, REASONS[LATE_REASON]))
     print("engine 0 after a start: %s" % ("still halted" if halted else "RUNNING"))
-    return bool(halted)
+    return (pc, reason) == (LATE_PC, LATE_REASON) and bool(halted)
 
 
 def pico_b_idle(log):
@@ -136,6 +159,9 @@ def shot_fixed(args, log, shot_dir):
     print("test/uart_tx.asm with `out pins, 1 [12]`, its own certificate (%d words)"
           % len(v["certificate"]))
     print("assembler: %s" % v["summary"])
+    if wrong := unassembled("fixed", v):
+        print("\n".join(wrong))
+        return False
     pico_b_idle(log)
     if not reset(args, log):
         print("the bitstream did not load")
@@ -211,7 +237,10 @@ def main():
     p.add_argument("--programs", required=True)
     args = p.parse_args()
     if args.shot == "assemble":
-        Path(args.programs).write_text(json.dumps(programs(args.generate)))
+        made = programs(args.generate)
+        if wrong := [w for which, v in made.items() for w in unassembled(which, v)]:
+            sys.exit("\n".join(wrong))
+        Path(args.programs).write_text(json.dumps(made))
         return
     if not (args.run and args.bitstream):
         sys.exit("--run and --bitstream are needed")

@@ -204,8 +204,12 @@ def keep_bitstream(bitstream, runs, bit_hash):
 
 
 def commit():
+    """Returns HEAD, +dirty if tracked files changed. A copy of the tree without .git, as
+    demo/video.sh sends, is named by LEDGER_COMMIT, which the sender works out the same way."""
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
-                          text=True).stdout.strip() or "unknown"
+                          text=True).stdout.strip()
+    if not head:
+        return os.environ.get("LEDGER_COMMIT", "unknown")
     # don't count the ledger's own lines or the bench times that demo/outside.sh marks
     dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--", ".",
                             ":!demo/ledger.tsv", ":!demo/speed.tsv"], cwd=ROOT,

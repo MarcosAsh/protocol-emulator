@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs the video's shots (demo/video.py) on the bench machine under its lock, outside the
 # tt-ci window, and copies the run back to
-# ~/.local/share/protocol-emulator/board-evidence/<date>/video/<time>/.
+# ~/.local/share/protocol-emulator/board-evidence/<date>/video/<time>/. The copy of the tree
+# goes without .git, so the commit goes with it for demo/ledger.py to record.
 # Usage: demo/video.sh late|fixed|heldout|keyboard|all
 #   PC=marcos@192.168.0.219 A_PORT=3-3 B_PORT=3-2 (the analysers' USB ports)
 set -euo pipefail
@@ -12,17 +13,23 @@ stamp=$(date +%Y%m%d-%H%M%S)
 dest=$HOME/.local/share/protocol-emulator/board-evidence/$(date +%F)/video/$stamp
 mkdir -p "$dest"
 cd "$(git rev-parse --show-toplevel)"
+# as demo/ledger.py's commit() has it
+commit=$(git rev-parse HEAD)
+if [ -n "$(git status --porcelain --untracked-files=no -- . ':!demo/ledger.tsv' ':!demo/speed.tsv')" ]; then
+    commit=$commit+dirty
+fi
 git ls-files -z --cached --others --exclude-standard | rsync -a --mkpath --from0 --files-from=- ./ "$PC:video/repo/"
 # assembled here, so the bench machine needs only the words
 opam exec --switch 5.2.0+ox -- dune build --root . bin/generate.exe
 python3 demo/video.py assemble _build/default/bin/generate.exe --programs "$dest/programs.json"
 rsync -a --mkpath "$dest/programs.json" "$PC:video/runs/$stamp/programs.json"
 trap 'rsync -a "$PC:video/runs/$stamp/" "$dest/" 2>/dev/null || true' EXIT
-ssh -T "$PC" bash -s -- "$shot" "$stamp" "${A_PORT:-3-3}" "${B_PORT:-3-2}" <<'REMOTE' | tee "$dest/output.txt"
+ssh -T "$PC" bash -s -- "$shot" "$stamp" "${A_PORT:-3-3}" "${B_PORT:-3-2}" "$commit" <<'REMOTE' | tee "$dest/output.txt"
 set -eu
-shot=$1 stamp=$2 a_port=$3 b_port=$4
+shot=$1 stamp=$2 a_port=$3 b_port=$4 commit=$5
 hour=$(date +%H%M)
 if [ "$hour" -ge 2250 ] || [ "$hour" -lt 0750 ]; then echo "tt-ci window, not starting"; exit 4; fi
+echo "commit $commit"
 N23=github:NixOS/nixpkgs/205fd4226592cc83fd4c0885a3e4c9c400efabb5
 mkdir -p "$HOME/video/runs/$stamp"
 exec flock -w 3600 "$HOME/pe-bench/lock" nix shell nixpkgs#git nixpkgs#mpremote nixpkgs#picotool \
@@ -30,6 +37,7 @@ exec flock -w 3600 "$HOME/pe-bench/lock" nix shell nixpkgs#git nixpkgs#mpremote 
     --command bash -c '
 set -eu
 shot=$1 stamp=$2 a_port=$3 b_port=$4
+export LEDGER_COMMIT=$5
 B=$HOME/frozen-8x4
 cd "$HOME/video/repo"
 np=$(dirname $(dirname $(readlink -f $(command -v f2py))))
@@ -44,5 +52,5 @@ python3 demo/video.py "$shot" --run "$HOME/video/runs/$stamp" \
     --bitstream "$B/bit/frozen-67386afb.bit" --programs "$HOME/video/runs/$stamp/programs.json" || status=$?
 openFPGALoader -b icepi-zero -r > /dev/null 2>&1 || true
 exit $status
-' video "$shot" "$stamp" "$a_port" "$b_port"
+' video "$shot" "$stamp" "$a_port" "$b_port" "$commit"
 REMOTE
