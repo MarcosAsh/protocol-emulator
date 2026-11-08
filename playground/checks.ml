@@ -65,11 +65,17 @@ let check ?period ?period_floor ~single_capture_edge ~config source : Report.t =
            ^ Error.to_string_hum error
        }
      | Ok timed ->
+       let chip = Chip_verdict.of_timed timed in
        { report with
-         verdict = "accepted"
+         verdict =
+           (match chip with
+            | Accepted _ -> "accepted"
+            | Refused _ | No_certificate _ ->
+              "accepted by the kernel, refused by the chip")
        ; detail =
            Analyser.Verdict.to_string (Timed_program.verdict timed)
-           ^ "\nkernel: accepted, so no deadline is missed by the step lemma"
+           ^ "\nkernel: accepted, so no deadline is missed by the step lemma\n"
+           ^ Chip_verdict.to_string chip
        })
 ;;
 
