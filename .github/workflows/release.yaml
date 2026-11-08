@@ -108,10 +108,12 @@ jobs:
         run: |
           runs=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$GITHUB_SHA&per_page=100" \
             --jq '.workflow_runs[] | select(.name == "ocaml") | .id')
+          # the fpga job is a matrix, so every leg must pass
           green=""
           for id in $runs; do
-            green+=$(gh api "repos/${{ github.repository }}/actions/runs/$id/jobs?per_page=100" \
-              --jq '.jobs[] | select(.name == "fpga" and .conclusion == "success") | .id')
+            legs=$(gh api --paginate "repos/${{ github.repository }}/actions/runs/$id/jobs?per_page=100" \
+              --jq '.jobs[] | select(.name == "fpga" or (.name | startswith("fpga ("))) | .conclusion')
+            if [ "$(sort -u <<< "$legs")" = success ]; then green+=$id; fi
           done
           if [ -z "$green" ]; then
             echo "::$LEVEL::no green fpga job in the ocaml workflow at $GITHUB_SHA yet"
