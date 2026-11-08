@@ -30,7 +30,7 @@ competition, built on IHP CMOS5L through Tiny Tapeout, in 8 x 4 tiles at 48 MHz.
     const text = (path) => fetch(path).then((r) => (r.ok ? r.text() : ""), () => "");
     const page = (path) => text(path).then((t) => new DOMParser().parseFromString(t, "text/html"));
     const results = page("results/").then((d) => {
-      const tally = [...d.querySelectorAll("body > p:not(.muted)")][0];
+      const tally = d.getElementById("tally");
       return tally ? tally.textContent.replace(/\.$/, "") : "";
     });
     const corpus = page("corpus/").then((d) => d.querySelectorAll('table a[href$=".html"]').length);
@@ -39,9 +39,9 @@ competition, built on IHP CMOS5L through Tiny Tapeout, in 8 x 4 tiles at 48 MHz.
       const tiles = /^\s*tiles:\s*"?(\d+x\d+)/m.exec(yaml);
       const viewer = document.getElementById("viewer");
       const pdk = viewer ? new URL(viewer.href).searchParams.get("pdk") || "" : "";
-      const proof = /(\d+) (proved for all time)/.exec(tally);
+      const proof = /(\d+) proved for all time/.exec(tally);
       if (protocols) stat(protocols, "in the corpus");
-      if (proof) stat(proof[1], proof[2]);
+      if (proof) stat(proof[1], "claims proved for all time");
       if (hz) stat(Number(hz[1]) / 1e6, "MHz clock");
       if (tiles) stat(tiles[1], "tiles, IHP " + pdk.replace(/^ihp-sg13/, ""));
       if (tally) {
