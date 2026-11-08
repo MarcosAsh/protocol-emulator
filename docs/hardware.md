@@ -20,6 +20,9 @@ The [live die](https://marcosash.github.io/protocol-emulator/die/) lights the ce
 wires as they switch. The last green gds run on main is also in Tiny Tapeout's
 [GDS viewer](https://gds-viewer.tinytapeout.com/?pdk=ihp-sg13cmos5l&model=https%3A%2F%2Fmarcosash.github.io%2Fprotocol-emulator%2Ftinytapeout.oas).
 
+If the shuttle takes only 6 x 4 designs, the fallback is the 6 x 4 chip at 3160a6c, whose GDS is kept in
+release [evidence-2026-10-22](https://github.com/MarcosAsh/protocol-emulator/releases/tag/evidence-2026-10-22).
+
 ## Icepi Zero
 
 `make -C icepi` builds the chip for an Icepi Zero (ECP5 LFE5U-25F) with yosys and nextpnr:
