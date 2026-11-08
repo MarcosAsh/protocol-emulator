@@ -121,12 +121,15 @@ let of_program
   |> of_table ?registers_whole ~config ~words
 ;;
 
-(* 48 bits as three words, top first *)
+(* 48 bits as three words, top first, in [Bits] since the playground's ints have 32 bits *)
 let split3 bits =
-  [ (bits lsr 32) land 0xffff; (bits lsr 16) land 0xffff; bits land 0xffff ]
+  Bits.split_msb bits ~part_width:Isa.data_bits |> List.map ~f:Bits.to_unsigned_int
 ;;
 
-let join3 memory at = (memory at lsl 32) lor (memory (at + 1) lsl 16) lor memory (at + 2)
+let join3 memory at =
+  List.init 3 ~f:(fun i -> Bits.of_unsigned_int ~width:Isa.data_bits (memory (at + i)))
+  |> Bits.concat_msb
+;;
 
 (* an entry from the top of its three words, first field highest *)
 let pack (e : int Entry.t) =
@@ -134,20 +137,21 @@ let pack (e : int Entry.t) =
     Entry.map2 Entry.port_widths e ~f:(fun width v -> Bits.of_unsigned_int ~width v)
     |> Entry.Of_bits.pack ~rev:true
   in
-  Bits.to_unsigned_int bits lsl unused_bits
+  Bits.concat_msb [ bits; Bits.zero unused_bits ]
 ;;
 
 let unpack bits =
-  Bits.of_unsigned_int ~width:(3 * Isa.data_bits) bits
-  |> Bits.drop_bottom ~width:unused_bits
+  Bits.drop_bottom bits ~width:unused_bits
   |> Entry.Of_bits.unpack ~rev:true
   |> Entry.map ~f:Bits.to_unsigned_int
 ;;
 
 let to_words t =
+  let timer = Bits.of_unsigned_int ~width:timer_bits in
   [ List.length t.entries; List.length t.wide ]
   @ List.concat_map t.entries ~f:(fun e -> split3 (pack e))
-  @ List.concat_map t.wide ~f:(fun (lo, hi) -> split3 ((lo lsl timer_bits) lor hi))
+  @ List.concat_map t.wide ~f:(fun (lo, hi) ->
+    split3 (Bits.concat_msb [ timer lo; timer hi ]))
   @ List.concat_map t.narrow ~f:(fun (lo, hi) -> [ lo; hi ])
 ;;
 
@@ -334,7 +338,8 @@ let walk
       then whole
       else (
         let bits = join3 memory (wide_at + (3 * (i - 1))) in
-        bits lsr timer_bits, bits land timer_ones)
+        ( Bits.to_unsigned_int (Bits.sel_top bits ~width:timer_bits)
+        , Bits.to_unsigned_int (Bits.sel_bottom bits ~width:timer_bits) ))
     in
     let narrow i =
       if i = 0
