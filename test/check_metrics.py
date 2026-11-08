@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Fails when LibreLane's metrics miss timing or signoff. The flow itself stays green on
-# negative slack, so we check here.
+# negative slack, so we check here. Also records the run's flow and PDK versions.
 # Usage: python3 test/check_metrics.py [--csv] runs/wokwi/final/metrics.json
 #        python3 test/check_metrics.py --fpga test/fpga_kit.log
 import argparse
@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 SLOW = "timing__setup__ws__corner:nom_slow_1p08V_125C"
 
@@ -18,6 +19,11 @@ EXACTLY_ZERO = [
     "klayout__drc_error__count",
     "design__lvs_error__count",
 ]
+# main's green run 42268510223 had these, so any more is new
+AT_MOST = {
+    "design__max_cap_violation__count": 1,
+    "design__max_slew_violation__count": 8,
+}
 
 COLUMNS = [
     ("setup_slow_ns", SLOW),
@@ -26,32 +32,46 @@ COLUMNS = [
     ("std_cells", "design__instance__count__stdcell"),
     ("utilisation", "design__instance__utilization"),
     ("antenna_nets", "antenna__violating__nets"),
+    ("max_cap", "design__max_cap_violation__count"),
+    ("max_slew", "design__max_slew_violation__count"),
 ]
 
 
 def failures(metrics):
-    for key in AT_LEAST_ZERO + EXACTLY_ZERO:
+    for key in AT_LEAST_ZERO + EXACTLY_ZERO + list(AT_MOST):
         value = metrics.get(key)
         if value is None:
             # a flow that stopped early leaves the metric out, and that isn't a pass
             ok = False
         elif key in AT_LEAST_ZERO:
             ok = value >= 0
+        elif key in AT_MOST:
+            ok = value <= AT_MOST[key]
         else:
             ok = value == 0
-        print(f"{'ok  ' if ok else 'FAIL'} {key} = {value}")
+        limit = f" (at most {AT_MOST[key]})" if key in AT_MOST else ""
+        print(f"{'ok  ' if ok else 'FAIL'} {key} = {value}{limit}")
         if not ok:
             yield key
 
 
-def csv(metrics):
+def versions(metrics_path):
+    """FLOW_VERSION and PDK_VERSION from the run's pdk.json, or blanks."""
+    path = Path(metrics_path).parents[1] / "pdk.json"
+    pdk = json.loads(path.read_text()) if path.exists() else {}
+    return pdk.get("FLOW_VERSION", ""), pdk.get("PDK_VERSION", "")
+
+
+def csv(metrics, metrics_path):
     """Print a header and one row, for logging the chip over time."""
     commit = subprocess.run(
         ["git", "log", "-1", "--format=%h,%cs"], capture_output=True, text=True
     ).stdout.strip()
     values = [metrics.get(key, "") for _, key in COLUMNS]
     values = [round(v, 3) if isinstance(v, float) else v for v in values]
-    print("commit,date," + ",".join(name for name, _ in COLUMNS))
+    values += versions(metrics_path)
+    names = [name for name, _ in COLUMNS] + ["flow_version", "pdk_version"]
+    print("commit,date," + ",".join(names))
     print(commit + "," + ",".join(str(v) for v in values))
 
 
@@ -77,7 +97,9 @@ def main():
     with open(args.metrics) as f:
         metrics = json.load(f)
     if args.csv:
-        return csv(metrics)
+        return csv(metrics, args.metrics)
+    flow, pdk = versions(args.metrics)
+    print(f"flow {flow or 'unknown'}, pdk {pdk or 'unknown'}")
     failed = list(failures(metrics))
     if failed:
         sys.exit(f"{len(failed)} of the signoff metrics failed: {', '.join(failed)}")
