@@ -1,14 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # The video's four shots on the real board, each from a fresh load of the frozen bitstream
-# (faults stick until reset). A shot prints a heading, its essential lines and PASS or FAIL;
-# full logs go to RUN/<shot>/. Run it through demo/video.sh, which takes the bench lock.
-#   late      test/uart_tx.asm with `out pins, 1 [13]`, the sed of docs/getting-started.md: the
-#             chip's check refuses it and the engine stays halted
-#   fixed     the same with [12], which the assembler accepts at slack 0: it runs and sigrok
-#             decodes OUT0
+# (faults stick until reset). A shot prints a heading, its essential lines and PASS or FAIL.
+# Full logs go to RUN/<shot>/. Run it through demo/video.sh, which takes the bench lock.
+#   late      test/uart_tx.asm with `out pins, 1 [13]`, the sed in docs/getting-started.md,
+#             which the chip's check refuses, leaving the engine halted
+#   fixed     the same with [12], accepted at slack 0, run and decoded by sigrok on OUT0
 #   heldout, keyboard  DALI and the USB keyboard, through demo/ledger.py
-# Both programs are assembled from test/uart_tx.asm by generate.exe, on the machine with the
-# OxCaml switch (demo/video.sh does it), into a PROGRAMS json the bench machine reads.
+# demo/video.sh assembles late and fixed on the machine with the OxCaml switch, into a PROGRAMS json
+# for the bench machine.
 # Usage: python3 demo/video.py assemble GENERATE.EXE --programs PROGRAMS
 #        PICO=id:<serial> python3 demo/video.py late|fixed|heldout|keyboard|all --run DIR
 #            --bitstream BIT --programs PROGRAMS
@@ -117,7 +116,7 @@ def shot_late(args, log, shot_dir):
 
 
 def pico_b_idle(log):
-    """Puts Pico B on MicroPython unless it is: its GP1 shares OUT0's net."""
+    """Puts Pico B on idle MicroPython, as its GP1 shares OUT0's net."""
     ports = os.listdir("/dev/serial/by-id") if os.path.isdir("/dev/serial/by-id") else []
     serial = os.environ["PICO_B_SERIAL"].lower()
     if not any("micropython" in p.lower() and serial in p.lower() for p in ports):

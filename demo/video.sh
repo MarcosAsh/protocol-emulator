@@ -13,7 +13,7 @@ dest=$HOME/.local/share/protocol-emulator/board-evidence/$(date +%F)/video/$stam
 mkdir -p "$dest"
 cd "$(git rev-parse --show-toplevel)"
 git ls-files -z --cached --others --exclude-standard | rsync -a --mkpath --from0 --files-from=- ./ "$PC:video/repo/"
-# the OxCaml switch assembles the two programs; the bench machine needs only the words
+# assembled here, so the bench machine needs only the words
 opam exec --switch 5.2.0+ox -- dune build --root . bin/generate.exe
 python3 demo/video.py assemble _build/default/bin/generate.exe --programs "$dest/programs.json"
 rsync -a --mkpath "$dest/programs.json" "$PC:video/runs/$stamp/programs.json"

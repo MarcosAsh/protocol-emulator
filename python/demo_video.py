@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# The video's first two shots on Pico A (MicroPython): the chip's check judges a uart_tx on
-# engine 0. A refused program must stay halted; an accepted one sends data on OUT0 with no
-# fault. demo/video.py supplies the words and reads the RESULT line.
+# The video's first two shots on Pico A (MicroPython), where the chip's check judges a uart_tx
+# on engine 0. A refused program must stay halted, and an accepted one sends data on OUT0 with
+# no fault. demo/video.py supplies the words and reads the RESULT line.
 
 import time
 
