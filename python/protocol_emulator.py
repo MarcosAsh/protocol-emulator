@@ -39,10 +39,25 @@ STAMP_PINS_HI = 0x51
 # broken assumption
 FAULTS = 0x403C
 PROGRAM_WORDS = 512
+STAMP_DEPTH = 4
+
+# REJECT_REASON's codes: the first conjunct of the kernel's check that fails, in
+# Kernel.Conjuncts order, or one of the checker's own. test/python/write_check_reasons.ml
+# prints the same names from the OCaml.
+_HOLDS = ["phase", "offset", "period", "x", "y", "arm", "captured", "awaiting", "edge_a",
+          "edge_b"]
+REASONS = dict(enumerate(["in time", "a spaced", "b spaced"] + ["next " + f for f in _HOLDS]
+                         + ["target " + f for f in _HOLDS]))
+REASONS.update({29: "aborted", 30: "a table entry out of order", 31: "a table entry left over"})
 
 
 class Refused(Exception):
-    """The chip's load check refused the program. Carries the pc and the reason."""
+    """The chip's load check refused the program. args ends with the pc and the reason's
+    code, which REASONS names."""
+
+    def __str__(self):
+        pc, reason = self.args[-2:]
+        return "refused at pc %d: %s" % (pc, REASONS.get(reason, reason))
 
 # Engine.Config order, the nth at CONFIG + n. None is a reserved register, kept so later
 # fields stay where existing hosts write them.
@@ -132,14 +147,19 @@ class Host:
         self.load_data(certificate, base)
         self.check(base, loaded, single_edge, floor)
 
-    def check(self, base=0, loaded=None, single_edge=False, floor=False):
+    def check(self, base=0, loaded=None, single_edge=False, floor=False, polls=1000):
         """Like certify, but against a certificate the data memory already holds, e.g. after
-        a patch while another core runs and no data write can land."""
+        a patch while another core runs and no data write can land. Raises OSError if the
+        check still reads busy after polls reads, as it does with MISO stuck high."""
         for reg, words in check_writes(base, loaded, single_edge, floor):
             self.write(reg, words)
-        status = self.read(CHECK_STATUS)[0]
-        while status & 1:
+        # the longest walk (usb_device, 30545 cycles) is under 200 reads at the fastest SCK
+        for _ in range(polls):
             status = self.read(CHECK_STATUS)[0]
+            if not status & 1:
+                break
+        else:
+            raise OSError("the load check still reads busy")
         if not status & 4:
             raise Refused(self.read(REJECT_PC)[0], self.read(REJECT_REASON)[0])
 
@@ -224,11 +244,12 @@ class Host:
         self.write(STAMP_CONTROL, [(engine << 4) | (pins >> 16)])
 
     def edge_stamps(self):
-        """Pop every queued stamp as (time, pads). Also returns whether one was lost to a
-        full queue."""
+        """Pop the stamps queued when called, at most STAMP_DEPTH, as (time, pads), so a pin
+        that keeps moving or a stuck MISO can't hold us here. Also returns whether one was
+        lost to a full queue."""
         stamps = []
         hi = self.read(STAMP_TIME_HI)[0]
-        while (hi >> 8) & 7:
+        for _ in range(min((hi >> 8) & 7, STAMP_DEPTH)):
             lo = self.read(STAMP_TIME_LO)[0]
             pins_lo = self.read(STAMP_PINS_LO)[0]
             pins_hi = self.read(STAMP_PINS_HI)[0]  # pops

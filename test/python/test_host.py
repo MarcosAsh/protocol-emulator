@@ -45,5 +45,43 @@ def test_pop_reads_no_further_than_the_level():
     assert frames == [(pe.STATUS, 1)], frames
 
 
+def test_reasons_are_the_checkers():
+    named = {}
+    with open(sys.argv[2]) as f:
+        for line in f.read().splitlines():
+            code, name = line.split(" ", 1)
+            named[int(code)] = name
+    assert pe.REASONS == named, (pe.REASONS, named)
+    assert str(pe.Refused(8, 0)) == "refused at pc 8: in time"
+
+
+def stuck_high(data):
+    return [0xFF] * len(data)
+
+
+def test_check_gives_up_on_a_stuck_miso():
+    reads = []
+
+    def transfer(data):
+        reads.append(data[0])
+        return stuck_high(data)
+
+    try:
+        pe.Host(transfer).check(polls=50)
+    except OSError:
+        pass
+    else:
+        assert False, "check returned with MISO stuck high"
+    assert reads.count(pe.CHECK_STATUS) == 50, reads
+
+
+def test_edge_stamps_stop_at_the_queue_depth():
+    stamps, lost = pe.Host(stuck_high).edge_stamps()
+    assert len(stamps) == pe.STAMP_DEPTH and lost, (stamps, lost)
+
+
 test_now_across_a_carry()
 test_pop_reads_no_further_than_the_level()
+test_reasons_are_the_checkers()
+test_check_gives_up_on_a_stuck_miso()
+test_edge_stamps_stop_at_the_queue_depth()
