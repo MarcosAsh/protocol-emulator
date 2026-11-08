@@ -13,6 +13,10 @@ dest=$HOME/.local/share/protocol-emulator/board-evidence/$(date +%F)/video/$stam
 mkdir -p "$dest"
 cd "$(git rev-parse --show-toplevel)"
 git ls-files -z --cached --others --exclude-standard | rsync -a --mkpath --from0 --files-from=- ./ "$PC:video/repo/"
+# the OxCaml switch assembles the two programs; the bench machine needs only the words
+opam exec --switch 5.2.0+ox -- dune build --root . bin/generate.exe
+python3 demo/video.py assemble _build/default/bin/generate.exe --programs "$dest/programs.json"
+rsync -a --mkpath "$dest/programs.json" "$PC:video/runs/$stamp/programs.json"
 trap 'rsync -a "$PC:video/runs/$stamp/" "$dest/" 2>/dev/null || true' EXIT
 ssh -T "$PC" bash -s -- "$shot" "$stamp" "${A_PORT:-3-3}" "${B_PORT:-3-2}" <<'REMOTE' | tee "$dest/output.txt"
 set -eu
@@ -37,7 +41,7 @@ export PICO=id:e66548545717552e PICO_B_SERIAL=e66548545740ad29
 export ANALYSER_A_PORT=$a_port ANALYSER_B_PORT=$b_port PYTHONUNBUFFERED=1
 status=0
 python3 demo/video.py "$shot" --run "$HOME/video/runs/$stamp" \
-    --bitstream "$B/bit/frozen-67386afb.bit" --variants "$B/bit/variants.jsonl" || status=$?
+    --bitstream "$B/bit/frozen-67386afb.bit" --programs "$HOME/video/runs/$stamp/programs.json" || status=$?
 openFPGALoader -b icepi-zero -r > /dev/null 2>&1 || true
 exit $status
 ' video "$shot" "$stamp" "$a_port" "$b_port"

@@ -2,11 +2,16 @@
 # The video's four shots on the real board, each from a fresh load of the frozen bitstream
 # (faults stick until reset). A shot prints a heading, its essential lines and PASS or FAIL;
 # full logs go to RUN/<shot>/. Run it through demo/video.sh, which takes the bench lock.
-#   late      uart_tx with `out pins, 1 [13]`: the chip's check refuses it, the engine stays halted
-#   fixed     the 12-cycle uart_tx runs and sigrok decodes OUT0
+#   late      test/uart_tx.asm with `out pins, 1 [13]`, the sed of docs/getting-started.md: the
+#             chip's check refuses it and the engine stays halted
+#   fixed     the same with [12], which the assembler accepts at slack 0: it runs and sigrok
+#             decodes OUT0
 #   heldout, keyboard  DALI and the USB keyboard, through demo/ledger.py
-# Usage: PICO=id:<serial> python3 demo/video.py late|fixed|heldout|keyboard|all --run DIR
-#            --bitstream BIT --variants VARIANTS.jsonl
+# Both programs are assembled from test/uart_tx.asm by generate.exe, on the machine with the
+# OxCaml switch (demo/video.sh does it), into a PROGRAMS json the bench machine reads.
+# Usage: python3 demo/video.py assemble GENERATE.EXE --programs PROGRAMS
+#        PICO=id:<serial> python3 demo/video.py late|fixed|heldout|keyboard|all --run DIR
+#            --bitstream BIT --programs PROGRAMS
 
 import argparse
 import json
@@ -26,8 +31,9 @@ DETACH = "from machine import Pin; Pin(8, Pin.OUT, value=1)"
 # 16 cycles a bit at 48 MHz
 SENT = b"video"
 BAUD = 3_000_000
-# uart_tx16's `out` delay: the least the chip refuses, the most it accepts
+# the `out` delay of the late copy, and the most the assembler accepts
 LATE_K, FIXED_K = 13, 12
+SOURCE = "test/uart_tx.asm"
 # the analyser needs this long to start sampling
 ARM_S = 3
 
@@ -47,22 +53,39 @@ def reset(args, log):
     return run(["openFPGALoader", "-b", "icepi-zero", args.bitstream], log).returncode == 0
 
 
-def variant(args, k):
-    with open(args.variants) as f:
-        for line in f:
-            v = json.loads(line)
-            if v["firmware"] == "uart_tx16" and v["k"] == k:
-                return v
-    sys.exit("no uart_tx16 k=%d in %s" % (k, args.variants))
+def hex_words(text):
+    return [int(line, 16) for line in text.split() if re.fullmatch(r"[0-9a-f]{4}", line)]
+
+
+def assemble(generate, k, check):
+    """Returns the words, certificate and the assembler's summary line for test/uart_tx.asm
+    with `out pins, 1 [k]`. Without check the timing check is off, as the late copy needs."""
+    source = re.sub(r"out pins, 1", "out pins, 1 [%d]" % k, (ROOT / SOURCE).read_text())
+    with tempfile.NamedTemporaryFile("w", suffix=".asm") as f:
+        f.write(source)
+        f.flush()
+        flags = [] if check else ["-no-timing-check"]
+        words, certificate = (subprocess.run([generate, "assemble", *flags, *more, f.name],
+                                             capture_output=True, text=True)
+                              for more in ([], ["-certificate"]))
+        summary = subprocess.run([generate, "assemble", f.name], capture_output=True, text=True)
+    said = (summary.stdout + summary.stderr).splitlines()
+    line = next((x for x in said if "deadline waits" in x), "")
+    return {"words": hex_words(words.stdout), "certificate": hex_words(certificate.stdout),
+            "summary": line.replace(f.name + ": ", "")}
+
+
+def programs(generate):
+    return {"late": assemble(generate, LATE_K, False), "fixed": assemble(generate, FIXED_K, True)}
 
 
 def upload(log):
     run(["mpremote", "connect", os.environ["PICO"], "cp", *FILES, ":"], log)
 
 
-def on_pico(args, log, k, data):
-    """Loads uart_tx16 with `out` delayed k cycles and returns the RESULT line's fields."""
-    v = variant(args, k)
+def on_pico(args, log, which, data):
+    """Loads the late or fixed program and returns the RESULT line's fields."""
+    v = json.load(open(args.programs))[which]
     script = ("import demo_video, pico_board\n"
               "demo_video.run(pico_board.PicoSpi().transfer, %s, %s, %s)\n"
               % (v["words"], v["certificate"], list(data)))
@@ -77,9 +100,12 @@ def on_pico(args, log, k, data):
 
 def shot_late(args, log, shot_dir):
     print("== 1. a late program, refused by the chip itself ==", flush=True)
-    print("uart_tx with `out pins, 1 [13]`: the bit loop no longer fits in 16 cycles")
+    v = json.load(open(args.programs))["late"]
+    print("test/uart_tx.asm with `out pins, 1 [13]`, its own certificate (%d words)"
+          % len(v["certificate"]))
+    print("assembler: %s" % v["summary"])
     upload(log)
-    got = reset(args, log) and on_pico(args, log, LATE_K, [])
+    got = reset(args, log) and on_pico(args, log, "late", [])
     if not got or got[0] != "refused":
         print("the chip did not refuse it" if got else "no answer from the board")
         return False
@@ -90,6 +116,14 @@ def shot_late(args, log, shot_dir):
     return bool(halted)
 
 
+def pico_b_idle(log):
+    """Puts Pico B on MicroPython unless it is: its GP1 shares OUT0's net."""
+    ports = os.listdir("/dev/serial/by-id") if os.path.isdir("/dev/serial/by-id") else []
+    serial = os.environ["PICO_B_SERIAL"].lower()
+    if not any("micropython" in p.lower() and serial in p.lower() for p in ports):
+        run(["demo/pico_b.sh", "micropython"], log)
+
+
 def decode(sr, log):
     """Returns the bytes sigrok's UART decoder finds in the capture."""
     out = run(["sigrok-cli", "-i", str(sr), "-P", "uart:rx=D4:baudrate=%d" % BAUD,
@@ -98,7 +132,12 @@ def decode(sr, log):
 
 
 def shot_fixed(args, log, shot_dir):
-    print("== 2. the 12-cycle program, running, decoded by sigrok ==", flush=True)
+    print("== 2. the same with [12], running, decoded by sigrok ==", flush=True)
+    v = json.load(open(args.programs))["fixed"]
+    print("test/uart_tx.asm with `out pins, 1 [12]`, its own certificate (%d words)"
+          % len(v["certificate"]))
+    print("assembler: %s" % v["summary"])
+    pico_b_idle(log)
     if not reset(args, log):
         print("the bitstream did not load")
         return False
@@ -108,7 +147,8 @@ def shot_fixed(args, log, shot_dir):
     capture = subprocess.Popen(["demo/capture.sh", str(sr), "7000"], cwd=ROOT, env=env,
                                stdout=log, stderr=log)
     time.sleep(ARM_S)
-    got = on_pico(args, log, FIXED_K, SENT)
+    got = on_pico(args, log, "fixed", SENT)
+    print("waiting for the capture...", flush=True)
     capture.wait()
     if not got or got[0] != "ran":
         print("the chip refused the 12-cycle program" if got else "no answer from the board")
@@ -128,6 +168,7 @@ def ledger(args, log, shot_dir, demo):
             "--evidence", str(evidence), "--results", str(shot_dir / "results.tsv")]
     if demo == "keyboard":
         argv.append("--keyboard")
+    print("waiting for the capture...", flush=True)
     (shot_dir / "ledger.out").write_text(run(argv, log).stdout)
     found = sorted(evidence.glob("*/ledger/%s*/ledger.txt" % demo))
     if not found:
@@ -164,11 +205,17 @@ def shot_keyboard(args, log, shot_dir):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("shot", choices=["late", "fixed", "heldout", "keyboard", "all"])
-    p.add_argument("--run", type=Path, required=True)
-    p.add_argument("--bitstream", required=True)
-    p.add_argument("--variants", required=True)
+    p.add_argument("shot", choices=["assemble", "late", "fixed", "heldout", "keyboard", "all"])
+    p.add_argument("generate", nargs="?", help="generate.exe, for assemble")
+    p.add_argument("--run", type=Path)
+    p.add_argument("--bitstream")
+    p.add_argument("--programs", required=True)
     args = p.parse_args()
+    if args.shot == "assemble":
+        Path(args.programs).write_text(json.dumps(programs(args.generate)))
+        return
+    if not (args.run and args.bitstream):
+        sys.exit("--run and --bitstream are needed")
     if "PICO" not in os.environ:
         sys.exit("PICO=id:<serial of Pico A> is unset")
     shots = {"late": shot_late, "fixed": shot_fixed, "heldout": shot_heldout,
