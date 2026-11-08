@@ -2421,7 +2421,8 @@ def main():
                   "MISSED %s: %s passed" % (name, what))
         w = json.loads((Path(directory) / "witness.json").read_text())
         if not problems and w["demo"].startswith("learn_"):
-            print("PASS %s: sigrok reads the chip's message, the edges are the captures'" % name)
+            print("PASS %s: sigrok reads the chip's message in each of the %d frames sent, the "
+                  "edges are the captures'" % (name, learn_witness.sent(Path(directory))))
         elif not problems and "tally" in w:
             print("PASS %s: %s" % (name, LOG_DEMOS[w["demo"]].says(w["tally"])))
         elif not problems and w.get("partial"):

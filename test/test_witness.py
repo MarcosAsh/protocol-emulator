@@ -2,7 +2,7 @@
 """Checks that demo/witness.py actually rejects bad input, on a copy of
 test/board/self_timing. Each of these must fail: an edited file, a SHA256SUMS regenerated
 to match it, firmware the board didn't run, and a witness.json that claims more than the
-capture shows. Window sources and PARTIAL get theirs on copies too. The
+capture shows. Window sources, PARTIAL and the learn runs get theirs on copies too. The
 kernel-vs-board and fault judges get what their teeth don't try."""
 
 import hashlib
@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "demo"))
+import learn_witness  # noqa: E402
 import witness  # noqa: E402
 
 BOARD = ROOT / "test/board/self_timing"
@@ -147,6 +148,35 @@ class Partial(unittest.TestCase):
         self.assertTrue(any("witness.json's partial is not what the run makes" in p
                             for p in witness.check(run)[0]))
 
+
+class Learn(unittest.TestCase):
+    """A learn run's message must decode once for each frame sent, so a bit flipped in one
+    frame is refused."""
+
+    def test_each_frame(self):
+        self.assertEqual(learn_witness.short(b"a\nb\na\nb\n", ["a\nb"], 2), [])
+        self.assertEqual(learn_witness.short(b"a\nb\na\nc\n", ["a\nb"], 2),
+                         ["sigrok's decode reads 'a\\nb' in 1 of the 2 frames sent"])
+
+    def test_a_local_tooth(self):
+        run = copy("learn_rc5")
+        problems, bitten = learn_witness.check(run)
+        self.assertEqual(problems, [])
+        self.assertEqual(len(bitten), 1)
+        self.assertIn("in 1 of the 2 frames sent", bitten[0][1])
+
+    def test_provenance(self):
+        for p in (ROOT / "test/board").glob("learn_*/witness.json"):
+            w = json.loads(p.read_text())
+            self.assertRegex(w["time"], r"^2026-11-03T08:\d\d:\d\d$", p)
+            self.assertRegex(w["commit"], r"^[0-9a-f]{40}$", p)
+            self.assertEqual(set(w["host_scripts"]), set(learn_witness.SCRIPTS), p)
+
+    def test_firmware_claimed(self):
+        run = copy("learn_rc5")
+        edit(run, lambda w: w["firmware"].update({"firmware.asm": "0" * 64}))
+        self.assertIn("witness.json's firmware is not the firmware.asm SHA256SUMS lists",
+                      learn_witness.check(run)[0])
 
 
 class KernelVsBoard(unittest.TestCase):

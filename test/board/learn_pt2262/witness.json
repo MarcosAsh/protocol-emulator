@@ -1,7 +1,25 @@
 {
   "demo": "learn_pt2262",
+  "time": "2026-11-03T08:09:28",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "commit_from": "not recorded by the run: the HEAD of the pc's checkout from 07:52 to 08:22 UTC by its reflog, and ledger runs there at 08:03:29 and 08:18:01 found that tree clean",
   "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "sums_sha256": "06168cef99fe270406f412296102a4a71026fdc0e7ff61e1e755f5fff699fbce",
+  "firmware": {
+    "firmware.asm": "10893a89164c2ccbe176b79da59cf4615ef6eca90dce624b377ab3684698f824"
+  },
+  "host_scripts": {
+    "demo/learn_board.sh": "d2a6d91630aefbcfbfbb31e7068af5a8f4995c33c285e963dd6522e6b646432a",
+    "demo/learn_prepare.py": "b7bb1716fddd4234b111b4fb94f1e198d1f55216af625a0788e6f16672fcad2d",
+    "demo/capture.sh": "a89a2dcff219b0c26a62e8bedc0fe3a7e1449dc82ccd2fc8ae6f6195390a2b84",
+    "python/learn_record.py": "ad37abaf8f3c856b90eaf9ceb3fe373196215b447971a4a21a1b4e9f6dc26245",
+    "python/learn_send.py": "d007009c22ce0c2f43753e391abbabfd53e95eb7dab0b84905fde869f3ae39e8",
+    "python/learn_replay.py": "ca8d97abe2c431f9833775e8b00881b6b05dadc02f1942f0c4a7833ef29a24f7",
+    "python/learn_listen.py": "0c1b806e3eff0753f527588aa6f481cf60850f094433f7791bbdb5ddaede01b1",
+    "python/protocol_emulator.py": "cc74ff60a7cf50afcac40fb46d9c649b44cd004e7bd493390aeb7428e0c298d8",
+    "python/pico_board.py": "3a72b2fe6102e112ab306f2004af71d5b0b228866766ef83efab9a93c47a0334",
+    "python/bench.py": "efadb8b2fa3209a54709e7d775925ff06d4519e29ebae7ffd749b5c934b1de87"
+  },
   "recorded_probes": [
     "IO3=D6"
   ],
@@ -12,11 +30,22 @@
   "expect": [
     "rc_encode-1: 0\nrc_encode-1: A0\nrc_encode-1: f\nrc_encode-1: A1\nrc_encode-1: 0\nrc_encode-1: A2\nrc_encode-1: f\nrc_encode-1: A3\nrc_encode-1: 0\nrc_encode-1: A4\nrc_encode-1: f\nrc_encode-1: A5\nrc_encode-1: 0\nrc_encode-1: A6/D5\nrc_encode-1: f\nrc_encode-1: A7/D4\nrc_encode-1: f\nrc_encode-1: A8/D3\nrc_encode-1: 0\nrc_encode-1: A9/D2\nrc_encode-1: f\nrc_encode-1: A10/D1\nrc_encode-1: 0\nrc_encode-1: A11/D0\nrc_encode-1: Sync"
   ],
-  "tooth": [
-    "D4",
-    12105890,
-    12713010
+  "teeth": [
+    {
+      "what": "the second bit of the first frame's A1 flipped, so it reads 0, not f",
+      "channel": "D4",
+      "invert": [
+        [
+          12038069,
+          12040590
+        ]
+      ]
+    }
   ],
   "bench": "an Icepi Zero running the chip at 48 MHz on bench carrier v1.2, Pico A as the host, Pico B replaying the recording and listening on OUT0, analyser B on IO3/IO2 while the chip records and A on OUT0 (B on OUT5/OUT4 for a clocked bus) while it speaks, both fx2lafw",
-  "scope": "the chip's recording of a transmitter it was not told about, what was learned from it, the firmware written for a message never recorded, and that message on the wire"
+  "scope": "the chip's recording of a transmitter it was not told about, what was learned from it, the firmware written for a message never recorded, and that message on the wire",
+  "limits": [
+    "the run recorded no time, so the time is that of the bitstream's hash, which the run wrote as it loaded the bitstream",
+    "the host scripts are hashed at the commit, and CI does not hold them to HEAD, where some have changed since"
+  ]
 }
