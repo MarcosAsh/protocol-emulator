@@ -21,7 +21,7 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             git curl ca-certificates build-essential unzip bubblewrap rsync m4 pkg-config \
-            libgmp-dev zlib1g-dev autoconf cmake python3
+            libgmp-dev libffi-dev zlib1g-dev autoconf cmake python3
 
       - name: Checkout repo
         uses: actions/checkout@v6
