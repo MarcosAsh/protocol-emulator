@@ -61,10 +61,10 @@ jobs:
       # the transcript at the top of the page
       - name: Assemble uart_tx and its late copy
         run: |
-          opam exec -- dune exec -- bin/generate.exe assemble -listing test/uart_tx.asm | tee ok.txt
+          opam exec -- dune exec -- bin/generate.exe assemble -listing test/uart_tx.asm 2>&1 | tee ok.txt
           grep -q "worst slack 12" ok.txt
           sed 's/out pins, 1/out pins, 1 [13]/' test/uart_tx.asm > late.asm
-          if opam exec -- dune exec -- bin/generate.exe assemble late.asm | tee late.txt; then
+          if opam exec -- dune exec -- bin/generate.exe assemble late.asm 2>&1 | tee late.txt; then
             echo "::error::the late copy assembled"
             exit 1
           fi
