@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Evidence that outlives CI's 90 days: release assets pinned in test/evidence.sha256, the
-# board ledgers inside them and the gds runs they keep. Each asset is downloaded once and
-# checked against its pin on every read. Needs gh.
+# board ledgers inside them and the gds and mutation runs they keep. Each asset is
+# downloaded once and checked against its pin on every read. Needs gh.
 # EVIDENCE_CACHE overrides the cache dir (default ~/.cache/protocol-emulator).
 import csv
 import hashlib
@@ -131,23 +131,46 @@ def edges(entry):
     return found
 
 
+def kept(kind, run_id):
+    """(release, asset) of the pinned tarball named for a gds or mutation run, or None."""
+    return next(((tag, name) for tag, name in sorted(pins())
+                 if re.fullmatch(rf"{kind}-[\w.-]*-run{run_id}\.tar\.gz", name)), None)
+
+
 @cache
 def gds_kept(run_id):
     """The metrics.csv row of a gds run kept by a pinned release, with that release. None
     if no pinned asset is named for the run."""
-    for tag, name in sorted(pins()):
-        if not re.fullmatch(rf"gds-[\w.-]*-run{run_id}\.tar\.gz", name):
-            continue
-        with tarfile.open(asset(tag, name)) as t:
-            members = {Path(m.name).relative_to(Path(m.name).parts[0]).as_posix(): m
-                       for m in t.getmembers() if m.isfile()}
-            for wanted in ["metrics.csv", "submission/commit_id.json"]:
-                if wanted not in members:
-                    raise Unverifiable(f"{tag}/{name} has no {wanted}")
-            row = next(csv.DictReader(io.TextIOWrapper(t.extractfile(members["metrics.csv"]))))
-            commit = json.load(t.extractfile(members["submission/commit_id.json"]))
-        if not commit.get("workflow_url", "").endswith(f"/runs/{run_id}"):
-            raise Unverifiable(f"{tag}/{name} was made by {commit.get('workflow_url')}, "
-                               f"not run {run_id}")
-        return {**row, "release": tag, "commit_full": commit["commit"]}
-    return None
+    if (found := kept("gds", run_id)) is None:
+        return None
+    tag, name = found
+    with tarfile.open(asset(tag, name)) as t:
+        members = {Path(m.name).relative_to(Path(m.name).parts[0]).as_posix(): m
+                   for m in t.getmembers() if m.isfile()}
+        for wanted in ["metrics.csv", "submission/commit_id.json"]:
+            if wanted not in members:
+                raise Unverifiable(f"{tag}/{name} has no {wanted}")
+        row = next(csv.DictReader(io.TextIOWrapper(t.extractfile(members["metrics.csv"]))))
+        commit = json.load(t.extractfile(members["submission/commit_id.json"]))
+    if not commit.get("workflow_url", "").endswith(f"/runs/{run_id}"):
+        raise Unverifiable(f"{tag}/{name} was made by {commit.get('workflow_url')}, "
+                           f"not run {run_id}")
+    return {**row, "release": tag, "commit_full": commit["commit"]}
+
+
+@cache
+def mutation_kept(run_id):
+    """A mutation run kept by a pinned release: its head sha and the logs that hold its
+    score (the score job's, else every job's). None if no pinned asset is named for it."""
+    if (found := kept("mutation", run_id)) is None:
+        return None
+    tag, name = found
+    top = unpacked(tag, name) / name.removesuffix(".tar.gz")
+    meta = json.loads((top / "run.json").read_text())
+    if meta.get("id") != int(run_id):
+        raise Unverifiable(f"{tag}/{name} keeps run {meta.get('id')}, not run {run_id}")
+    score = top / "logs/score.txt"
+    logs = [score] if score.exists() else sorted((top / "logs").glob("*.txt"))
+    return {"head_sha": meta["head_sha"], "logs": [f.read_text() for f in logs],
+            "release": tag}
+

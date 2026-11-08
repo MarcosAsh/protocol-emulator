@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Fails (naming the line) when README.md or a docs/ page cites a path, make target, job,
 # commit or run that doesn't exist, quotes a number that the code, tests or cited run
-# disagree with, or links to a page that is gone. Board results and gds runs older than CI
-# keeps are read from the releases pinned in test/evidence.sha256. --teeth checks that
+# disagree with, or links to a page that is gone. Board results, gds and mutation runs older
+# than CI keeps are read from the releases pinned in test/evidence.sha256. --teeth checks that
 # deliberately wrong READMEs made from this one fail. --offline skips runs, evidence and links.
 # Usage: python3 test/check_docs.py [--offline] [--teeth] [--external-links]
 import argparse
@@ -352,12 +352,20 @@ def fresh_mutation():
 
 @cache
 def mutation_score(run_id):
-    """(killed, valid) from the run's log, or None and the reason."""
-    url = f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"
-    jobs = json.loads(gh("api", url) or '{"jobs": []}')["jobs"]
-    # a sharded run's score comes from its score job; each shard logs only its own part
-    jobs = [job for job in jobs if job["name"] == "score"] or jobs
-    logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs]
+    """(killed, valid) from the run's log, kept by a pinned release or else on GitHub, or
+    None and the reason."""
+    if kept := evidence.mutation_kept(run_id):
+        if run(run_id) and kept["head_sha"] != run(run_id)["head_sha"]:
+            raise evidence.Unverifiable(f"release {kept['release']} keeps mutation run "
+                                        f"{run_id} at {kept['head_sha'][:7]}, GitHub has it at "
+                                        f"{run(run_id)['head_sha'][:7]}")
+        logs = kept["logs"]
+    else:
+        url = f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"
+        jobs = json.loads(gh("api", url) or '{"jobs": []}')["jobs"]
+        # a sharded run's score comes from its score job; each shard logs only its own part
+        jobs = [job for job in jobs if job["name"] == "score"] or jobs
+        logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs]
     if not any(logs):
         return None, "has a log that expired"
     for log in filter(None, logs):
@@ -910,7 +918,7 @@ def stale_gds_run():
 
 def clear_caches():
     for f in [evidence.asset, evidence.unpacked, evidence.ledger, evidence.gds_kept,
-              gds_numbers, fresh_gds, fresh_mutation]:
+              evidence.mutation_kept, gds_numbers, fresh_gds, mutation_score, fresh_mutation]:
         f.cache_clear()
 
 
