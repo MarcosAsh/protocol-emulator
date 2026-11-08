@@ -26,6 +26,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
 
+      # the container's root does not own the checkout, and opam lists it with git
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$PWD"
+
       - name: Install opam
         run: |
           curl -fsSL -o /usr/local/bin/opam \
@@ -52,7 +56,6 @@ jobs:
       - name: Generate the Verilog
         run: |
           opam exec -- dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
-          git config --global --add safe.directory "$PWD"
           git diff --exit-code src/protocol_emulator.v
 
       # the transcript at the top of the page
