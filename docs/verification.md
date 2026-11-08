@@ -69,6 +69,7 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   - the core runs the words and configuration the kernel checked, with zeros past the
     program
   - the configuration is fixed from power-on, the only reset
+  - the configuration has `line_code` and `route` off
   - side-set count is at most 2
 - The chip's certificate rows carry no spacing and no slope, so it refuses firmware that
   needs either, even where the host's kernel would accept it.
