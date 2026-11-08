@@ -25,6 +25,7 @@
       "parameter": "T0H",
       "limit": ">= 250 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 342,
       "measured": "292 ns to 417 ns",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "T0H",
       "limit": "<= 400 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 342,
       "measured": "292 ns to 417 ns",
       "verdict": "unresolved"
@@ -41,6 +43,7 @@
       "parameter": "T1H",
       "limit": ">= 650 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 42,
       "measured": "667 ns to 792 ns",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "T1H",
       "limit": "<= 1000 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 42,
       "measured": "667 ns to 792 ns",
       "verdict": "proved"
@@ -57,6 +61,7 @@
       "parameter": "T0L",
       "limit": ">= 800 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 340,
       "measured": "792 ns to 917 ns",
       "verdict": "unresolved"
@@ -65,6 +70,7 @@
       "parameter": "T1L",
       "limit": ">= 200 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 42,
       "measured": "458 ns to 583 ns",
       "verdict": "proved"
@@ -73,6 +79,7 @@
       "parameter": "T",
       "limit": ">= 1200 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7, note 2",
+      "source": "spec",
       "spans": 382,
       "measured": "1167 ns to 1292 ns",
       "verdict": "unresolved"
@@ -81,11 +88,18 @@
       "parameter": "reset",
       "limit": ">= 200.00 us",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "source": "spec",
       "spans": 3,
       "measured": "1667.96 us to open",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 5,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
   "teeth": [
     "the first bit held high 700 ns",
     "the first 1 held high 400 ns longer"

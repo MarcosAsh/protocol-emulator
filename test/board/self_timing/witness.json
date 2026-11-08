@@ -25,6 +25,7 @@
       "parameter": "bit",
       "limit": ">= 102.08 us",
       "sheet": "UART at 9600 baud, Maxim AN2141 p.4, 2%",
+      "source": "spec",
       "spans": 88,
       "measured": "103.49 us to 105.01 us",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "bit",
       "limit": "<= 106.25 us",
       "sheet": "UART at 9600 baud, Maxim AN2141 p.4, 2%",
+      "source": "spec",
       "spans": 88,
       "measured": "103.49 us to 105.01 us",
       "verdict": "proved"
@@ -41,11 +43,18 @@
       "parameter": "edge after its start bit",
       "limit": "where the chip's edge log puts it",
       "sheet": "Pico A's log, the chip's cycles at 48 MHz",
+      "source": "own",
       "spans": 104,
       "measured": "16 frames of 16 logged, misses 0 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 2,
+    "own": 1,
+    "decoder": 0,
+    "derived": 0
+  },
   "teeth": [
     "half of the first byte's bit 0 inverted",
     "the first frame's second edge 12 samples late"

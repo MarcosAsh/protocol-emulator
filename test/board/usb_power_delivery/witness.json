@@ -25,6 +25,7 @@
       "parameter": "fBitRate max 330 kbps: each bit cell",
       "limit": ">= 3030 ns",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110",
+      "source": "spec",
       "spans": 189,
       "measured": "3250 ns to 3417 ns",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "fBitRate min 270 kbps: each bit cell",
       "limit": "<= 3704 ns",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110",
+      "source": "spec",
       "spans": 189,
       "measured": "3250 ns to 3417 ns",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "tUnitInterval min",
       "limit": ">= 3030 ns",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110",
+      "source": "spec",
       "spans": 189,
       "measured": "3250 ns to 3417 ns",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "tUnitInterval max",
       "limit": "<= 3700 ns",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110",
+      "source": "spec",
       "spans": 189,
       "measured": "3250 ns to 3417 ns",
       "verdict": "proved"
@@ -57,6 +61,7 @@
       "parameter": "pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps",
       "limit": "<= 267 ns",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9",
+      "source": "spec",
       "spans": 125,
       "measured": "0 ns to 125 ns",
       "verdict": "proved"
@@ -65,6 +70,7 @@
       "parameter": "tHoldLowBMC: every low",
       "limit": ">= 1000 ns",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110",
+      "source": "spec",
       "spans": 143,
       "measured": "1583 ns to 3375 ns",
       "verdict": "proved"
@@ -73,11 +79,18 @@
       "parameter": "tInterFrameGap: each idle low",
       "limit": ">= 25.00 us",
       "sheet": "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110",
+      "source": "spec",
       "spans": 2,
       "measured": "678911.14 us to open",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 7,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
   "teeth": [
     "a stray half bit in the header",
     "the first half-bit low cut to 0.8 us"

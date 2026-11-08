@@ -25,6 +25,7 @@
       "parameter": "leader mark",
       "limit": ">= 8550.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 5,
       "measured": "8999.52 us to 9001.44 us",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "leader mark",
       "limit": "<= 9450.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 5,
       "measured": "8999.52 us to 9001.44 us",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "leader space",
       "limit": ">= 4275.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 3,
       "measured": "4499.72 us to 4500.74 us",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "leader space",
       "limit": "<= 4725.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 3,
       "measured": "4499.72 us to 4500.74 us",
       "verdict": "proved"
@@ -57,6 +61,7 @@
       "parameter": "repeat space",
       "limit": ">= 2137.50 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 2,
       "measured": "2249.82 us to 2250.39 us",
       "verdict": "proved"
@@ -65,6 +70,7 @@
       "parameter": "repeat space",
       "limit": "<= 2362.50 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 2,
       "measured": "2249.82 us to 2250.39 us",
       "verdict": "proved"
@@ -73,6 +79,7 @@
       "parameter": "bit mark",
       "limit": ">= 534.37 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 96,
       "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
@@ -81,6 +88,7 @@
       "parameter": "bit mark",
       "limit": "<= 590.62 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 96,
       "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
@@ -89,6 +97,7 @@
       "parameter": "zero space",
       "limit": ">= 534.37 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 48,
       "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
@@ -97,6 +106,7 @@
       "parameter": "zero space",
       "limit": "<= 590.62 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 48,
       "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
@@ -105,6 +115,7 @@
       "parameter": "one space",
       "limit": ">= 1603.12 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 48,
       "measured": "1687.37 us to 1687.84 us",
       "verdict": "proved"
@@ -113,6 +124,7 @@
       "parameter": "one space",
       "limit": "<= 1771.88 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 48,
       "measured": "1687.37 us to 1687.84 us",
       "verdict": "proved"
@@ -121,6 +133,7 @@
       "parameter": "final mark",
       "limit": ">= 534.37 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 5,
       "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
@@ -129,6 +142,7 @@
       "parameter": "final mark",
       "limit": "<= 590.62 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 5,
       "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
@@ -137,11 +151,18 @@
       "parameter": "period",
       "limit": ">= 102600.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "source": "own",
       "spans": 4,
       "measured": "107994.74 us to 109293.80 us",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 0,
+    "own": 15,
+    "decoder": 0,
+    "derived": 0
+  },
   "teeth": [
     "the first command's bits 3 and 4 swapped",
     "the first leader mark a unit short"

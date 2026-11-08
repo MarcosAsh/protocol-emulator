@@ -6,6 +6,7 @@
 # moved) and expects the check to fail.
 # Usage: python3 demo/witness.py check test/board/*/
 #        python3 demo/witness.py write LEDGER_RUN test/board/RUN [--bitstream FROM]
+#        python3 demo/witness.py refresh test/board/*/
 
 import argparse
 import ast
@@ -43,6 +44,9 @@ PPM = 100e-6
 # 24LC256, Table 1-2 param 4: SDA and SCL take up to 300 ns to rise, which the analyser's
 # threshold doesn't see, so subtract it from every I2C interval's minimum
 TR = 300e-9
+# a window's limit is the cited spec's, our firmware's or decoder's where the spec gives none,
+# sigrok's decoder's, or derived from what the capture holds
+SOURCES = ("spec", "own", "decoder", "derived")
 
 
 def sha256(data):
@@ -63,10 +67,11 @@ def show(seconds, limit):
     return "%.2f us" % (seconds * 1e6)
 
 
-def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0):
+def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0, source="spec"):
     """Checks a datasheet window against spans, each (lo, hi). Proved if every span is
     inside the window (with `slack` less at the bottom), failed if one is wholly outside,
     otherwise unresolved."""
+    assert source in SOURCES
     limit = at_least if at_most is None else at_most
     if not spans:
         verdict = "absent"
@@ -80,6 +85,7 @@ def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0):
         "parameter": parameter,
         "limit": "%s %s" % (">=" if at_most is None else "<=", show(limit, limit)),
         "sheet": sheet,
+        "source": source,
         "spans": len(spans),
         "measured": "%s to %s" % (show(min(s[0] for s in spans), limit),
                                   show(max(s[1] for s in spans), limit)) if spans else "-",
@@ -87,9 +93,10 @@ def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0):
     }
 
 
-def count(parameter, sheet, counts, at_least=None, at_most=None, unit="bits"):
+def count(parameter, sheet, counts, at_least=None, at_most=None, unit="bits", source="spec"):
     """Like bound(), but over whole counts, which the analyser sees exactly."""
-    record = bound(parameter, sheet, [(c, c) for c in counts], at_least, at_most)
+    record = bound(parameter, sheet, [(c, c) for c in counts], at_least, at_most,
+                   source=source)
     limit = at_least if at_most is None else at_most
     record["limit"] = "%s %d %s" % (record["limit"][:2], limit, unit)
     if counts:
@@ -526,6 +533,7 @@ def uart(line, baud, clock_hz, logged=True):
             "parameter": "edge after its start bit",
             "limit": "where the chip's edge log puts it",
             "sheet": "Pico A's log, the chip's cycles at %g MHz" % (clock_hz / 1e6),
+            "source": "own",
             "spans": len(misses),
             "measured": "%d frames of %d logged, misses %s" % (
                 len(found), len(logged), show(max(misses, default=0.0), 1e-6)),
@@ -655,10 +663,10 @@ def nec(line):
         records = []
         for p, k in units.items():
             spans = [span(w, rate) for w in n[p]]
-            records.append(bound(p, NEC, spans, at_least=0.95 * k * NEC_UNIT))
-            records.append(bound(p, NEC, spans, at_most=1.05 * k * NEC_UNIT))
+            records.append(bound(p, NEC, spans, at_least=0.95 * k * NEC_UNIT, source="own"))
+            records.append(bound(p, NEC, spans, at_most=1.05 * k * NEC_UNIT, source="own"))
         return records + [bound("period", NEC, [span(w, rate) for w in n["period"]],
-                                at_least=0.95 * 192 * NEC_UNIT)]
+                                at_least=0.95 * 192 * NEC_UNIT, source="own")]
 
     def byte_tooth(samples, rate, _capture, _decode):
         """Swaps the first command's bits 3 and 4 (a one then a zero) within the same six
@@ -905,9 +913,9 @@ def lfast(line, words):
             for _, k, w in frame:
                 n.setdefault(k, []).append(w)
         return ([bound("%d-bit level" % k, LFAST, [span(w, rate) for w in n.get(k, [])],
-                       at_least=(k - 0.5) * LFAST_BIT) for k in sorted(n)]
+                       at_least=(k - 0.5) * LFAST_BIT, source="own") for k in sorted(n)]
                 + [bound("%d-bit level" % k, LFAST, [span(w, rate) for w in n.get(k, [])],
-                         at_most=(k + 0.5) * LFAST_BIT) for k in sorted(n)]
+                         at_most=(k + 0.5) * LFAST_BIT, source="own") for k in sorted(n)]
                 + [bound("a level", "NXP AN5134 Rev. 0, p.3: rates up to 320 Mb/s",
                          [span(w, rate) for v in n.values() for w in v], at_least=3.125e-9)])
 
@@ -966,10 +974,10 @@ def ir_rc6(line, frames_sent):
         for p in sorted(n, key=lambda p: (p[:4], int(p.split()[1][:-1]))):
             k = int(p.split()[1][:-1])
             spans = [span(w, rate) for w in n[p]]
-            records.append(bound(p, RC6, spans, at_least=0.95 * k * RC6_UNIT))
-            records.append(bound(p, RC6, spans, at_most=1.05 * k * RC6_UNIT))
+            records.append(bound(p, RC6, spans, at_least=0.95 * k * RC6_UNIT, source="own"))
+            records.append(bound(p, RC6, spans, at_most=1.05 * k * RC6_UNIT, source="own"))
         return records + [bound("signal free time", RC6, [span(w, rate) for w in free],
-                                at_least=0.95 * 6 * RC6_UNIT)]
+                                at_least=0.95 * 6 * RC6_UNIT, source="own")]
 
     def byte_tooth(samples, rate, _capture, _decode):
         """Swaps the halves of the first frame's first address bit, 20 units in (after the
@@ -1022,10 +1030,10 @@ def tdm_audio(sclk, fsync, sdata):
                       at_most=256, unit="rises"),
                 bound("SCLK period", "6 cycles at 48 MHz, the firmware's SCLK, to half a period "
                       "(AN301 gives no least or most)", [span(p, rate) for p in periods],
-                      at_least=0.5 * TDM_BIT),
+                      at_least=0.5 * TDM_BIT, source="own"),
                 bound("SCLK period", "6 cycles at 48 MHz, the firmware's SCLK, to half a period "
                       "(AN301 gives no least or most)", [span(p, rate) for p in periods],
-                      at_most=1.5 * TDM_BIT)]
+                      at_most=1.5 * TDM_BIT, source="own")]
 
     def byte_tooth(samples, _rate, _capture, _decode):
         """Inverts SDATA over channel 1's MSB, from FSYNC's fall to the next SCLK fall."""
@@ -1100,8 +1108,8 @@ def dali(line):
         records = []
         for k in sorted(n):
             name = "1 half bit" if k == 1 else "%d half bits" % k
-            records += [bound(name, DALI_RATE, n[k], at_least=0.95 * k * DALI_HALF),
-                        bound(name, DALI_RATE, n[k], at_most=1.05 * k * DALI_HALF)]
+            records += [bound(name, DALI_RATE, n[k], at_least=0.95 * k * DALI_HALF, source="own"),
+                        bound(name, DALI_RATE, n[k], at_most=1.05 * k * DALI_HALF, source="own")]
         return records + [bound("idle after a frame", DALI % 178, idle, at_least=2.45e-3)]
 
     def byte_tooth(samples, rate, _capture, _decode):
@@ -1148,8 +1156,10 @@ def dmx512(line):
                     "(Wikipedia's DMX512 page gives 250 kbit/s no tolerance)")
         return [bound("bit at 250 kbit/s, a low per bit", exact, per_bit, at_least=4e-6),
                 bound("bit at 250 kbit/s, a low per bit", exact, per_bit, at_most=4e-6),
-                bound("bit, a low per bit", fraction, per_bit, at_least=(1 - 1 / 18) * DMX_BIT),
-                bound("bit, a low per bit", fraction, per_bit, at_most=(1 + 1 / 18) * DMX_BIT),
+                bound("bit, a low per bit", fraction, per_bit, at_least=(1 - 1 / 18) * DMX_BIT,
+                      source="own"),
+                bound("bit, a low per bit", fraction, per_bit, at_most=(1 + 1 / 18) * DMX_BIT,
+                      source="own"),
                 bound("BREAK transmitted", DMX % "table, lines 303-306", brk, at_least=92e-6),
                 bound("BREAK receiver recognized", DMX % "table, lines 303, 308-309", brk,
                       at_least=88e-6),
@@ -1211,14 +1221,16 @@ def spdif(line):
         records = []
         for k in sorted(n):
             name = "%d half slot%s" % (k, "" if k == 1 else "s")
-            records += [bound(name, SPDIF_CELL, n[k], at_least=(k - 0.5) * SPDIF_HALF),
-                        bound(name, SPDIF_CELL, n[k], at_most=(k + 0.5) * SPDIF_HALF)]
+            records += [bound(name, SPDIF_CELL, n[k], at_least=(k - 0.5) * SPDIF_HALF,
+                              source="own"),
+                        bound(name, SPDIF_CELL, n[k], at_most=(k + 0.5) * SPDIF_HALF,
+                              source="own")]
         byte_3 = SPDIF % "S/PDIF control word components, byte 3, spec.txt l.222-224"
         return records + [
             bound("a block of 192 frames, 44.1 kHz and 1100 ppm", byte_3, block,
-                  at_least=192 / 44100 * (1 - 1100e-6)),
+                  at_least=192 / 44100 * (1 - 1100e-6), source="derived"),
             bound("a block of 192 frames, 44.1 kHz less 1100 ppm", byte_3, block,
-                  at_most=192 / 44100 * (1 + 1100e-6)),
+                  at_most=192 / 44100 * (1 + 1100e-6), source="derived"),
             bound("a frame, Mode 0's 192 kHz at most", SPDIF % "text, spec.txt l.180", each,
                   at_least=1 / 192e3)]
 
@@ -1350,13 +1362,15 @@ def wiegand(d0, d1):
         interval = ("10 pulses, the firmware's interval, to half a pulse (the page gives no "
                     "timing)")
         return [bound("pulse", width, [span(n, rate) for _, n, _ in found],
-                      at_least=0.5 * WIEGAND_PULSE),
+                      at_least=0.5 * WIEGAND_PULSE, source="own"),
                 bound("pulse", width, [span(n, rate) for _, n, _ in found],
-                      at_most=1.5 * WIEGAND_PULSE),
-                bound("pulse to pulse", interval, apart, at_least=9.5 * WIEGAND_PULSE),
-                bound("pulse to pulse", interval, apart, at_most=10.5 * WIEGAND_PULSE),
+                      at_most=1.5 * WIEGAND_PULSE, source="own"),
+                bound("pulse to pulse", interval, apart, at_least=9.5 * WIEGAND_PULSE,
+                      source="own"),
+                bound("pulse to pulse", interval, apart, at_most=10.5 * WIEGAND_PULSE,
+                      source="own"),
                 bound("pulse to pulse", "sigrok's wiegand, bitwidth_ms=1: past it the read "
-                      "ends", apart, at_most=1e-3),
+                      "ends", apart, at_most=1e-3, source="decoder"),
                 count("lines low at once", WIEGAND, low, at_most=1, unit="lines")]
 
     def byte_tooth(samples, _rate, _capture, _decode):
@@ -1524,9 +1538,9 @@ def swd_blind(swclk, swdio):
         half = ("24 cycles at 48 MHz, the firmware's half period, to half of it (IHI 0031C "
                 "gives no times, p.4-94)")
         return [bound("SWCLK high", half, [span(n, rate) for level, _, n in found if level],
-                      at_least=0.5 * 24 / 48e6),
+                      at_least=0.5 * 24 / 48e6, source="own"),
                 bound("SWCLK low", half, [span(n, rate) for level, _, n in found if not level],
-                      at_least=0.5 * 24 / 48e6),
+                      at_least=0.5 * 24 / 48e6, source="own"),
                 count("line reset", ADI % "4.4.3, p.4-104",
                       [len(clocks) for _, clocks, _ in resets(samples)], at_least=50,
                       unit="cycles"),
@@ -2208,6 +2222,21 @@ def check_log(directory, w):
     return problems + d.judge(directory)[1], bitten
 
 
+def proved(timing):
+    """Returns how many windows were proved from each source."""
+    return {source: sum(r["verdict"] == "proved" and r["source"] == source for r in timing)
+            for source in SOURCES}
+
+
+def says(w):
+    """Returns what a PASS line says of a capture's windows."""
+    n = w["proved"]
+    rest = "".join(", %d %s" % (n[s], s) for s in SOURCES[2:] if n[s])
+    return "%s, bitstream %s, %d of %d windows proved (%d spec, %d own%s), %d unresolved" % (
+        w["capture"]["sha256"][:16], w["bitstream_sha256"][:16], sum(n.values()),
+        len(w["timing"]), n["spec"], n["own"], rest, len(w["timing"]) - sum(n.values()))
+
+
 def witness(directory, scratch):
     """Returns the witness.json fields for the run in directory (everything except what it
     can't say), and its teeth()."""
@@ -2233,6 +2262,7 @@ def witness(directory, scratch):
                     "analyser": d.analyser, "channels": d.channels},
         "decode": {"arguments": d.decode, "sha256": sums(directory)["%s.decode" % name]},
         "timing": timing,
+        "proved": proved(timing),
         "teeth": [what for what, _ in bitten],
     }, bitten
 
@@ -2337,6 +2367,23 @@ def write(run, directory, carrier, bitstream):
     return not problems
 
 
+def refresh(directory):
+    """Rewrites what witness.json derives from the run in directory, keeping what the run
+    recorded (its bench, bitstream source, firmware and script hashes)."""
+    directory = Path(directory)
+    path = directory / "witness.json"
+    w = json.loads(path.read_text())
+    if w["demo"].startswith("learn_"):
+        return
+    if w["demo"] in LOG_DEMOS:
+        made, _ = log_witness(directory)
+    else:
+        with tempfile.TemporaryDirectory() as scratch:
+            made, _ = witness(directory, scratch)
+    path.write_text(json.dumps({**made, **{k: v for k, v in w.items() if k not in made}},
+                               indent=2) + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -2347,9 +2394,15 @@ def main():
     writing.add_argument("directory")
     writing.add_argument("--carrier", default="v1.2")
     writing.add_argument("--bitstream", help="what the bitstream was built from")
+    refreshing = sub.add_parser("refresh")
+    refreshing.add_argument("directories", nargs="+")
     args = parser.parse_args()
     if args.command == "write":
         sys.exit(0 if write(args.run, args.directory, args.carrier, args.bitstream) else 1)
+    if args.command == "refresh":
+        for directory in args.directories:
+            refresh(directory)
+        return
     ok = True
     for directory in args.directories:
         problems, bitten = check(directory)
@@ -2365,10 +2418,7 @@ def main():
         elif not problems and "tally" in w:
             print("PASS %s: %s" % (name, LOG_DEMOS[w["demo"]].says(w["tally"])))
         elif not problems:
-            proved = sum(r["verdict"] == "proved" for r in w["timing"])
-            print("PASS %s: %s, bitstream %s, %d of %d windows proved, %d unresolved" % (
-                name, w["capture"]["sha256"][:16], w["bitstream_sha256"][:16], proved,
-                len(w["timing"]), len(w["timing"]) - proved))
+            print("PASS %s: %s" % (name, says(w)))
         ok = ok and not problems and all(why for _, why in bitten)
     sys.exit(0 if ok else 1)
 

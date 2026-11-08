@@ -25,6 +25,7 @@
       "parameter": "Carrier frequency, as its period",
       "limit": ">= 26.32 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 17",
+      "source": "spec",
       "spans": 1398,
       "measured": "26.33 us to 26.46 us",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "Bit time, logical 0",
       "limit": ">= 1125.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18",
+      "source": "spec",
       "spans": 16,
       "measured": "1134.01 us to 1134.36 us",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "Bit time, logical 1",
       "limit": ">= 2250.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18",
+      "source": "spec",
       "spans": 16,
       "measured": "2259.27 us to 2259.85 us",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "Carrier burst length",
       "limit": ">= 560.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 21",
+      "source": "spec",
       "spans": 34,
       "measured": "562.57 us to 562.81 us",
       "verdict": "proved"
@@ -57,6 +61,7 @@
       "parameter": "AGC burst, message start",
       "limit": ">= 9000.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 28",
+      "source": "spec",
       "spans": 1,
       "measured": "9028.56 us to 9030.44 us",
       "verdict": "proved"
@@ -65,6 +70,7 @@
       "parameter": "Space after AGC burst, message start",
       "limit": ">= 4500.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 29",
+      "source": "spec",
       "spans": 1,
       "measured": "4509.84 us to 4510.83 us",
       "verdict": "proved"
@@ -73,6 +79,7 @@
       "parameter": "Extra burst at end of message",
       "limit": ">= 560.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 34",
+      "source": "spec",
       "spans": 1,
       "measured": "562.61 us to 562.81 us",
       "verdict": "proved"
@@ -81,6 +88,7 @@
       "parameter": "AGC pulse, repeat code",
       "limit": ">= 9000.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37",
+      "source": "spec",
       "spans": 1,
       "measured": "9028.56 us to 9030.44 us",
       "verdict": "proved"
@@ -89,6 +97,7 @@
       "parameter": "Space after AGC pulse, repeat code",
       "limit": ">= 2250.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37",
+      "source": "spec",
       "spans": 1,
       "measured": "2259.32 us to 2259.85 us",
       "verdict": "proved"
@@ -97,11 +106,18 @@
       "parameter": "Burst, repeat code",
       "limit": ">= 560.00 us",
       "sheet": "NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37",
+      "source": "spec",
       "spans": 1,
       "measured": "562.57 us to 562.76 us",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 10,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
   "teeth": [
     "the first command's bits 0 and 1 swapped",
     "the first AGC burst 1 ms short"

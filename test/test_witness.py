@@ -2,7 +2,8 @@
 """Checks that demo/witness.py actually rejects bad input, on a copy of
 test/board/self_timing. Each of these must fail: an edited file, a SHA256SUMS regenerated
 to match it, firmware the board didn't run, and a witness.json that claims more than the
-capture shows. The kernel-vs-board and fault judges get what their teeth don't try."""
+capture shows. Window sources get theirs on copies too. The
+kernel-vs-board and fault judges get what their teeth don't try."""
 
 import hashlib
 import json
@@ -67,6 +68,61 @@ class Witness(unittest.TestCase):
         w["timing"][0]["measured"] = "104.00 us to 104.30 us"
         path.write_text(json.dumps(w, indent=2) + "\n")
         self.refused("witness.json's timing is not what the run makes")
+
+
+def copy(name):
+    """Returns a scratch copy of test/board/name, removed when the test ends."""
+    scratch = Path(tempfile.mkdtemp())
+    unittest.addModuleCleanup(shutil.rmtree, scratch)
+    return Path(shutil.copytree(ROOT / "test/board" / name, scratch / name))
+
+
+def edit(directory, change):
+    path = directory / "witness.json"
+    w = json.loads(path.read_text())
+    change(w)
+    path.write_text(json.dumps(w, indent=2) + "\n")
+
+
+class Sources(unittest.TestCase):
+    """Each window names where its limit comes from, and a PASS line counts our own apart."""
+
+    def witnesses(self):
+        return {p.parent.name: json.loads(p.read_text())
+                for p in (ROOT / "test/board").glob("*/witness.json")}
+
+    def test_every_window_has_a_source(self):
+        for name, w in self.witnesses().items():
+            for r in w.get("timing", []):
+                self.assertIn(r["source"], witness.SOURCES, (name, r["parameter"]))
+
+    def test_own_windows_are_not_spec(self):
+        w = self.witnesses()
+        for name in ("ir_rc6", "nec"):
+            self.assertEqual(w[name]["proved"]["spec"], 0, name)
+            self.assertEqual(w[name]["proved"]["own"], len(w[name]["timing"]), name)
+        self.assertEqual(w["wiegand"]["proved"],
+                         {"spec": 1, "own": 4, "decoder": 1, "derived": 0})
+        self.assertEqual([r["source"] for r in w["spdif"]["timing"]
+                          if r["parameter"].startswith("a block of 192 frames")],
+                         ["derived", "derived"])
+
+    def test_the_line_counts_them_apart(self):
+        said = witness.says(self.witnesses()["wiegand"])
+        self.assertIn("6 of 6 windows proved (1 spec, 4 own, 1 decoder), 0 unresolved", said)
+
+    def test_a_source_claimed(self):
+        run = copy("self_timing")
+        edit(run, lambda w: [r.update(source="spec") for r in w["timing"]])
+        self.assertTrue(any("witness.json's timing is not what the run makes" in p
+                            for p in witness.check(run)[0]))
+
+    def test_a_tally_claimed(self):
+        run = copy("self_timing")
+        edit(run, lambda w: w["proved"].update(spec=3, own=0))
+        self.assertTrue(any("witness.json's proved is not what the run makes" in p
+                            for p in witness.check(run)[0]))
+
 
 
 class KernelVsBoard(unittest.TestCase):

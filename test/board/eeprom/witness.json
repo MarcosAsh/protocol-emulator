@@ -26,6 +26,7 @@
       "parameter": "1/fSCL",
       "limit": ">= 2500 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 1",
+      "source": "spec",
       "spans": 1444,
       "measured": "3916 ns to 1267377 ns",
       "verdict": "proved"
@@ -34,6 +35,7 @@
       "parameter": "THIGH",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 2",
+      "source": "spec",
       "spans": 1444,
       "measured": "1833 ns to 1959 ns",
       "verdict": "proved"
@@ -42,6 +44,7 @@
       "parameter": "TLOW",
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 3",
+      "source": "spec",
       "spans": 1457,
       "measured": "2041 ns to 1265502 ns",
       "verdict": "proved"
@@ -50,6 +53,7 @@
       "parameter": "THD:STA",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 6",
+      "source": "spec",
       "spans": 17,
       "measured": "958 ns to 1083 ns",
       "verdict": "proved"
@@ -58,6 +62,7 @@
       "parameter": "TSU:STA",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 7",
+      "source": "spec",
       "spans": 16,
       "measured": "833 ns to 3263618 ns",
       "verdict": "unresolved"
@@ -66,6 +71,7 @@
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 9",
+      "source": "spec",
       "spans": 824,
       "measured": "917 ns to 1265210 ns",
       "verdict": "proved"
@@ -74,6 +80,7 @@
       "parameter": "TSU:STO",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 10",
+      "source": "spec",
       "spans": 13,
       "measured": "917 ns to 1042 ns",
       "verdict": "proved"
@@ -82,11 +89,18 @@
       "parameter": "TBUF",
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.5, param 14",
+      "source": "spec",
       "spans": 12,
       "measured": "382837 ns to 3262660 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 7,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
   "teeth": [
     "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
     "SCL's tenth pulse cut to 6 samples"
