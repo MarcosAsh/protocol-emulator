@@ -30,21 +30,24 @@ let library =
     })
 ;;
 
-(* test/firmware.mk's assumptions, by file *)
+(* test/firmware.mk's assumptions, by file, with quiet_watch_slow's period the host budget
+   in its .settings *)
 let asm_cases =
   let assume =
     [ "uart_rx_wire", (None, true, Some 20, true, None)
     ; "uart_tx_host_rate", (Some 434, false, None, false, None)
     ; "ethernet", (Some 64000, false, None, false, Some 16)
     ; "data_stream", (None, false, None, false, Some 16)
+    ; "ethernet_rx", (None, false, None, false, Some 16)
     ; "self_check_wire", (Some 17, false, Some 20, true, Some 16)
+    ; "quiet_watch_slow", (Some 95, false, None, false, None)
     ]
   in
   Stdlib.Sys.readdir "."
   |> Array.to_list
   |> List.filter ~f:(String.is_suffix ~suffix:".asm")
   |> List.sort ~compare:String.compare
-  |> List.filter_map ~f:(fun file ->
+  |> List.map ~f:(fun file ->
     let name = String.chop_suffix_exn file ~suffix:".asm" in
     let period, single_capture_edge, capture_pin, falling, autopull =
       List.Assoc.find assume name ~equal:String.equal
@@ -69,8 +72,13 @@ let asm_cases =
         ~config
         (In_channel.read_all file)
     with
-    | Ok timed -> Some { name = "asm/" ^ name; timed; period; floor; single_capture_edge }
-    | Error _ -> None)
+    | Ok timed -> { name = "asm/" ^ name; timed; period; floor; single_capture_edge }
+    | Error error ->
+      raise_s
+        [%message
+          "BUG: the kernel refuses it under these assumptions"
+            file
+            (error.error : Error.t)])
 ;;
 
 (* the outside chip demos' firmware, as test/python/write_bench_firmware.ml checks it *)
