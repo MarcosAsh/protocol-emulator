@@ -553,7 +553,8 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v guard_teeth
 	sby -f chip_frame.sby overlap unbound read_everywhere
 	$(MAKE) fail_safe_teeth
 	sby -f data_step.sby wrong_way off_by_one stale_word
-	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
+	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse \
+	  own_line_code
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
 	  no_overflow_excuse
 

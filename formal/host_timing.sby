@@ -5,6 +5,7 @@ no_wait_excuse teeth
 no_jump_excuse teeth
 no_underflow_excuse teeth
 no_overflow_excuse teeth
+own_line_code teeth
 
 [options]
 mode bmc
@@ -48,6 +49,7 @@ no_wait_excuse: verilog_defines -DNO_WAIT_EXCUSE
 no_jump_excuse: verilog_defines -DNO_JUMP_EXCUSE
 no_underflow_excuse: verilog_defines -DNO_UNDERFLOW_EXCUSE
 no_overflow_excuse: verilog_defines -DNO_OVERFLOW_EXCUSE
+own_line_code: verilog_defines -DOWN_LINE_CODE
 read_verilog -formal -sv host_timing.sv
 proc
 flatten step
