@@ -3,14 +3,18 @@
 # board ledgers inside them and the gds and mutation runs they keep. Each asset is
 # downloaded once and checked against its pin on every read. Needs gh.
 # EVIDENCE_CACHE overrides the cache dir (default ~/.cache/protocol-emulator).
+# Usage: python3 test/evidence.py chip DIR (see chip, prints run=, source= and kept=)
 import csv
 import hashlib
 import io
 import json
 import os
 import re
+import shutil
 import subprocess
+import sys
 import tarfile
+import zipfile
 from functools import cache
 from pathlib import Path
 
@@ -174,3 +178,43 @@ def mutation_kept(run_id):
     return {"head_sha": meta["head_sha"], "logs": [f.read_text() for f in logs],
             "release": tag}
 
+
+def cited_gds_run():
+    """The gds run README.md's Hardened row cites, whose chip the site and releases ship."""
+    row = re.search(r"^\| Hardened \|.*$", (ROOT / "README.md").read_text(), re.M)
+    if not (m := row and re.search(r"[Gg]ds run \[?(\d{10,12})", row[0])):
+        raise Unverifiable("README.md's Hardened row cites no gds run")
+    return m[1]
+
+
+def chip(out):
+    """Puts the cited run's tt_submission and gds_render in out as gh run download would,
+    from the run or, once they expire, the pinned release that keeps it. Returns the run
+    and where they came from."""
+    run_id = cited_gds_run()
+    names = ["tt_submission", "gds_render"]
+    got = subprocess.run(["gh", "run", "download", run_id, "-R", REPO, "-D", str(out),
+                          *(arg for n in names for arg in ["-n", n])],
+                         capture_output=True, text=True)
+    source = "run"
+    if got.returncode != 0:
+        if (found := kept("gds", run_id)) is None:
+            raise Unverifiable(f"gds run {run_id} gives no artifacts ({got.stderr.strip()}) "
+                               "and no pinned release keeps it")
+        source = found[0]
+        for n in names:
+            shutil.rmtree(out / n, ignore_errors=True)
+            with zipfile.ZipFile(asset(source, f"{n}.zip")) as z:
+                z.extractall(out / n)
+    made = json.loads((out / "tt_submission/tt_submission/commit_id.json").read_text())
+    if not made.get("workflow_url", "").endswith(f"/runs/{run_id}"):
+        raise Unverifiable(f"the chip from {source} was made by {made.get('workflow_url')}, "
+                           f"not gds run {run_id}")
+    return run_id, source
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] != ["chip"] or len(sys.argv) != 3:
+        sys.exit("usage: python3 test/evidence.py chip DIR")
+    run_id, source = chip(Path(sys.argv[2]))
+    print(f"run={run_id}\nsource={source}\nkept={(kept('gds', run_id) or [''])[0]}")
