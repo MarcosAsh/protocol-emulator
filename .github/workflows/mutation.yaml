@@ -16,16 +16,16 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser; kernel: the trusted checker alone'
+        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser; kernel: the trusted checker alone; onchip: the load checker and the frame receivers'
         type: choice
-        options: [engine, wide, kernel]
+        options: [engine, wide, kernel, onchip]
         default: engine
       ids:
         description: 'only these mutants of the scope, as --list names them, space separated'
         type: string
         default: ''
       shards:
-        description: 'jobs to split the mutants over; 0: 4 for engine, 20 for wide, 20 for kernel, one a mutant for ids'
+        description: 'jobs to split the mutants over; 0: 12 for engine, 20 for wide, kernel and onchip, one a mutant for ids'
         type: number
         default: 0
       untested:
@@ -69,16 +69,16 @@ jobs:
         run: |
           n=${SHARDS:-0}
           if [ "$n" -eq 0 ]; then
-            if [ -n "$IDS" ]; then n=$(echo $IDS | wc -w); elif [ "$SCOPE" = wide ]; then n=20
-            elif [ "$SCOPE" = kernel ]; then n=20; else n=12; fi
+            if [ -n "$IDS" ]; then n=$(echo $IDS | wc -w); elif [ "$SCOPE" = engine ]; then n=12
+            else n=20; fi
           fi
           echo "count=$n" >> "$GITHUB_OUTPUT"
           echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
 
   # a mutant costs about nine runner-minutes, four at a time on four cores. Engine's 114
   # take twelve shards of about two hours, wide's thousand take twenty of about three and
-  # a half, and kernel's 658 with their proofs take twenty. Six shards run at a time so the
-  # other branches keep the rest of the shared runners.
+  # a half, kernel's 658 with their proofs take twenty, and onchip's 243 take twenty. Six
+  # shards run at a time so the other branches keep the rest of the shared runners.
   mutate:
     needs: plan
     runs-on: ubuntu-24.04
