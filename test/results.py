@@ -4,6 +4,8 @@
 # It reads the job logs, so it can only report what CI printed. Needs gh, logged in.
 # --readme-table prints the README's first table with fresh numbers, runs and dates from
 # the sources test/check_docs.py holds it to. --board-table prints the pinned ledgers.
+# A run GitHub shows as cancelled is never cited, and a claim whose job is gone from CI's
+# newest runs is not verified, so a renamed job can't leave an old row standing.
 # Usage: python3 test/results.py [--repo OWNER/NAME] [--runs N] [--html PAGE] > RESULTS.md
 #        python3 test/results.py --readme-table | --board-table
 import argparse
@@ -19,7 +21,10 @@ from functools import cache
 from pathlib import Path
 
 REPO = None
-RUNS = 30
+# how far back on main each workflow is searched for a green run, and how many of its newest
+# runs must still have a claim's job
+RUNS = 300
+CURRENT = 5
 
 STAMP = re.compile(r"^\ufeff?(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)\.\d+Z (.*)$")
 SBY_LINE = re.compile(r"^SBY +[\d:]+ \[([A-Za-z0-9_]+)\] (.*)$")
@@ -30,6 +35,8 @@ WITNESS = re.compile(r"^(\w+): (\w+) (verified|fails)$")
 SYNC_RUN = re.compile(r"^cd sync_\w+ && if \[ -z '(.*?)' \]")
 COCOTB = re.compile(r"\*\* TESTS=(\d+) PASS=(\d+) FAIL=(\d+)")
 DECODE = re.compile(r"^(PASS|XFAIL|TOOTH|FAIL|MISSED) \w+: ")
+BOARD_LINE = re.compile(r"^(PASS|TOOTH|FAIL|MISSED) (\w+): (.*)$")
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def gh(*args):
@@ -47,17 +54,38 @@ def when(stamp):
 
 
 @cache
-def runs(workflow):
-    """The newest completed runs of workflow on main, newest first."""
-    # the API sometimes returns an empty list, so ask again before believing there are none
-    for attempt in range(4):
-        out = gh("run", "list", "-R", REPO, "--workflow", workflow, "--branch", "main",
-                 "--status", "completed", "--limit", str(RUNS),
-                 "--json", "databaseId,conclusion,createdAt,headSha,url")
-        if json.loads(out):
+def workflow_path(name):
+    out = gh("api", f"repos/{REPO}/actions/workflows", "--paginate", "--jq", ".workflows[]")
+    found = [json.loads(line) for line in out.splitlines() if line]
+    return next(w["path"].split("/")[-1] for w in found if w["name"] == name)
+
+
+PAGE = 100
+
+
+@cache
+def run_page(workflow, page):
+    # the API sometimes returns an empty first page, so ask again before believing it
+    for attempt in range(4 if page == 1 else 1):
+        out = gh("api", f"repos/{REPO}/actions/workflows/{workflow_path(workflow)}/runs"
+                 f"?branch=main&status=completed&per_page={PAGE}&page={page}",
+                 "--jq", ".workflow_runs[]")
+        found = [json.loads(line) for line in out.splitlines() if line]
+        if found:
             break
         time.sleep(2 ** attempt)
-    return json.loads(out)
+    return [{"databaseId": r["id"], "conclusion": r["conclusion"], "createdAt": r["created_at"],
+             "headSha": r["head_sha"], "url": r["html_url"]} for r in found]
+
+
+def runs(workflow):
+    """The completed runs of workflow on main, newest first, at most RUNS of them, fetched a
+    page at a time as they are asked for."""
+    for page in range(1, (RUNS + PAGE - 1) // PAGE + 1):
+        found = run_page(workflow, page)
+        yield from found[:RUNS - (page - 1) * PAGE]
+        if len(found) < PAGE:
+            return
 
 
 @cache
@@ -112,22 +140,38 @@ def span(intervals):
     return total
 
 
+def joined(*notes):
+    """The notes, each once, in order."""
+    return "; ".join(dict.fromkeys(n for n in notes if n))
+
+
 class Result:
-    def __init__(self, passes=0, teeth=0, wrong=0, time=None, note="", teeth_note=""):
+    """What a claim's logs show. unknown counts teeth that only went unproved, counts holds
+    numbers summed over jobs by the note they fill, and absent names passes the log lacks."""
+    def __init__(self, passes=0, teeth=0, wrong=0, time=None, note="", teeth_note="",
+                 covers=0, unknown=0, counts=None, absent=()):
         self.passes, self.teeth, self.wrong, self.time, self.note = passes, teeth, wrong, time, note
-        self.teeth_note = teeth_note
+        self.teeth_note, self.covers, self.unknown = teeth_note, covers, unknown
+        self.counts, self.absent = counts or {}, list(absent)
 
     def __add__(self, other):
         time = None if self.time is None or other.time is None else self.time + other.time
-        note = "; ".join(n for n in [self.note, other.note] if n)
-        teeth_note = "; ".join(n for n in [self.teeth_note, other.teeth_note] if n)
+        counts = dict(self.counts)
+        for fmt, values in other.counts.items():
+            counts[fmt] = [a + b for a, b in zip(counts[fmt], values)] if fmt in counts else values
         return Result(self.passes + other.passes, self.teeth + other.teeth,
-                      self.wrong + other.wrong, time, note, teeth_note)
+                      self.wrong + other.wrong, time, joined(self.note, other.note),
+                      joined(self.teeth_note, other.teeth_note), self.covers + other.covers,
+                      self.unknown + other.unknown, counts, self.absent + other.absent)
+
+    def notes(self):
+        return joined(self.note, *(fmt.format(*v) for fmt, v in self.counts.items()))
 
 
 def sby(*prefixes):
-    """SymbiYosys tasks by name. A pass is a proof or cover, a FAIL or UNKNOWN with rc 0 is
-    a tooth its .sby expects to fail, and anything else is wrong."""
+    """SymbiYosys tasks by name. A pass is a proof, or a cover if the task's name says so. A
+    FAIL or UNKNOWN with rc 0 is a tooth its .sby expects to fail, and anything else is
+    wrong."""
     def read(lines):
         first, done = {}, {}
         for t, text in lines:
@@ -139,11 +183,14 @@ def sby(*prefixes):
             if d:
                 done[m[1]] = (t, d[1], d[2])
         r = Result(time=span((first[task], t) for task, (t, _, _) in done.items()))
-        for _, status, rc in done.values():
-            if status == "PASS" and rc == "0":
+        for task, (_, status, rc) in done.items():
+            if status == "PASS" and rc == "0" and "cover" in task:
+                r.covers += 1
+            elif status == "PASS" and rc == "0":
                 r.passes += 1
             elif status in ("FAIL", "UNKNOWN") and rc == "0":
                 r.teeth += 1
+                r.unknown += status == "UNKNOWN"
             else:
                 r.wrong += 1
         return r
@@ -196,15 +243,14 @@ def sync(lines):
 
 
 def witness(lines):
-    """Certifaiger checks that cake_lpr verified, and weakened models whose witness it rejected."""
-    r = Result()
+    """Witnesses whose every Certifaiger check cake_lpr verified, and weakened models whose
+    witness it rejected, each counted once however many checks it took."""
+    verified, failed = set(), set()
     for _, text in lines:
         m = WITNESS.match(text)
-        if m and m[3] == "verified":
-            r.passes += 1
-        elif m:
-            r.teeth += 1
-    return r
+        if m:
+            (verified if m[3] == "verified" else failed).add(m[1])
+    return Result(passes=len(verified - failed), teeth=len(failed - verified))
 
 
 def cocotb(lines):
@@ -229,6 +275,41 @@ def decoded(lines):
         elif m:
             r.wrong += 1
     return r
+
+
+def summed(pattern, fmt):
+    """The integers of the first line matching pattern, added up over the claim's jobs."""
+    def read(lines):
+        found = next((m for m in (re.search(pattern, text) for _, text in lines) if m), None)
+        return Result(counts={fmt: [int(g) for g in found.groups()]} if found else {})
+    return read
+
+
+def board(names, single=False):
+    """demo/witness.py check's verdicts on the test/board directories names gives. A PASS is
+    a pass, a refused tooth a tooth, and a fail or a tooth that passed is wrong. Each name
+    must have a PASS. With single, the note is the one PASS line's own words."""
+    def read(lines):
+        r, passed, bitstreams = Result(), {}, []
+        for _, text in lines:
+            m = BOARD_LINE.match(text)
+            if not m or m[2] not in names:
+                continue
+            if m[1] == "PASS":
+                r.passes += 1
+                passed[m[2]] = m[3]
+                bitstreams += re.findall(r"bitstream ([0-9a-f]{16})", m[3])
+            elif m[1] == "TOOTH":
+                r.teeth += 1
+            else:
+                r.wrong += 1
+        r.absent = [n for n in names if n not in passed]
+        if single and passed:
+            r.note = next(iter(passed.values()))
+        elif bitstreams and len(set(bitstreams)) == 1 and len(bitstreams) == len(names):
+            r.note = f"all on bitstream {bitstreams[0]}"
+        return r
+    return read
 
 
 def matching(pattern, fmt):
@@ -291,11 +372,14 @@ STATUSES = {
     "checked": "a structural check of every cell of a netlist, or Tiny Tapeout's precheck",
     "tested": "many runs, mutants or variants, not all of them",
     "simulated": "cocotb tests and recorded pin traces on a design in simulation",
+    "on the board": "a run of the chip's Verilog on an Icepi Zero, recorded in test/board. "
+    "CI decodes each capture again and checks its hashes, the bytes sent and the timing "
+    "windows, and that each tooth is refused. CI can't rerun the board",
     "not verified": "no green run on main shows the check, or its log shows no pass",
 }
 
 
-FORMAL = Path(__file__).resolve().parent.parent / "formal"
+FORMAL = ROOT / "formal"
 
 
 def depth(sby_file, task):
@@ -332,11 +416,30 @@ class Claim:
                        for j in found for s in j["steps"] if s["name"] == self.step)
         return all(j["conclusion"] == "success" for j in found)
 
+    def current(self):
+        """Whether one of the workflow's CURRENT newest runs with any jobs still has the job,
+        green or not, skipped included."""
+        seen = 0
+        for run in runs(self.workflow):
+            names = [j["name"] for j in jobs(run["databaseId"])]
+            if names:
+                if any(self.job(n) for n in names):
+                    return True
+                seen += 1
+                if seen == CURRENT:
+                    return False
+        return False
+
     def evaluate(self):
-        """The last run on main where every matching job (or step) is green. If there is none,
-        the last run that has the job at all."""
+        """The last run on main, not cancelled, where every matching job (or step) is green.
+        If there is none, the last such run that has the job at all. Nothing if CI's newest
+        runs no longer have the job."""
+        if not self.current():
+            return None, None, False
         latest = None
         for run in runs(self.workflow):
+            if run["conclusion"] == "cancelled":
+                continue
             found = self.jobs_of(run)
             if found and latest is None:
                 latest = (run, found)
@@ -360,23 +463,41 @@ def plain_certificate(value):
 
 TESTED = "the mutation row"
 
+
+def spec_ids(tsv):
+    """The protocol ids a demo/*_specs.tsv lists, as test/board names their runs. The library's
+    swd entered after the seal, so the held-out SWD run is swd_blind."""
+    ids = [line.split("\t")[0] for line in (ROOT / tsv).read_text().splitlines()
+           if line and not line.startswith("#")]
+    return [{"swd": "swd_blind"}.get(i, i.replace("-", "_")) for i in ids]
+
+
+BOARD = sorted(p.parent.name for p in (ROOT / "test/board").glob("*/witness.json"))
+HELD_OUT = spec_ids("demo/heldout_specs.tsv")
+LEARNED = [n for n in BOARD if n.startswith("learn_")]
+NO_LINE_CODE = " (programs with no line code or route)"
+
 CLAIMS = [
     ("The theorem", [
         Claim("For any program, and any table of intervals the kernel accepts, the core never "
-              "misses a deadline: step lemma and kernel check in one run",
+              "misses a deadline: step lemma and kernel check in one run" + NO_LINE_CODE,
               "ocaml", exactly("phase_table"), "phase_table_proof", sby("phase_table_")),
         Claim("The same for rows that also bound the phase less a multiple of the loop "
-              "counter, with the kernel's check of one step proved per opcode",
+              "counter, with the kernel's check of one step proved per opcode" + NO_LINE_CODE,
               "ocaml", exactly("phase_table_affine"), "phase_table_affine_proof",
               sby("row_step_", "phase_table_affine_")),
         Claim("For any program, the core moves between entries as the kernel's step says, "
               "and a deadline wait entered in time never faults (k-induction on the RTL). "
-              "A timer that stops at its top instead of wrapping has to fail it",
+              "A timer that stops at its top instead of wrapping has to fail it" + NO_LINE_CODE,
               "ocaml", lambda job: job in ("test", "saturating"), "phase_step saturating_proof",
               sby("phase_step_"), step="Prove"),
         Claim("For any program and any table of intervals the kernel accepts with a spacing, "
-              "each counted edge of a watched pair is spaced", "ocaml", matrix("phase_spacing"),
-              "phase_spacing_part", sby("pair_step_", "phase_spacing_")),
+              "each counted edge of a watched pair is spaced" + NO_LINE_CODE, "ocaml",
+              matrix("phase_spacing"), "phase_spacing_part", sby("pair_step_", "phase_spacing_")),
+        Claim("Inside the two-engine chip, each engine running a table the kernel accepts never "
+              "misses a deadline, and each edge it drives comes the cycle after an entry inside "
+              "its row, or is the release when it faults" + NO_LINE_CODE, "ocaml",
+              exactly("fail_safe_table"), "fail_safe_table_proof", sby("fail_safe_table_")),
         Claim("An accepted table is closed under the kernel's step, over every instruction "
               "word and row; every UNSAT is cadical's, checked by cake_lpr",
               "ocaml", exactly("test"), "dune build @runtest", green, step="Run tests",
@@ -384,12 +505,23 @@ CLAIMS = [
         Claim("The kernel's Verilog, which the RTL proofs read, equals the gates its SAT "
               "proofs build", "ocaml", exactly("test"), "kernel_equiv",
               abc("kernel_equiv_"), step="Prove"),
-        Claim("The k-inductions of phase_step, edge_step and self_check_clean each have a "
-              "Certifaiger witness, every check of it an UNSAT that cake_lpr verifies",
-              "ocaml", matrix("witness"), "witness_proof", witness),
+        Claim("Seven of the k-inductions each have a Certifaiger witness, every check of it an "
+              "UNSAT that cake_lpr verifies", "ocaml", matrix("witness"), "witness_proof",
+              witness),
         Claim("Across one-field variants of the library, no firmware the kernel accepts "
               "misses a deadline in a run", "reject split", exactly("split"), "split.exe",
               split, status="tested"),
+    ]),
+    ("The chip's own check", [
+        Claim("A start reaches an engine only while it is certified, and it is certified only "
+              "by an accepted walk that began after the last program, configuration or line "
+              "table write to it, on the chip as built", "ocaml", exactly("test"), "gate",
+              sby("gate_"), step="Prove"),
+        Claim("An accepted walk checked every pc against the rows at its successor and its "
+              "target", "ocaml", exactly("test"), "certify", sby("certify_"), step="Prove"),
+        Claim("The walk always ends, with the verdict, reject pc and reason of "
+              "src/load_check.ml's model", "ocaml", exactly("complete"), "complete_proof",
+              sby("complete_")),
     ]),
     ("Lemmas on the RTL", [
         Claim("The pins change only the cycle after an entry that writes them",
@@ -400,6 +532,12 @@ CLAIMS = [
               "ocaml", exactly("test"), "frame_step", sby("frame_step_"), step="Prove"),
         Claim("Two engines with disjoint footprints drive and read their pads as they would "
               "alone", "ocaml", exactly("test"), "chip_frame", sby("chip_frame_"), step="Prove"),
+        Claim("Engine 0's pins and host reads are the same whatever engine 1 is given, under "
+              "the premises formal/isolation.sv lists", "ocaml", exactly("test"),
+              "isolation_proof", sby("isolation_"), step="Prove"),
+        Claim("A faulted engine drives no pin from the edge its fault shows, halts within two "
+              "edges and stays halted until the next clear, with each engine's configuration "
+              "fixed", "ocaml", exactly("test"), "fail_safe", sby("fail_safe_"), step="Prove"),
         Claim("What out, mov, in, push and pull write is the ISA's function of the shift "
               "registers", "ocaml", exactly("test"), "value_step", sby("value_step_"),
               step="Prove"),
@@ -412,6 +550,20 @@ CLAIMS = [
               "host_timing late_host", sby("host_timing_", "late_host_"), step="Prove"),
         Claim("The fifos keep their order", "ocaml", exactly("test"), "fifo_order",
               sby("fifo_order_"), step="Prove"),
+    ]),
+    ("Receivers", [
+        Claim("The USB receiver writes any one packet to the data memory as it was sent, at "
+              "any sampling phase and exactly 8 samples a bit: data up to 8 bytes with its "
+              "CRC-16, a token with its CRC-5, or a handshake", "ocaml", exactly("test"),
+              "usb_roundtrip_proof", sby("usb_roundtrip_"), step="Prove"),
+        Claim("USB's bit stuffing sends any stream of up to 96 bits with a 0 after six 1s, and "
+              "otherwise each bit once and in order", "ocaml", exactly("test"),
+              "line_stuff_proof", sby("line_stuff_"), step="Prove",
+              status=depth("line_stuff.sby", "prove")),
+        Claim("The 10BASE-T receiver writes any one frame as it was sent, with its FCS verdict, "
+              "at 40 and 50 MHz, at any sampling phase, with drift and jitter",
+              "ocaml", exactly("test"), "frame_roundtrip_proof", sby("frame_roundtrip_"),
+              step="Prove"),
     ]),
     ("Per-firmware proofs", [
         Claim("Each library firmware's certificate holds for all time, by induction, under "
@@ -429,6 +581,9 @@ CLAIMS = [
         Claim("uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire, 10 cycles a "
               "bit: engine 1 pushes the low byte of each word engine 0 pulled, once a frame",
               "ocaml", exactly("link"), "link_proof", sby("link_")),
+        Claim("The UART to SPI bridge on both engines: each frame on IN0 reaches SCK and MOSI, "
+              "every edge a fixed number of steps after its stop bit", "ocaml", exactly("link"),
+              "bridge_proof", sby("bridge_")),
         Claim("hardcaml_hobby_boards' Uart.Tx, compiled to firmware, drives the core's pin as "
               "the circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at "
               "least 4 cycles after ready", "ocaml", exactly("test"), "fsm_miter_proof",
@@ -460,6 +615,11 @@ CLAIMS = [
               both(abc("netlist_equiv_"),
                    matching(r"netlist: (\d+) logic cells", "{} logic cells compared")),
               step="Prove the netlist equal to the RTL, and fail on five mutants"),
+        Claim("The same from any state, once reset", "gds", exactly("netlist_equiv"),
+              "netlist_anystate netlist_anystate_teeth",
+              abc("netlist_equiv_run", "netlist_anystate_"),
+              step="Prove the netlist from any state equal to the RTL after reset, and fail on "
+              "two mutants"),
         Claim("One clock, and every other pin read by one two-flop synchroniser, on the RTL",
               "ocaml", exactly("test"), "sync_rtl sync_rtl_teeth", sync, step="Prove",
               status="checked"),
@@ -470,36 +630,62 @@ CLAIMS = [
         Claim("The hardened design passes Tiny Tapeout's precheck", "gds",
               exactly("precheck"), "tt-gds-action/precheck", green,
               teeth_note="none, a check", status="checked"),
+        Claim("Yosys's ECP5 netlist of each bitstream the bench loads, at 48 and 40 MHz, "
+              "equals the RTL, from all flops 0 and from the configured state", "ocaml",
+              matrix("icepi_equiv"), "make -C icepi equiv; icepi_equiv_teeth",
+              abc("icepi_equiv_")),
     ]),
     ("Tests", [
         Claim("The cocotb tests and recorded pin traces pass on the RTL", "test",
               exactly("test"), "make -C test; make replay", cocotb, teeth_note=TESTED,
               status="simulated"),
-        Claim("The same on the hardened gate-level netlist", "gds", exactly("gl_test"),
+        Claim("The same on the hardened gate-level netlist", "gds",
+              lambda job: job == "gl_test" or job.startswith("gl_replay ("),
               "tt-gds-action/gl_test; make replay GATES=yes", cocotb, teeth_note=TESTED,
               status="simulated"),
-        Claim("The same on the iCE40 kit's netlist", "ocaml", exactly("fpga"),
-              "make FPGA=yes; make replay FPGA=yes",
-              both(cocotb, matching(r"ICESTORM_LC: *(\d+)/ *(\d+)", "{} of {} LCs"),
-                   matching(r"Max frequency for clock [^:]*: ([\d.]+) MHz", "{} MHz routed")),
-              step="Build for the FPGA kit and simulate the netlist", teeth_note=TESTED,
-              status="simulated"),
+        Claim("The same again with the router's delays, at the slow, typical and fast corners",
+              "gds", matrix("gl_sdf"), "make -C test sdf_slow sdf_typ sdf_fast", cocotb,
+              teeth_note=TESTED, status="simulated"),
         Claim("The same on the Icepi Zero's ECP5 netlist, timing met at 48 MHz", "ocaml",
-              exactly("fpga"), "make -C icepi; make ICEPI=yes",
+              matrix("fpga"), "make -C icepi; make ICEPI=yes; make replay ICEPI=yes",
               both(cocotb, matching(r"Max frequency for clock [^:]*: ([\d.]+) MHz",
                                     "{} MHz routed")),
               step="Build for the Icepi Zero and simulate the netlist", teeth_note=TESTED,
               status="simulated"),
         Claim("sigrok's decoders read the gate-level netlist's outputs as they read the RTL's",
-              "gds", exactly("gl_test"), "demo/decode.py on the gate level's traces",
-              both(decoded, matching(r"^sigrok on the gate-level netlist: (\d+) of (\d+) ",
-                                     "{} of {} protocols")),
+              "gds", matrix("gl_replay"), "demo/decode.py on the gate level's traces",
+              both(decoded, summed(r"^sigrok on the gate-level netlist: (\d+) of (\d+) ",
+                                   "{} of {} protocols")),
               step="Decode the gate level's traces with sigrok", status="simulated"),
         Claim("Every textual mutant of the engine, decoder, pins and host port is killed by "
               "the tests, or allowed with a reason", "mutation",
               lambda job: job == "score" or job.startswith("mutate ("),
               "test/mutate.py", mutation, status="tested", reads=exactly("score"),
               accept=engine_scope),
+    ]),
+    ("On the board", [
+        Claim("Every run committed in test/board: its hashes, sigrok's decode, the bytes sent "
+              "and the timing windows check again, and each tooth is refused", "ocaml",
+              exactly("decode"), "demo/witness.py check test/board/*/", board(BOARD),
+              step="Board witnesses", status="on the board"),
+        Claim("The eight sealed held-out protocols, written blind from their specs, on the "
+              "board (LIN, DMX512 and S/PDIF only in part, see docs/flexibility.md)", "ocaml",
+              exactly("decode"), "demo/witness.py check test/board/*/", board(HELD_OUT),
+              step="Board witnesses", status="on the board"),
+        Claim("Delay variants of the swept firmware through the chip's own check: none it "
+              "accepted ran late, none it refused started, and each verdict is its model's",
+              "ocaml", exactly("decode"),
+              "demo/witness.py check test/board/kernel_vs_board", board(["kernel_vs_board"],
+                                                                        single=True),
+              step="Board witnesses", status="on the board"),
+        Claim("A fault lets go of the pins and halts the engine while the other runs on",
+              "ocaml", exactly("decode"), "demo/witness.py check test/board/fault_release",
+              board(["fault_release"], single=True), step="Board witnesses",
+              status="on the board"),
+        Claim("The chip records a transmitter it was not told about, and firmware learned from "
+              "that sends a message never recorded, which sigrok reads", "ocaml",
+              exactly("decode"), "demo/witness.py check test/board/learn_*",
+              board(LEARNED), step="Board witnesses", status="on the board"),
     ]),
 ]
 
@@ -515,27 +701,57 @@ def minutes(s):
     return f"{s // 60} min {s % 60:02d} s" if s >= 60 else f"{s} s"
 
 
+NOW = datetime.now(timezone.utc)
+
+
+def age(run):
+    """How old the run is, when that is a week or more."""
+    days = (NOW - when(run["createdAt"])).days
+    return f"{days} days old" if days >= 7 else ""
+
+
+@cache
+def rtl_changed(sha):
+    """Whether src/protocol_emulator.v differs between sha and this checkout, or None when
+    git can't tell (a shallow clone, say)."""
+    done = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", sha, "HEAD", "--",
+                           "src/protocol_emulator.v"], capture_output=True)
+    return {0: False, 1: True}.get(done.returncode)
+
+
+def staleness(run):
+    """The run's age and whether the chip changed since, where worth saying."""
+    return joined(age(run), "the chip's Verilog has changed since" if rtl_changed(run["headSha"])
+                  else "")
+
+
 def run_cell(run, good):
     if run is None:
         return "no run on main"
     date = run["createdAt"][:10]
     mark = "" if good else " **(not green)**"
-    return f"[{run['databaseId']}]({run['url']}) {date} `{run['headSha'][:7]}`{mark}"
+    stale = f" **({staleness(run)})**" if staleness(run) else ""
+    return f"[{run['databaseId']}]({run['url']}) {date} `{run['headSha'][:7]}`{mark}{stale}"
 
 
 class Row:
-    """What CI shows for one claim. missing is set when its green run logged no pass."""
-    def __init__(self, claim, run=None, good=False, where="", passes=0, wrong=0, note="",
-                 teeth="", time=None, missing=False):
+    """What CI shows for one claim. missing is set when its green run logged no pass, or
+    lacks a pass the claim names."""
+    def __init__(self, claim, run=None, good=False, where="", result=None, teeth="",
+                 missing=False):
+        result = result or Result()
         self.claim, self.run, self.good, self.where = claim, run, good, where
-        self.passes, self.wrong, self.note = passes, wrong, note
-        self.teeth, self.time, self.missing = teeth, time, missing
+        self.passes, self.covers, self.wrong = result.passes, result.covers, result.wrong
+        self.note, self.absent, self.time = result.notes(), result.absent, result.time
+        self.teeth, self.missing = teeth, missing
 
     def evidence(self, passed=""):
-        """The passes, the failures and the note. passed is appended to the count of passes."""
+        """The passes, covers, failures and notes. passed is appended to the count of passes."""
         counts = [f"{self.passes}{passed}"] if self.passes else []
+        counts += [f"{self.covers} cover{'s' * (self.covers > 1)} reached"] if self.covers else []
         counts += [f"{self.wrong} failed"] if self.wrong else []
-        return "; ".join(t for t in [", ".join(counts), self.note] if t)
+        absent = f"no pass in the log for {', '.join(self.absent)}" if self.absent else ""
+        return joined(", ".join(counts), self.note, absent)
 
     @property
     def status(self):
@@ -546,7 +762,7 @@ class Row:
 def row(claim):
     run, found, good = claim.evaluate()
     if run is None:
-        return Row(claim)
+        return Row(claim, where="no such job in CI's newest runs" if found is None else "")
     result = Result(time=0.0)
     for job in found:
         if not claim.reads(job["name"]):
@@ -569,21 +785,24 @@ def row(claim):
     elif claim.read in (mutation, split):
         missing = not (result.note or result.teeth_note)
     else:
-        missing = not result.passes
+        missing = not result.passes or bool(result.absent)
     if missing:
         result.time = None
-    if result.teeth:
+    if result.unknown:
+        teeth = (f"{result.teeth}: {result.teeth - result.unknown} failed and "
+                 f"{result.unknown} could not be proved, as expected")
+    elif result.teeth:
         teeth = f"{result.teeth}, all failed as expected"
     else:
         teeth = result.teeth_note or claim.teeth_note or "none in the log"
-    return Row(claim, run, good, where, result.passes, result.wrong, result.note, teeth,
-               result.time, missing)
+    return Row(claim, run, good, where, result, teeth, missing)
 
 
 def markdown_row(r):
     claim = r.claim
     if r.run is None:
-        return f"| {claim.text} | `{claim.target}` ({claim.workflow}) | no run on main | | | |"
+        return (f"| {claim.text} | `{claim.target}` ({claim.workflow}) "
+                f"| {joined('no run on main', r.where)} | | | |")
     passes = r.evidence() or ("**none in the log**" if r.missing else "")
     return (f"| {claim.text} | `{claim.target}`<br>{r.where} | {run_cell(r.run, r.good)} "
             f"| {passes} | {r.teeth} | {minutes(r.time)} |")
@@ -639,7 +858,7 @@ def html_row(r):
     passes = f'<br><span class="muted">{e(passes)}</span>' if passes else ""
     status = f'<span class="status {kind}">{e(r.status)}</span>{passes}'
     if r.run is None:
-        where, run, date = e(claim.workflow), "no run on main", ""
+        where, run, date = e(claim.workflow), e(joined("no run on main", r.where)), ""
     else:
         sha = r.run["headSha"]
         where, date = e(r.where), r.run["createdAt"][:10]
@@ -647,6 +866,8 @@ def html_row(r):
                f'"https://github.com/{e(REPO)}/commit/{sha}"><code>{sha[:7]}</code></a>')
         if not r.good:
             run += ' <span class="bad">(not green)</span>'
+        if staleness(r.run):
+            run += f' <span class="bad">({e(staleness(r.run))})</span>'
     nowrap = ' class="nowrap"'
     cells = [("Status", "", status), ("CI job", "", f"<code>{e(claim.target)}</code><br>{where}"),
              ("Last green run", "", run), ("Date", nowrap, date), ("Teeth", "", e(r.teeth)),
@@ -675,19 +896,23 @@ def headline(rows):
     found = mutants and re.match(r"(\d+) of (\d+) mutants killed", mutants.teeth)
     if found and shown(mutants):
         cells.append(("Mutants killed", link(mutants, f"{found[1]} of {found[2]}")))
+    # the same count, under the same words, as the tally below and the landing page
     proved = [r for r in rows.values() if r.status == "proved for all time"]
     if proved:
         runs = [r.run["databaseId"] for r in proved]
         common = max(set(runs), key=runs.count)
         newest = next(r for r in proved if r.run["databaseId"] == common)
-        cells.append(("Proofs for all time", link(newest, str(sum(r.passes for r in proved)))))
+        cells.append(("Claims proved for all time", link(newest, str(len(proved)))))
     netlist = by_target.get("netlist_equiv netlist_equiv_teeth")
     if netlist and shown(netlist):
         cells_of = re.match(r"(\d+) logic cells", netlist.note)
         cells.append(("Netlist equals RTL", link(netlist, f"{cells_of[1]} cells" if cells_of
                                                  else f"{netlist.passes} proofs")))
     for label, target in [("RTL tests", "make -C test; make replay"),
-                          ("Gate-level tests", "tt-gds-action/gl_test; make replay GATES=yes")]:
+                          ("Gate-level tests", "tt-gds-action/gl_test; make replay GATES=yes"),
+                          ("Gate-level tests with the router's delays",
+                           "make -C test sdf_slow sdf_typ sdf_fast"),
+                          ("Board runs checked again", "demo/witness.py check test/board/*/")]:
         r = by_target.get(target)
         if r and shown(r):
             cells.append((label, link(r, str(r.passes))))
@@ -701,8 +926,9 @@ def html_page(rows, now):
     counts = {}
     for r in rows.values():
         counts[r.status] = counts.get(r.status, 0) + 1
-    tally = ", ".join(f"{n} {status}" for word in STATUSES for status, n in counts.items()
-                      if status_word(status) == word)
+    tally = f"{len(rows)} claims: " + ", ".join(
+        f"{n} {status}" for word in STATUSES for status, n in counts.items()
+        if status_word(status) == word)
     legend = "\n".join(f"<dt>{e(s)}</dt><dd>{e(m)}</dd>" for s, m in STATUSES.items())
     body = []
     for title, section in CLAIMS:
@@ -730,11 +956,13 @@ every job behind it was green. Written by <code>test/results.py</code> at {e(now
 job logs, so it shows only what CI printed. Teeth are weakened copies and mutants that have
 to fail. Job time adds up jobs that ran in parallel. The assumptions and the tools trusted
 are under
-<a href="https://github.com/{e(REPO)}#what-is-not-proved">What is not proved</a> in the
-README. Bench measurements are not in CI and not here.
-<a href="https://github.com/{e(REPO)}">Repository</a>, <a href="../playground/">playground</a>.</p>
+<a href="../verification.html#what-is-not-proved">What is not proved</a>. The board runs are
+recorded in <code>test/board</code>, and CI checks the recordings again but can't rerun the
+board.
+<a href="https://github.com/{e(REPO)}">Repository</a>, <a href="../playground/">playground</a>,
+<a href="../corpus/">corpus</a>.</p>
 <div class="headline">{headline(rows)}</div>
-<p>{e(tally)}.</p>
+<p id="tally">{e(tally)}.</p>
 <table role="table">
 <thead role="rowgroup"><tr role="row">{heads}</tr></thead>
 {body}
@@ -835,7 +1063,8 @@ def main():
     global REPO, RUNS
     p = argparse.ArgumentParser()
     p.add_argument("--repo", help="OWNER/NAME, by default this checkout's")
-    p.add_argument("--runs", type=int, default=RUNS, help="runs to look back per workflow")
+    p.add_argument("--runs", type=int, default=RUNS,
+                   help="completed runs on main to search per workflow")
     p.add_argument("--html", metavar="PAGE", help="also write the results page to PAGE")
     p.add_argument("--readme-table", action="store_true",
                    help="print the README's first table with fresh numbers, and stop")
