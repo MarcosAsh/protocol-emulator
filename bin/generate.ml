@@ -930,6 +930,8 @@ let predicate_command =
 
 let () =
   Command_unix.run
+    ~version:Version.t
+    ~build_info:("OCaml " ^ Stdlib.Sys.ocaml_version)
     (Command.group
        ~summary:""
        [ "engine", engine_rtl_command

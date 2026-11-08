@@ -15,3 +15,8 @@
  (preprocess
   (pps ppx_jane))
  (promote))
+
+(rule
+ (with-stdout-to
+  version.ml
+  (echo "let t = \"%{env:PROTOCOL_EMULATOR_VERSION=dev}\"\n")))
