@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import frames
+import kernel_vs_board
 import keys
 import learn_witness
 import numpy as np
@@ -34,8 +35,8 @@ import demo_lfast  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 # copied from the ledger run; each is listed in its SHA256SUMS
 KEPT = ["{}.sr", "{}.log", "ledger.txt", "run.txt"]
-# a demo with no capture keeps only its log
-LOG_KEPT = ["{}.log", "ledger.txt", "run.txt"]
+# what a LogDemo keeps besides its own files
+LOG_KEPT = ("ledger.txt", "run.txt")
 # allowed difference between the analyser's crystal and the chip's, in either direction
 PPM = 100e-6
 # 24LC256, Table 1-2 param 4: SDA and SCL take up to 300 ns to rise, which the analyser's
@@ -1802,10 +1803,148 @@ class LogDemo:
     firmware: tuple
     scripts: tuple
     peer: str
-    # the log's tally and problems, and its teeth
+    # the run's tally and problems from its directory, and its teeth
     judge: object
     teeth: object
+    # what a PASS line says of the tally
+    says: object
     limits: tuple = ()
+    # the run's files besides ledger.txt and run.txt, the first named in witness.json
+    kept: tuple = ("{}.log",)
+
+
+def text(directory, name):
+    return (Path(directory) / name).read_text(errors="replace")
+
+
+def recorded(text):
+    """Returns a sha256sum listing the run wrote itself, by each file's base name."""
+    return {Path(name.lstrip("*")).name: sha for sha, name in
+            (line.split(maxsplit=1) for line in text.splitlines())}
+
+
+def kvb_run(directory):
+    """Returns what the kernel-vs-board judge reads of the run in directory."""
+    logged = {}
+    for line in text(directory, "board.log").splitlines():
+        if result := kernel_vs_board.parse(line):
+            logged[(result["firmware"], result["k"])] = result
+    return {
+        "variants": kernel_vs_board.read_verdicts(text(directory, "verdicts.tsv")),
+        "rows": [json.loads(line) for line in text(directory, "results.jsonl").splitlines()],
+        "logged": logged,
+        "summary": text(directory, "summary.txt"),
+        "runs": text(directory, "run.txt"),
+        "outs": text(directory, "kvb-small.out") + text(directory, "kvb-big.out"),
+        "inputs": recorded(text(directory, "SHA256SUMS.inputs")),
+        "fields": ledger_fields(directory),
+    }
+
+
+# outcomes the run must not have, as demo/kernel_vs_board.py words them
+KVB_BAD = ("UNSOUND", "BUG", "MISMATCH", "inconclusive")
+
+
+def kvb_judge(run):
+    """Scores every row again against the variant it ran, as demo/kernel_vs_board.py did,
+    and holds the run's own records to the ledger's commit and bitstream."""
+    variants = {(v["firmware"], v["k"]): v for v in run["variants"]}
+    bitstream, commit = run["fields"]["bitstream_sha256"], run["fields"]["commit"]
+    verdicts, problems, outcomes = [], [], {}
+    for row in run["rows"]:
+        key = (row["firmware"], row["k"])
+        name = "%s k=%d" % key
+        if key not in variants:
+            problems.append("%s is not a variant" % name)
+            continue
+        v = variants[key]
+        outcome = kernel_vs_board.chip_outcome(v, row)
+        outcomes[outcome] = outcomes.get(outcome, 0) + 1
+        if outcome.startswith(KVB_BAD):
+            verdicts.append("%s: %s" % (name, outcome))
+        model = re.match(r"refused: pc (\d+)", v["chip_model"])
+        if row["board"] == "refused" and model and row["chip_pc"] != int(model[1]):
+            verdicts.append("%s: the chip refused at pc %d, its model at pc %s" % (
+                name, row["chip_pc"], model[1]))
+        if (row["chip"], row["accepted"], row["chip_model"], row["outcome"]) != (
+                True, v["accepted"], v["chip_model"], outcome):
+            problems.append("%s: results.jsonl's row is not what its variant and the board "
+                            "make, %r" % (name, outcome))
+        logged = run["logged"].get(key)
+        if not logged or any(row.get(field) != value for field, value in logged.items()):
+            problems.append("%s is not board.log's last RESULT line for it" % name)
+    seen = [(row["firmware"], row["k"]) for row in run["rows"]]
+    missing = [key for key in variants if key not in seen]
+    if missing:
+        problems.append("%s k=%d has no row" % missing[0] + (
+            ", nor have %d more" % (len(missing) - 1) if len(missing) > 1 else ""))
+    if len(seen) != len(set(seen)):
+        problems.append("%d rows run a variant again" % (len(seen) - len(set(seen))))
+    if kernel_vs_board.summary(run["variants"], run["rows"]) != run["summary"]:
+        problems.append("summary.txt is not what the rows make")
+    started = re.findall(r" sha256 (\w+) chip check (\w+), (\d+) variants", run["runs"])
+    problems += ["run.txt names bitstream %s, not the ledger's" % sha
+                 for sha, _, _ in started if sha != bitstream]
+    if any(check != "on" for _, check, _ in started):
+        problems.append("run.txt has a run with the chip's check off")
+    if sum(int(n) for _, _, n in started) != len(variants):
+        problems.append("run.txt's runs cover %d variants, not %d" % (
+            sum(int(n) for _, _, n in started), len(variants)))
+    said = re.findall(r"^\S+ (\w+) commit (\w+) (\w+) ", run["outs"], re.M)
+    problems += ["kvb.sh ran %s at %s on %s, not the ledger's" % (name, at, sha)
+                 for name, at, sha in said if (at, sha) != (commit, bitstream)]
+    if {name for name, _, _ in said} != {v["firmware"] for v in run["variants"]}:
+        problems.append("kvb.sh's output names other firmware than the variants'")
+    if [sha for name, sha in run["inputs"].items() if name.endswith(".bit")] != [bitstream]:
+        problems.append("SHA256SUMS.inputs names another bitstream than the ledger's")
+    tally = {"variants": len(variants), "firmware": len({v["firmware"] for v in variants.values()}),
+             "variants_sha256": run["inputs"].get("variants.jsonl", "not recorded"),
+             "outcomes": dict(sorted(outcomes.items()))}
+    return tally, verdicts + problems
+
+
+def kvb_teeth(directory):
+    """Each tooth changes what the board printed for one variant, in board.log and
+    results.jsonl alike, or the run's record of its bitstream."""
+    def bitten(what, change):
+        run = kvb_run(directory)
+        change(run)
+        wrong = kvb_judge(run)[1]
+        return what, wrong[0] if wrong else None
+
+    def board(board, change):
+        """Changes the first row the board printed `board` for, and its board.log line."""
+        def apply(run):
+            row = next(r for r in run["rows"] if r["board"] == board)
+            for printed in (row, run["logged"][(row["firmware"], row["k"])]):
+                change(printed)
+        return apply
+
+    def ran_on_time(printed):
+        for field in ("chip_pc", "chip_reason", "stays_halted"):
+            del printed[field]
+        printed.update(board="ran", exact=10, within=0, out=0, fault0=0, fault1=0)
+
+    def other_bitstream(run):
+        run["runs"] = re.sub(r"sha256 \w+(?=[^\n]*\n$)", "sha256 " + "0" * 64, run["runs"])
+
+    return [
+        bitten("the first variant that ran printed with an edge out of its window",
+               board("ran", lambda printed: printed.update(out=1))),
+        bitten("the first refused variant printed as started anyway",
+               board("refused", lambda printed: printed.update(stays_halted=False))),
+        bitten("the first refused variant printed as run on time", board("refused", ran_on_time)),
+        bitten("the first refused variant printed as refused a pc later",
+               board("refused", lambda printed: printed.update(chip_pc=printed["chip_pc"] + 1))),
+        bitten("the last row dropped", lambda run: run["rows"].pop()),
+        bitten("run.txt's last run on another bitstream", other_bitstream),
+    ]
+
+
+def kvb_says(tally):
+    return "%d variants of %d firmware on the chip's own check, %s" % (
+        tally["variants"], tally["firmware"],
+        ", ".join("%d %s" % (n, o) for o, n in tally["outcomes"].items()))
 
 
 LOG_DEMOS = {
@@ -1813,11 +1952,21 @@ LOG_DEMOS = {
         ("test/ethernet_rx.hex", "test/ethernet_rx.cert.hex"),
         ("python/demo_ethernet_rx.py", "python/ethernet.py", "python/bench.py"),
         "Pico A's PIO as the 10BASE-T sender on IO0, at 10 Mb/s off its own crystal",
-        frames.judge, frames.teeth,
+        lambda directory: frames.judge(text(directory, "eth_rx.log")),
+        lambda directory: frames.teeth(text(directory, "eth_rx.log")),
+        lambda t: "%d of %d frames received whole, %d with a bad FCS refused" % (
+            t["received_whole"], t["frames"], t["bad_fcs"]),
         ("10 Mb/s is past the analyser, so the log is the run's only record: CI judges its "
          "frames again from the bytes it says were sent",
          "the line is Pico A's 3.3 V logic, as a line receiver with squelch would give "
          "the chip, not a twisted pair through a transformer")),
+    "kernel_vs_board": LogDemo(
+        (), ("python/demo_kernel_vs_board.py", "python/demo_sweep.py",
+             "python/demo_self_timing.py", "python/sweep_firmware.py"),
+        "engine 1 stamping engine 0's output on wire 20, as the sweep does",
+        lambda directory: kvb_judge(kvb_run(directory)), kvb_teeth, kvb_says,
+        kept=("results.jsonl", "board.log", "summary.txt", "verdicts.tsv", "SHA256SUMS.inputs",
+              "kvb.sh", "kvb-small.out", "kvb-big.out")),
 }
 
 
@@ -1878,7 +2027,7 @@ def teeth(demo, samples, rate, capture, log, scratch):
 
 def files(demo):
     if demo in LOG_DEMOS:
-        return [k.format(demo) for k in LOG_KEPT]
+        return [k.format(demo) for k in LOG_DEMOS[demo].kept + LOG_KEPT]
     name = DEMOS[demo].name(demo)
     return [k.format(name) for k in KEPT] + list(DEMOS[demo].also)
 
@@ -1888,9 +2037,9 @@ def log_witness(directory):
     fields = ledger_fields(directory)
     demo = fields["demo"]
     d = LOG_DEMOS[demo]
-    log = (directory / ("%s.log" % demo)).read_text(errors="replace")
-    tally, _ = d.judge(log)
-    bitten = d.teeth(log)
+    log = files(demo)[0]
+    tally, _ = d.judge(directory)
+    bitten = d.teeth(directory)
     return {
         "demo": demo,
         "time": fields["time"],
@@ -1899,7 +2048,7 @@ def log_witness(directory):
         "bitstream_sha256": fields["bitstream_sha256"],
         "netlist_sha256": fields.get("netlist_sha256", "not recorded"),
         "sums_sha256": sha256((directory / "SHA256SUMS").read_bytes()),
-        "log": {"file": "%s.log" % demo, "sha256": sums(directory)["%s.log" % demo]},
+        "log": {"file": log, "sha256": sums(directory)[log]},
         "tally": tally,
         "teeth": [what for what, _ in bitten],
     }, bitten
@@ -1931,8 +2080,7 @@ def check_log(directory, w):
         if w.get(key) != value:
             problems.append("witness.json's %s is not what the run makes: %s" % (
                 key, json.dumps(value)[:400]))
-    log = (directory / ("%s.log" % demo)).read_text(errors="replace")
-    return problems + d.judge(log)[1], bitten
+    return problems + d.judge(directory)[1], bitten
 
 
 def witness(directory, scratch):
@@ -2090,9 +2238,7 @@ def main():
         if not problems and w["demo"].startswith("learn_"):
             print("PASS %s: sigrok reads the chip's message, the edges are the captures'" % name)
         elif not problems and "tally" in w:
-            t = w["tally"]
-            print("PASS %s: %d of %d frames received whole, %d with a bad FCS refused" % (
-                name, t["received_whole"], t["frames"], t["bad_fcs"]))
+            print("PASS %s: %s" % (name, LOG_DEMOS[w["demo"]].says(w["tally"])))
         elif not problems:
             proved = sum(r["verdict"] == "proved" for r in w["timing"])
             print("PASS %s: %s, bitstream %s, %d of %d windows proved, %d unresolved" % (

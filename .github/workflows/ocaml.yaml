@@ -252,6 +252,10 @@ jobs:
       - name: Run tests
         run: opam exec -- dune build @runtest
 
+      # test/board/kernel_vs_board's variants, made again and held to what the board ran
+      - name: Board variants
+        run: opam exec -- dune build @test/python/board_variants
+
       # the chip is hardened from the committed Verilog, not from the OCaml
       - name: Check the committed Verilog is current
         run: |

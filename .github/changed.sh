@@ -14,10 +14,11 @@ fi
 
 changed() { [ "$all" = true ] || ! git diff --quiet "$base" HEAD -- "$@"; }
 
-# dune build @runtest, which reads almost everything but the prose
+# dune build @runtest, which reads almost everything but the prose, and the board variants
 tests() {
   changed . ':!*.md' ':!docs' ':!LICENSE' ':!.github' ':!test/evidence.py' ':!test/evidence.sha256' \
-    ':!test/board'
+    ':!test/board' ||
+    changed test/board/kernel_vs_board/SHA256SUMS.inputs test/board/kernel_vs_board/verdicts.tsv
 }
 
 # the generators, the certificate writers, the translation check and the library they

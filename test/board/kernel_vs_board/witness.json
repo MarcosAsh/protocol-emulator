@@ -1,0 +1,48 @@
+{
+  "demo": "kernel_vs_board",
+  "time": "2026-11-07T18:52:43",
+  "result": "PASS",
+  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "not recorded",
+  "sums_sha256": "e79e01ce23f7a64f83184c3fe1cf08a3ec625ecc41787fe0f3986db0e93d5921",
+  "log": {
+    "file": "results.jsonl",
+    "sha256": "8807c7ab400ae27f0bd42ceb295b791f00afe5e9a3b9d251380a31f12718d561"
+  },
+  "tally": {
+    "variants": 3735,
+    "firmware": 8,
+    "variants_sha256": "d646a566517bcab5cb8fc3ca97ce3451f369ce402b4ecfe5a8b12554841e8f5f",
+    "outcomes": {
+      "ok accepted, on time": 3711,
+      "ok refused by both": 24
+    }
+  },
+  "teeth": [
+    "the first variant that ran printed with an edge out of its window",
+    "the first refused variant printed as started anyway",
+    "the first refused variant printed as run on time",
+    "the first refused variant printed as refused a pc later",
+    "the last row dropped",
+    "run.txt's last run on another bitstream"
+  ],
+  "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
+  "firmware_sha256": "none here: each variant's words and certificate are in variants.jsonl, which SHA256SUMS.inputs names and test/python/write_kernel_variants.exe makes again in CI",
+  "firmware": {},
+  "host_scripts": {
+    "python/demo_kernel_vs_board.py": "96fea10906669c6e5912cde7e8d097347215d9c043203158c72b1ac3dbf9dfef",
+    "python/demo_sweep.py": "6c3b1deae998589c20026bf2418b90002dfabd9ce76930be6248182d5289d6d2",
+    "python/demo_self_timing.py": "cdfc86827e210aeb00c3b9eba441723cd06fc5fdbafcaa15f2d1b47ea94142d1",
+    "python/sweep_firmware.py": "920080f09fcb1897ddb0137de17e332d68feaf8c45af2d775198e070e4d7f322"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, engine 1 stamping engine 0's output on wire 20, as the sweep does",
+  "scope": "the board's result for every delay variant of the swept firmware, the chip checking each certificate itself, as Pico A printed them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
+    "the run went through kvb.sh and demo/kernel_vs_board.py, not demo/ledger.py: run.txt, results.jsonl, summary.txt, board.log and the .out files are its own, and ledger.txt and SHA256SUMS were written on 2026-11-08 from them",
+    "verdicts.tsv is what scoring reads of variants.jsonl, kept in its place, and CI makes variants.jsonl again and holds it to SHA256SUMS.inputs and verdicts.tsv",
+    "each variant's edges are engine 1's stamps, which Pico A judges and prints as counts, and the stamps themselves are not kept"
+  ]
+}

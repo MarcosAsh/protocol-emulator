@@ -135,6 +135,25 @@ def summary(variants, results):
     return "\n".join(lines) + "\n"
 
 
+VERDICT_KEYS = ["firmware", "k", "wait_pc", "slack", "accepted", "chip_model"]
+
+
+def verdicts(variants):
+    """Returns what scoring reads of each variant, a tab-separated line each, for a board
+    witness to keep in place of the whole file."""
+    return "".join("%s\t%d\t%d\t%d\t%d\t%s\n" % tuple(v[key] for key in VERDICT_KEYS)
+                   for v in variants)
+
+
+def read_verdicts(text):
+    out = []
+    for line in text.splitlines():
+        name, k, wait_pc, slack, accepted, model = line.split("\t")
+        out.append(dict(zip(VERDICT_KEYS, (name, int(k), int(wait_pc), int(slack),
+                                           accepted == "1", model))))
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("variants")

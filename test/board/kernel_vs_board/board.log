@@ -1,0 +1,4517 @@
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.53%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp7w0g1c0t.py
+RESULT jtag 0 ran 10 0 0 0 0
+RESULT jtag 1 refused 9 0 1
+RESULT jtag 2 refused 9 0 1
+RESULT jtag 3 refused 9 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.53%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpxn6ab6li.py
+RESULT spi_master 0 ran 20 0 0 0 0
+RESULT spi_master 1 ran 20 0 0 0 0
+RESULT spi_master 2 ran 20 0 0 0 0
+RESULT spi_master 3 ran 20 0 0 0 0
+RESULT spi_master 4 ran 20 0 0 0 0
+RESULT spi_master 5 refused 10 0 1
+RESULT spi_master 6 refused 10 0 1
+RESULT spi_master 7 refused 10 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 14.96%
+
+Loading: [================                                  ] 30.21%
+
+Loading: [=======================                           ] 45.46%
+
+Loading: [===============================                   ] 60.72%
+
+Loading: [======================================            ] 75.97%
+
+Loading: [==============================================    ] 91.23%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_3pkytt3.py
+RESULT uart_tx 0 ran 28 0 0 0 0
+RESULT uart_tx 1 ran 28 0 0 0 0
+RESULT uart_tx 2 ran 28 0 0 0 0
+RESULT uart_tx 3 ran 28 0 0 0 0
+RESULT uart_tx 4 ran 28 0 0 0 0
+RESULT uart_tx 5 refused 9 0 1
+RESULT uart_tx 6 refused 9 0 1
+RESULT uart_tx 7 refused 9 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.53%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpae62_5gt.py
+RESULT uart_tx16 0 ran 28 0 0 0 0
+RESULT uart_tx16 1 ran 28 0 0 0 0
+RESULT uart_tx16 2 ran 28 0 0 0 0
+RESULT uart_tx16 3 ran 28 0 0 0 0
+RESULT uart_tx16 4 ran 28 0 0 0 0
+RESULT uart_tx16 5 ran 28 0 0 0 0
+RESULT uart_tx16 6 ran 28 0 0 0 0
+RESULT uart_tx16 7 ran 28 0 0 0 0
+RESULT uart_tx16 8 ran 28 0 0 0 0
+RESULT uart_tx16 9 ran 28 0 0 0 0
+RESULT uart_tx16 10 ran 28 0 0 0 0
+RESULT uart_tx16 11 ran 28 0 0 0 0
+RESULT uart_tx16 12 ran 28 0 0 0 0
+RESULT uart_tx16 13 refused 9 0 1
+RESULT uart_tx16 14 refused 9 0 1
+RESULT uart_tx16 15 refused 9 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.23%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpjgx4xi3p.py
+RESULT uart_tx_host_rate 0 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 1 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 2 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 3 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 4 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 5 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 6 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 7 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 8 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 9 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 10 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 11 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 12 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 13 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 14 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 15 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8976pbwz.py
+RESULT uart_tx_host_rate 16 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 17 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 18 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 19 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 20 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 21 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 22 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 23 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 24 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 25 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 26 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 27 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 28 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 29 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 30 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 31 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpirtnihr5.py
+RESULT uart_tx_host_rate 32 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 33 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 34 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 35 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 36 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 37 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 38 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 39 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 40 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 41 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 42 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 43 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 44 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 45 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 46 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 47 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpjum32ibf.py
+RESULT uart_tx_host_rate 48 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 49 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 50 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 51 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 52 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 53 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 54 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 55 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 56 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 57 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 58 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 59 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 60 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 61 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 62 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 63 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp6v5kqwtl.py
+RESULT uart_tx_host_rate 64 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 65 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 66 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 67 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 68 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 69 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 70 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 71 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 72 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 73 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 74 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 75 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 76 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 77 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 78 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 79 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpj7w1l8k_.py
+RESULT uart_tx_host_rate 80 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 81 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 82 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 83 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 84 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 85 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 86 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 87 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 88 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 89 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 90 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 91 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 92 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 93 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 94 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 95 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpm280avqy.py
+RESULT uart_tx_host_rate 96 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 97 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 98 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 99 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 100 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 101 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 102 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 103 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 104 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 105 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 106 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 107 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 108 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 109 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 110 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 111 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpz4wkknyq.py
+RESULT uart_tx_host_rate 112 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 113 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 114 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 115 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 116 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 117 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 118 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 119 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 120 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 121 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 122 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 123 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 124 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 125 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 126 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 127 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpld5ted61.py
+RESULT uart_tx_host_rate 128 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 129 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 130 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 131 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 132 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 133 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 134 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 135 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 136 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 137 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 138 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 139 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 140 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 141 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 142 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 143 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpq8a0wj2y.py
+RESULT uart_tx_host_rate 144 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 145 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 146 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 147 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 148 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 149 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 150 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 151 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 152 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 153 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 154 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 155 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 156 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 157 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 158 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 159 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp0b601w2l.py
+RESULT uart_tx_host_rate 160 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 161 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 162 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 163 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 164 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 165 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 166 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 167 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 168 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 169 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 170 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 171 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 172 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 173 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 174 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 175 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpdq92g08j.py
+RESULT uart_tx_host_rate 176 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 177 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 178 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 179 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 180 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 181 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 182 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 183 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 184 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 185 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 186 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 187 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 188 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 189 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 190 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 191 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpwzy6q88u.py
+RESULT uart_tx_host_rate 192 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 193 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 194 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 195 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 196 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 197 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 198 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 199 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 200 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 201 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 202 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 203 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 204 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 205 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 206 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 207 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpphrtb95l.py
+RESULT uart_tx_host_rate 208 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 209 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 210 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 211 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 212 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 213 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 214 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 215 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 216 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 217 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 218 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 219 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 220 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 221 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 222 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 223 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp6ujmx2c0.py
+RESULT uart_tx_host_rate 224 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 225 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 226 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 227 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 228 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 229 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 230 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 231 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 232 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 233 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 234 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 235 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 236 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 237 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 238 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 239 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpl3gkn_1j.py
+RESULT uart_tx_host_rate 240 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 241 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 242 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 243 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 244 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 245 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 246 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 247 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 248 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 249 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 250 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 251 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 252 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 253 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 254 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 255 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp71mz5lcs.py
+RESULT uart_tx_host_rate 256 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 257 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 258 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 259 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 260 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 261 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 262 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 263 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 264 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 265 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 266 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 267 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 268 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 269 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 270 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 271 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpnp9d015f.py
+RESULT uart_tx_host_rate 272 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 273 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 274 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 275 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 276 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 277 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 278 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 279 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 280 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 281 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 282 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 283 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 284 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 285 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 286 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 287 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmplbamvl1b.py
+RESULT uart_tx_host_rate 288 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 289 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 290 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 291 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 292 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 293 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 294 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 295 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 296 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 297 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 298 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 299 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 300 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 301 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 302 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 303 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpuepllaoa.py
+RESULT uart_tx_host_rate 304 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 305 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 306 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 307 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 308 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 309 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 310 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 311 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 312 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 313 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 314 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 315 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 316 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 317 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 318 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 319 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpeb_m1fp2.py
+RESULT uart_tx_host_rate 320 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 321 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 322 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 323 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 324 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 325 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 326 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 327 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 328 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 329 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 330 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 331 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 332 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 333 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 334 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 335 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvy95dlpi.py
+RESULT uart_tx_host_rate 336 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 337 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 338 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 339 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 340 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 341 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 342 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 343 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 344 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 345 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 346 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 347 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 348 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 349 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 350 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 351 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpttnq3h15.py
+RESULT uart_tx_host_rate 352 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 353 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 354 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 355 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 356 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 357 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 358 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 359 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 360 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 361 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 362 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 363 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 364 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 365 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 366 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 367 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpg9hr9p9k.py
+RESULT uart_tx_host_rate 368 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 369 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 370 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 371 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 372 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 373 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 374 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 375 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 376 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 377 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 378 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 379 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 380 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 381 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 382 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 383 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpau4xut2r.py
+RESULT uart_tx_host_rate 384 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 385 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 386 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 387 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 388 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 389 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 390 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 391 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 392 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 393 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 394 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 395 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 396 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 397 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 398 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 399 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvj8gjs1p.py
+RESULT uart_tx_host_rate 400 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 401 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 402 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 403 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 404 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 405 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 406 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 407 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 408 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 409 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 410 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 411 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 412 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 413 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 414 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 415 ran 14 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpjbszkogk.py
+RESULT uart_tx_host_rate 416 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 417 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 418 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 419 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 420 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 421 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 422 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 423 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 424 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 425 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 426 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 427 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 428 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 429 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 430 ran 14 0 0 0 0
+RESULT uart_tx_host_rate 431 refused 24 0 1
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp3j0s2ra9.py
+RESULT uart_tx_host_rate 432 refused 24 0 1
+RESULT uart_tx_host_rate 433 refused 24 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.53%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpx390zxaq.py
+RESULT sent 0 ran 20 0 0 0 0
+RESULT sent 1 ran 20 0 0 0 0
+RESULT sent 2 ran 20 0 0 0 0
+RESULT sent 3 ran 20 0 0 0 0
+RESULT sent 4 ran 20 0 0 0 0
+RESULT sent 5 ran 20 0 0 0 0
+RESULT sent 6 ran 20 0 0 0 0
+RESULT sent 7 ran 20 0 0 0 0
+RESULT sent 8 ran 20 0 0 0 0
+RESULT sent 9 ran 20 0 0 0 0
+RESULT sent 10 ran 20 0 0 0 0
+RESULT sent 11 ran 20 0 0 0 0
+RESULT sent 12 ran 20 0 0 0 0
+RESULT sent 13 ran 20 0 0 0 0
+RESULT sent 14 ran 20 0 0 0 0
+RESULT sent 15 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_4_hndqk.py
+RESULT sent 16 ran 20 0 0 0 0
+RESULT sent 17 ran 20 0 0 0 0
+RESULT sent 18 ran 20 0 0 0 0
+RESULT sent 19 ran 20 0 0 0 0
+RESULT sent 20 ran 20 0 0 0 0
+RESULT sent 21 ran 20 0 0 0 0
+RESULT sent 22 ran 20 0 0 0 0
+RESULT sent 23 ran 20 0 0 0 0
+RESULT sent 24 ran 20 0 0 0 0
+RESULT sent 25 ran 20 0 0 0 0
+RESULT sent 26 ran 20 0 0 0 0
+RESULT sent 27 ran 20 0 0 0 0
+RESULT sent 28 ran 20 0 0 0 0
+RESULT sent 29 ran 20 0 0 0 0
+RESULT sent 30 ran 20 0 0 0 0
+RESULT sent 31 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpy5yraq5f.py
+RESULT sent 32 ran 20 0 0 0 0
+RESULT sent 33 ran 20 0 0 0 0
+RESULT sent 34 ran 20 0 0 0 0
+RESULT sent 35 ran 20 0 0 0 0
+RESULT sent 36 ran 20 0 0 0 0
+RESULT sent 37 ran 20 0 0 0 0
+RESULT sent 38 ran 20 0 0 0 0
+RESULT sent 39 ran 20 0 0 0 0
+RESULT sent 40 ran 20 0 0 0 0
+RESULT sent 41 ran 20 0 0 0 0
+RESULT sent 42 ran 20 0 0 0 0
+RESULT sent 43 ran 20 0 0 0 0
+RESULT sent 44 ran 20 0 0 0 0
+RESULT sent 45 ran 20 0 0 0 0
+RESULT sent 46 ran 20 0 0 0 0
+RESULT sent 47 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpaay6lbnt.py
+RESULT sent 48 ran 20 0 0 0 0
+RESULT sent 49 ran 20 0 0 0 0
+RESULT sent 50 ran 20 0 0 0 0
+RESULT sent 51 ran 20 0 0 0 0
+RESULT sent 52 ran 20 0 0 0 0
+RESULT sent 53 ran 20 0 0 0 0
+RESULT sent 54 ran 20 0 0 0 0
+RESULT sent 55 ran 20 0 0 0 0
+RESULT sent 56 ran 20 0 0 0 0
+RESULT sent 57 ran 20 0 0 0 0
+RESULT sent 58 ran 20 0 0 0 0
+RESULT sent 59 ran 20 0 0 0 0
+RESULT sent 60 ran 20 0 0 0 0
+RESULT sent 61 ran 20 0 0 0 0
+RESULT sent 62 ran 20 0 0 0 0
+RESULT sent 63 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp7kofbxw0.py
+RESULT sent 64 ran 20 0 0 0 0
+RESULT sent 65 ran 20 0 0 0 0
+RESULT sent 66 ran 20 0 0 0 0
+RESULT sent 67 ran 20 0 0 0 0
+RESULT sent 68 ran 20 0 0 0 0
+RESULT sent 69 ran 20 0 0 0 0
+RESULT sent 70 ran 20 0 0 0 0
+RESULT sent 71 ran 20 0 0 0 0
+RESULT sent 72 ran 20 0 0 0 0
+RESULT sent 73 ran 20 0 0 0 0
+RESULT sent 74 ran 20 0 0 0 0
+RESULT sent 75 ran 20 0 0 0 0
+RESULT sent 76 ran 20 0 0 0 0
+RESULT sent 77 ran 20 0 0 0 0
+RESULT sent 78 ran 20 0 0 0 0
+RESULT sent 79 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp1nb9u4nd.py
+RESULT sent 80 ran 20 0 0 0 0
+RESULT sent 81 ran 20 0 0 0 0
+RESULT sent 82 ran 20 0 0 0 0
+RESULT sent 83 ran 20 0 0 0 0
+RESULT sent 84 ran 20 0 0 0 0
+RESULT sent 85 ran 20 0 0 0 0
+RESULT sent 86 ran 20 0 0 0 0
+RESULT sent 87 ran 20 0 0 0 0
+RESULT sent 88 ran 20 0 0 0 0
+RESULT sent 89 ran 20 0 0 0 0
+RESULT sent 90 ran 20 0 0 0 0
+RESULT sent 91 ran 20 0 0 0 0
+RESULT sent 92 ran 20 0 0 0 0
+RESULT sent 93 ran 20 0 0 0 0
+RESULT sent 94 ran 20 0 0 0 0
+RESULT sent 95 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpy85jjpgl.py
+RESULT sent 96 ran 20 0 0 0 0
+RESULT sent 97 ran 20 0 0 0 0
+RESULT sent 98 ran 20 0 0 0 0
+RESULT sent 99 ran 20 0 0 0 0
+RESULT sent 100 ran 20 0 0 0 0
+RESULT sent 101 ran 20 0 0 0 0
+RESULT sent 102 ran 20 0 0 0 0
+RESULT sent 103 ran 20 0 0 0 0
+RESULT sent 104 ran 20 0 0 0 0
+RESULT sent 105 ran 20 0 0 0 0
+RESULT sent 106 ran 20 0 0 0 0
+RESULT sent 107 ran 20 0 0 0 0
+RESULT sent 108 ran 20 0 0 0 0
+RESULT sent 109 ran 20 0 0 0 0
+RESULT sent 110 ran 20 0 0 0 0
+RESULT sent 111 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpeh3dmw1m.py
+RESULT sent 112 ran 20 0 0 0 0
+RESULT sent 113 ran 20 0 0 0 0
+RESULT sent 114 ran 20 0 0 0 0
+RESULT sent 115 ran 20 0 0 0 0
+RESULT sent 116 ran 20 0 0 0 0
+RESULT sent 117 ran 20 0 0 0 0
+RESULT sent 118 ran 20 0 0 0 0
+RESULT sent 119 ran 20 0 0 0 0
+RESULT sent 120 ran 20 0 0 0 0
+RESULT sent 121 ran 20 0 0 0 0
+RESULT sent 122 ran 20 0 0 0 0
+RESULT sent 123 ran 20 0 0 0 0
+RESULT sent 124 ran 20 0 0 0 0
+RESULT sent 125 ran 20 0 0 0 0
+RESULT sent 126 ran 20 0 0 0 0
+RESULT sent 127 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpdyv3bkp5.py
+RESULT sent 128 ran 20 0 0 0 0
+RESULT sent 129 ran 20 0 0 0 0
+RESULT sent 130 ran 20 0 0 0 0
+RESULT sent 131 ran 20 0 0 0 0
+RESULT sent 132 ran 20 0 0 0 0
+RESULT sent 133 ran 20 0 0 0 0
+RESULT sent 134 ran 20 0 0 0 0
+RESULT sent 135 ran 20 0 0 0 0
+RESULT sent 136 ran 20 0 0 0 0
+RESULT sent 137 ran 20 0 0 0 0
+RESULT sent 138 ran 20 0 0 0 0
+RESULT sent 139 ran 20 0 0 0 0
+RESULT sent 140 ran 20 0 0 0 0
+RESULT sent 141 ran 20 0 0 0 0
+RESULT sent 142 ran 20 0 0 0 0
+RESULT sent 143 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpqunv6h65.py
+RESULT sent 144 ran 20 0 0 0 0
+RESULT sent 145 ran 20 0 0 0 0
+RESULT sent 146 ran 20 0 0 0 0
+RESULT sent 147 ran 20 0 0 0 0
+RESULT sent 148 ran 20 0 0 0 0
+RESULT sent 149 ran 20 0 0 0 0
+RESULT sent 150 ran 20 0 0 0 0
+RESULT sent 151 ran 20 0 0 0 0
+RESULT sent 152 ran 20 0 0 0 0
+RESULT sent 153 ran 20 0 0 0 0
+RESULT sent 154 ran 20 0 0 0 0
+RESULT sent 155 ran 20 0 0 0 0
+RESULT sent 156 ran 20 0 0 0 0
+RESULT sent 157 ran 20 0 0 0 0
+RESULT sent 158 ran 20 0 0 0 0
+RESULT sent 159 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpc93xt79u.py
+RESULT sent 160 ran 20 0 0 0 0
+RESULT sent 161 ran 20 0 0 0 0
+RESULT sent 162 ran 20 0 0 0 0
+RESULT sent 163 ran 20 0 0 0 0
+RESULT sent 164 ran 20 0 0 0 0
+RESULT sent 165 ran 20 0 0 0 0
+RESULT sent 166 ran 20 0 0 0 0
+RESULT sent 167 ran 20 0 0 0 0
+RESULT sent 168 ran 20 0 0 0 0
+RESULT sent 169 ran 20 0 0 0 0
+RESULT sent 170 ran 20 0 0 0 0
+RESULT sent 171 ran 20 0 0 0 0
+RESULT sent 172 ran 20 0 0 0 0
+RESULT sent 173 ran 20 0 0 0 0
+RESULT sent 174 ran 20 0 0 0 0
+RESULT sent 175 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_hjy0x7o.py
+RESULT sent 176 ran 20 0 0 0 0
+RESULT sent 177 ran 20 0 0 0 0
+RESULT sent 178 ran 20 0 0 0 0
+RESULT sent 179 ran 20 0 0 0 0
+RESULT sent 180 ran 20 0 0 0 0
+RESULT sent 181 ran 20 0 0 0 0
+RESULT sent 182 ran 20 0 0 0 0
+RESULT sent 183 ran 20 0 0 0 0
+RESULT sent 184 ran 20 0 0 0 0
+RESULT sent 185 ran 20 0 0 0 0
+RESULT sent 186 ran 20 0 0 0 0
+RESULT sent 187 ran 20 0 0 0 0
+RESULT sent 188 ran 20 0 0 0 0
+RESULT sent 189 ran 20 0 0 0 0
+RESULT sent 190 ran 20 0 0 0 0
+RESULT sent 191 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpt2d8w1jp.py
+RESULT sent 192 ran 20 0 0 0 0
+RESULT sent 193 ran 20 0 0 0 0
+RESULT sent 194 ran 20 0 0 0 0
+RESULT sent 195 ran 20 0 0 0 0
+RESULT sent 196 ran 20 0 0 0 0
+RESULT sent 197 ran 20 0 0 0 0
+RESULT sent 198 ran 20 0 0 0 0
+RESULT sent 199 ran 20 0 0 0 0
+RESULT sent 200 ran 20 0 0 0 0
+RESULT sent 201 ran 20 0 0 0 0
+RESULT sent 202 ran 20 0 0 0 0
+RESULT sent 203 ran 20 0 0 0 0
+RESULT sent 204 ran 20 0 0 0 0
+RESULT sent 205 ran 20 0 0 0 0
+RESULT sent 206 ran 20 0 0 0 0
+RESULT sent 207 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpu5isyk19.py
+RESULT sent 208 ran 20 0 0 0 0
+RESULT sent 209 ran 20 0 0 0 0
+RESULT sent 210 ran 20 0 0 0 0
+RESULT sent 211 ran 20 0 0 0 0
+RESULT sent 212 ran 20 0 0 0 0
+RESULT sent 213 ran 20 0 0 0 0
+RESULT sent 214 ran 20 0 0 0 0
+RESULT sent 215 ran 20 0 0 0 0
+RESULT sent 216 ran 20 0 0 0 0
+RESULT sent 217 ran 20 0 0 0 0
+RESULT sent 218 ran 20 0 0 0 0
+RESULT sent 219 ran 20 0 0 0 0
+RESULT sent 220 ran 20 0 0 0 0
+RESULT sent 221 ran 20 0 0 0 0
+RESULT sent 222 ran 20 0 0 0 0
+RESULT sent 223 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp73zjkg6z.py
+RESULT sent 224 ran 20 0 0 0 0
+RESULT sent 225 ran 20 0 0 0 0
+RESULT sent 226 ran 20 0 0 0 0
+RESULT sent 227 ran 20 0 0 0 0
+RESULT sent 228 ran 20 0 0 0 0
+RESULT sent 229 ran 20 0 0 0 0
+RESULT sent 230 ran 20 0 0 0 0
+RESULT sent 231 ran 20 0 0 0 0
+RESULT sent 232 ran 20 0 0 0 0
+RESULT sent 233 ran 20 0 0 0 0
+RESULT sent 234 ran 20 0 0 0 0
+RESULT sent 235 ran 20 0 0 0 0
+RESULT sent 236 ran 20 0 0 0 0
+RESULT sent 237 ran 20 0 0 0 0
+RESULT sent 238 ran 20 0 0 0 0
+RESULT sent 239 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpnf83gkv2.py
+RESULT sent 240 ran 20 0 0 0 0
+RESULT sent 241 ran 20 0 0 0 0
+RESULT sent 242 ran 20 0 0 0 0
+RESULT sent 243 ran 20 0 0 0 0
+RESULT sent 244 ran 20 0 0 0 0
+RESULT sent 245 ran 20 0 0 0 0
+RESULT sent 246 ran 20 0 0 0 0
+RESULT sent 247 ran 20 0 0 0 0
+RESULT sent 248 ran 20 0 0 0 0
+RESULT sent 249 ran 20 0 0 0 0
+RESULT sent 250 ran 20 0 0 0 0
+RESULT sent 251 ran 20 0 0 0 0
+RESULT sent 252 ran 20 0 0 0 0
+RESULT sent 253 ran 20 0 0 0 0
+RESULT sent 254 ran 20 0 0 0 0
+RESULT sent 255 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpqcnymbpp.py
+RESULT sent 256 ran 20 0 0 0 0
+RESULT sent 257 ran 20 0 0 0 0
+RESULT sent 258 ran 20 0 0 0 0
+RESULT sent 259 ran 20 0 0 0 0
+RESULT sent 260 ran 20 0 0 0 0
+RESULT sent 261 ran 20 0 0 0 0
+RESULT sent 262 ran 20 0 0 0 0
+RESULT sent 263 ran 20 0 0 0 0
+RESULT sent 264 ran 20 0 0 0 0
+RESULT sent 265 ran 20 0 0 0 0
+RESULT sent 266 ran 20 0 0 0 0
+RESULT sent 267 ran 20 0 0 0 0
+RESULT sent 268 ran 20 0 0 0 0
+RESULT sent 269 ran 20 0 0 0 0
+RESULT sent 270 ran 20 0 0 0 0
+RESULT sent 271 ran 20 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmph8bd0v6q.py
+RESULT sent 272 ran 20 0 0 0 0
+RESULT sent 273 ran 20 0 0 0 0
+RESULT sent 274 ran 20 0 0 0 0
+RESULT sent 275 ran 20 0 0 0 0
+RESULT sent 276 ran 20 0 0 0 0
+RESULT sent 277 ran 20 0 0 0 0
+RESULT sent 278 ran 20 0 0 0 0
+RESULT sent 279 ran 20 0 0 0 0
+RESULT sent 280 refused 35 0 1
+RESULT sent 281 refused 35 0 1
+RESULT sent 282 refused 35 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.53%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpibt36907.py
+RESULT wiegand 0 ran 34 0 0 0 0
+RESULT wiegand 1 ran 34 0 0 0 0
+RESULT wiegand 2 ran 34 0 0 0 0
+RESULT wiegand 3 ran 34 0 0 0 0
+RESULT wiegand 4 ran 34 0 0 0 0
+RESULT wiegand 5 ran 34 0 0 0 0
+RESULT wiegand 6 ran 34 0 0 0 0
+RESULT wiegand 7 ran 34 0 0 0 0
+RESULT wiegand 8 ran 34 0 0 0 0
+RESULT wiegand 9 ran 34 0 0 0 0
+RESULT wiegand 10 ran 34 0 0 0 0
+RESULT wiegand 11 ran 34 0 0 0 0
+RESULT wiegand 12 ran 34 0 0 0 0
+RESULT wiegand 13 ran 34 0 0 0 0
+RESULT wiegand 14 ran 34 0 0 0 0
+RESULT wiegand 15 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpl4_of7k3.py
+RESULT wiegand 16 ran 34 0 0 0 0
+RESULT wiegand 17 ran 34 0 0 0 0
+RESULT wiegand 18 ran 34 0 0 0 0
+RESULT wiegand 19 ran 34 0 0 0 0
+RESULT wiegand 20 ran 34 0 0 0 0
+RESULT wiegand 21 ran 34 0 0 0 0
+RESULT wiegand 22 ran 34 0 0 0 0
+RESULT wiegand 23 ran 34 0 0 0 0
+RESULT wiegand 24 ran 34 0 0 0 0
+RESULT wiegand 25 ran 34 0 0 0 0
+RESULT wiegand 26 ran 34 0 0 0 0
+RESULT wiegand 27 ran 34 0 0 0 0
+RESULT wiegand 28 ran 34 0 0 0 0
+RESULT wiegand 29 ran 34 0 0 0 0
+RESULT wiegand 30 ran 34 0 0 0 0
+RESULT wiegand 31 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmps9o7_b4i.py
+RESULT wiegand 32 ran 34 0 0 0 0
+RESULT wiegand 33 ran 34 0 0 0 0
+RESULT wiegand 34 ran 34 0 0 0 0
+RESULT wiegand 35 ran 34 0 0 0 0
+RESULT wiegand 36 ran 34 0 0 0 0
+RESULT wiegand 37 ran 34 0 0 0 0
+RESULT wiegand 38 ran 34 0 0 0 0
+RESULT wiegand 39 ran 34 0 0 0 0
+RESULT wiegand 40 ran 34 0 0 0 0
+RESULT wiegand 41 ran 34 0 0 0 0
+RESULT wiegand 42 ran 34 0 0 0 0
+RESULT wiegand 43 ran 34 0 0 0 0
+RESULT wiegand 44 ran 34 0 0 0 0
+RESULT wiegand 45 ran 34 0 0 0 0
+RESULT wiegand 46 ran 34 0 0 0 0
+RESULT wiegand 47 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpyxmoc2so.py
+RESULT wiegand 48 ran 34 0 0 0 0
+RESULT wiegand 49 ran 34 0 0 0 0
+RESULT wiegand 50 ran 34 0 0 0 0
+RESULT wiegand 51 ran 34 0 0 0 0
+RESULT wiegand 52 ran 34 0 0 0 0
+RESULT wiegand 53 ran 34 0 0 0 0
+RESULT wiegand 54 ran 34 0 0 0 0
+RESULT wiegand 55 ran 34 0 0 0 0
+RESULT wiegand 56 ran 34 0 0 0 0
+RESULT wiegand 57 ran 34 0 0 0 0
+RESULT wiegand 58 ran 34 0 0 0 0
+RESULT wiegand 59 ran 34 0 0 0 0
+RESULT wiegand 60 ran 34 0 0 0 0
+RESULT wiegand 61 ran 34 0 0 0 0
+RESULT wiegand 62 ran 34 0 0 0 0
+RESULT wiegand 63 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpnh_rf0u6.py
+RESULT wiegand 64 ran 34 0 0 0 0
+RESULT wiegand 65 ran 34 0 0 0 0
+RESULT wiegand 66 ran 34 0 0 0 0
+RESULT wiegand 67 ran 34 0 0 0 0
+RESULT wiegand 68 ran 34 0 0 0 0
+RESULT wiegand 69 ran 34 0 0 0 0
+RESULT wiegand 70 ran 34 0 0 0 0
+RESULT wiegand 71 ran 34 0 0 0 0
+RESULT wiegand 72 ran 34 0 0 0 0
+RESULT wiegand 73 ran 34 0 0 0 0
+RESULT wiegand 74 ran 34 0 0 0 0
+RESULT wiegand 75 ran 34 0 0 0 0
+RESULT wiegand 76 ran 34 0 0 0 0
+RESULT wiegand 77 ran 34 0 0 0 0
+RESULT wiegand 78 ran 34 0 0 0 0
+RESULT wiegand 79 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp5sfi0tfa.py
+RESULT wiegand 80 ran 34 0 0 0 0
+RESULT wiegand 81 ran 34 0 0 0 0
+RESULT wiegand 82 ran 34 0 0 0 0
+RESULT wiegand 83 ran 34 0 0 0 0
+RESULT wiegand 84 ran 34 0 0 0 0
+RESULT wiegand 85 ran 34 0 0 0 0
+RESULT wiegand 86 ran 34 0 0 0 0
+RESULT wiegand 87 ran 34 0 0 0 0
+RESULT wiegand 88 ran 34 0 0 0 0
+RESULT wiegand 89 ran 34 0 0 0 0
+RESULT wiegand 90 ran 34 0 0 0 0
+RESULT wiegand 91 ran 34 0 0 0 0
+RESULT wiegand 92 ran 34 0 0 0 0
+RESULT wiegand 93 ran 34 0 0 0 0
+RESULT wiegand 94 ran 34 0 0 0 0
+RESULT wiegand 95 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8ah1lter.py
+RESULT wiegand 96 ran 34 0 0 0 0
+RESULT wiegand 97 ran 34 0 0 0 0
+RESULT wiegand 98 ran 34 0 0 0 0
+RESULT wiegand 99 ran 34 0 0 0 0
+RESULT wiegand 100 ran 34 0 0 0 0
+RESULT wiegand 101 ran 34 0 0 0 0
+RESULT wiegand 102 ran 34 0 0 0 0
+RESULT wiegand 103 ran 34 0 0 0 0
+RESULT wiegand 104 ran 34 0 0 0 0
+RESULT wiegand 105 ran 34 0 0 0 0
+RESULT wiegand 106 ran 34 0 0 0 0
+RESULT wiegand 107 ran 34 0 0 0 0
+RESULT wiegand 108 ran 34 0 0 0 0
+RESULT wiegand 109 ran 34 0 0 0 0
+RESULT wiegand 110 ran 34 0 0 0 0
+RESULT wiegand 111 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpx7c_fpxp.py
+RESULT wiegand 112 ran 34 0 0 0 0
+RESULT wiegand 113 ran 34 0 0 0 0
+RESULT wiegand 114 ran 34 0 0 0 0
+RESULT wiegand 115 ran 34 0 0 0 0
+RESULT wiegand 116 ran 34 0 0 0 0
+RESULT wiegand 117 ran 34 0 0 0 0
+RESULT wiegand 118 ran 34 0 0 0 0
+RESULT wiegand 119 ran 34 0 0 0 0
+RESULT wiegand 120 ran 34 0 0 0 0
+RESULT wiegand 121 ran 34 0 0 0 0
+RESULT wiegand 122 ran 34 0 0 0 0
+RESULT wiegand 123 ran 34 0 0 0 0
+RESULT wiegand 124 ran 34 0 0 0 0
+RESULT wiegand 125 ran 34 0 0 0 0
+RESULT wiegand 126 ran 34 0 0 0 0
+RESULT wiegand 127 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpa66ohauy.py
+RESULT wiegand 128 ran 34 0 0 0 0
+RESULT wiegand 129 ran 34 0 0 0 0
+RESULT wiegand 130 ran 34 0 0 0 0
+RESULT wiegand 131 ran 34 0 0 0 0
+RESULT wiegand 132 ran 34 0 0 0 0
+RESULT wiegand 133 ran 34 0 0 0 0
+RESULT wiegand 134 ran 34 0 0 0 0
+RESULT wiegand 135 ran 34 0 0 0 0
+RESULT wiegand 136 ran 34 0 0 0 0
+RESULT wiegand 137 ran 34 0 0 0 0
+RESULT wiegand 138 ran 34 0 0 0 0
+RESULT wiegand 139 ran 34 0 0 0 0
+RESULT wiegand 140 ran 34 0 0 0 0
+RESULT wiegand 141 ran 34 0 0 0 0
+RESULT wiegand 142 ran 34 0 0 0 0
+RESULT wiegand 143 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp950x2pxa.py
+RESULT wiegand 144 ran 34 0 0 0 0
+RESULT wiegand 145 ran 34 0 0 0 0
+RESULT wiegand 146 ran 34 0 0 0 0
+RESULT wiegand 147 ran 34 0 0 0 0
+RESULT wiegand 148 ran 34 0 0 0 0
+RESULT wiegand 149 ran 34 0 0 0 0
+RESULT wiegand 150 ran 34 0 0 0 0
+RESULT wiegand 151 ran 34 0 0 0 0
+RESULT wiegand 152 ran 34 0 0 0 0
+RESULT wiegand 153 ran 34 0 0 0 0
+RESULT wiegand 154 ran 34 0 0 0 0
+RESULT wiegand 155 ran 34 0 0 0 0
+RESULT wiegand 156 ran 34 0 0 0 0
+RESULT wiegand 157 ran 34 0 0 0 0
+RESULT wiegand 158 ran 34 0 0 0 0
+RESULT wiegand 159 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpjxbepufu.py
+RESULT wiegand 160 ran 34 0 0 0 0
+RESULT wiegand 161 ran 34 0 0 0 0
+RESULT wiegand 162 ran 34 0 0 0 0
+RESULT wiegand 163 ran 34 0 0 0 0
+RESULT wiegand 164 ran 34 0 0 0 0
+RESULT wiegand 165 ran 34 0 0 0 0
+RESULT wiegand 166 ran 34 0 0 0 0
+RESULT wiegand 167 ran 34 0 0 0 0
+RESULT wiegand 168 ran 34 0 0 0 0
+RESULT wiegand 169 ran 34 0 0 0 0
+RESULT wiegand 170 ran 34 0 0 0 0
+RESULT wiegand 171 ran 34 0 0 0 0
+RESULT wiegand 172 ran 34 0 0 0 0
+RESULT wiegand 173 ran 34 0 0 0 0
+RESULT wiegand 174 ran 34 0 0 0 0
+RESULT wiegand 175 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpibnyclbc.py
+RESULT wiegand 176 ran 34 0 0 0 0
+RESULT wiegand 177 ran 34 0 0 0 0
+RESULT wiegand 178 ran 34 0 0 0 0
+RESULT wiegand 179 ran 34 0 0 0 0
+RESULT wiegand 180 ran 34 0 0 0 0
+RESULT wiegand 181 ran 34 0 0 0 0
+RESULT wiegand 182 ran 34 0 0 0 0
+RESULT wiegand 183 ran 34 0 0 0 0
+RESULT wiegand 184 ran 34 0 0 0 0
+RESULT wiegand 185 ran 34 0 0 0 0
+RESULT wiegand 186 ran 34 0 0 0 0
+RESULT wiegand 187 ran 34 0 0 0 0
+RESULT wiegand 188 ran 34 0 0 0 0
+RESULT wiegand 189 ran 34 0 0 0 0
+RESULT wiegand 190 ran 34 0 0 0 0
+RESULT wiegand 191 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpikuwvte5.py
+RESULT wiegand 192 ran 34 0 0 0 0
+RESULT wiegand 193 ran 34 0 0 0 0
+RESULT wiegand 194 ran 34 0 0 0 0
+RESULT wiegand 195 ran 34 0 0 0 0
+RESULT wiegand 196 ran 34 0 0 0 0
+RESULT wiegand 197 ran 34 0 0 0 0
+RESULT wiegand 198 ran 34 0 0 0 0
+RESULT wiegand 199 ran 34 0 0 0 0
+RESULT wiegand 200 ran 34 0 0 0 0
+RESULT wiegand 201 ran 34 0 0 0 0
+RESULT wiegand 202 ran 34 0 0 0 0
+RESULT wiegand 203 ran 34 0 0 0 0
+RESULT wiegand 204 ran 34 0 0 0 0
+RESULT wiegand 205 ran 34 0 0 0 0
+RESULT wiegand 206 ran 34 0 0 0 0
+RESULT wiegand 207 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8ggidocx.py
+RESULT wiegand 208 ran 34 0 0 0 0
+RESULT wiegand 209 ran 34 0 0 0 0
+RESULT wiegand 210 ran 34 0 0 0 0
+RESULT wiegand 211 ran 34 0 0 0 0
+RESULT wiegand 212 ran 34 0 0 0 0
+RESULT wiegand 213 ran 34 0 0 0 0
+RESULT wiegand 214 ran 34 0 0 0 0
+RESULT wiegand 215 ran 34 0 0 0 0
+RESULT wiegand 216 ran 34 0 0 0 0
+RESULT wiegand 217 ran 34 0 0 0 0
+RESULT wiegand 218 ran 34 0 0 0 0
+RESULT wiegand 219 ran 34 0 0 0 0
+RESULT wiegand 220 ran 34 0 0 0 0
+RESULT wiegand 221 ran 34 0 0 0 0
+RESULT wiegand 222 ran 34 0 0 0 0
+RESULT wiegand 223 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpd6paxu36.py
+RESULT wiegand 224 ran 34 0 0 0 0
+RESULT wiegand 225 ran 34 0 0 0 0
+RESULT wiegand 226 ran 34 0 0 0 0
+RESULT wiegand 227 ran 34 0 0 0 0
+RESULT wiegand 228 ran 34 0 0 0 0
+RESULT wiegand 229 ran 34 0 0 0 0
+RESULT wiegand 230 ran 34 0 0 0 0
+RESULT wiegand 231 ran 34 0 0 0 0
+RESULT wiegand 232 ran 34 0 0 0 0
+RESULT wiegand 233 ran 34 0 0 0 0
+RESULT wiegand 234 ran 34 0 0 0 0
+RESULT wiegand 235 ran 34 0 0 0 0
+RESULT wiegand 236 ran 34 0 0 0 0
+RESULT wiegand 237 ran 34 0 0 0 0
+RESULT wiegand 238 ran 34 0 0 0 0
+RESULT wiegand 239 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4lu0hmu3.py
+RESULT wiegand 240 ran 34 0 0 0 0
+RESULT wiegand 241 ran 34 0 0 0 0
+RESULT wiegand 242 ran 34 0 0 0 0
+RESULT wiegand 243 ran 34 0 0 0 0
+RESULT wiegand 244 ran 34 0 0 0 0
+RESULT wiegand 245 ran 34 0 0 0 0
+RESULT wiegand 246 ran 34 0 0 0 0
+RESULT wiegand 247 ran 34 0 0 0 0
+RESULT wiegand 248 ran 34 0 0 0 0
+RESULT wiegand 249 ran 34 0 0 0 0
+RESULT wiegand 250 ran 34 0 0 0 0
+RESULT wiegand 251 ran 34 0 0 0 0
+RESULT wiegand 252 ran 34 0 0 0 0
+RESULT wiegand 253 ran 34 0 0 0 0
+RESULT wiegand 254 ran 34 0 0 0 0
+RESULT wiegand 255 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpj4oqj6r7.py
+RESULT wiegand 256 ran 34 0 0 0 0
+RESULT wiegand 257 ran 34 0 0 0 0
+RESULT wiegand 258 ran 34 0 0 0 0
+RESULT wiegand 259 ran 34 0 0 0 0
+RESULT wiegand 260 ran 34 0 0 0 0
+RESULT wiegand 261 ran 34 0 0 0 0
+RESULT wiegand 262 ran 34 0 0 0 0
+RESULT wiegand 263 ran 34 0 0 0 0
+RESULT wiegand 264 ran 34 0 0 0 0
+RESULT wiegand 265 ran 34 0 0 0 0
+RESULT wiegand 266 ran 34 0 0 0 0
+RESULT wiegand 267 ran 34 0 0 0 0
+RESULT wiegand 268 ran 34 0 0 0 0
+RESULT wiegand 269 ran 34 0 0 0 0
+RESULT wiegand 270 ran 34 0 0 0 0
+RESULT wiegand 271 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp0g3wpv4q.py
+RESULT wiegand 272 ran 34 0 0 0 0
+RESULT wiegand 273 ran 34 0 0 0 0
+RESULT wiegand 274 ran 34 0 0 0 0
+RESULT wiegand 275 ran 34 0 0 0 0
+RESULT wiegand 276 ran 34 0 0 0 0
+RESULT wiegand 277 ran 34 0 0 0 0
+RESULT wiegand 278 ran 34 0 0 0 0
+RESULT wiegand 279 ran 34 0 0 0 0
+RESULT wiegand 280 ran 34 0 0 0 0
+RESULT wiegand 281 ran 34 0 0 0 0
+RESULT wiegand 282 ran 34 0 0 0 0
+RESULT wiegand 283 ran 34 0 0 0 0
+RESULT wiegand 284 ran 34 0 0 0 0
+RESULT wiegand 285 ran 34 0 0 0 0
+RESULT wiegand 286 ran 34 0 0 0 0
+RESULT wiegand 287 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp1v14pdhp.py
+RESULT wiegand 288 ran 34 0 0 0 0
+RESULT wiegand 289 ran 34 0 0 0 0
+RESULT wiegand 290 ran 34 0 0 0 0
+RESULT wiegand 291 ran 34 0 0 0 0
+RESULT wiegand 292 ran 34 0 0 0 0
+RESULT wiegand 293 ran 34 0 0 0 0
+RESULT wiegand 294 ran 34 0 0 0 0
+RESULT wiegand 295 ran 34 0 0 0 0
+RESULT wiegand 296 ran 34 0 0 0 0
+RESULT wiegand 297 ran 34 0 0 0 0
+RESULT wiegand 298 ran 34 0 0 0 0
+RESULT wiegand 299 ran 34 0 0 0 0
+RESULT wiegand 300 ran 34 0 0 0 0
+RESULT wiegand 301 ran 34 0 0 0 0
+RESULT wiegand 302 ran 34 0 0 0 0
+RESULT wiegand 303 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpb4ct85ht.py
+RESULT wiegand 304 ran 34 0 0 0 0
+RESULT wiegand 305 ran 34 0 0 0 0
+RESULT wiegand 306 ran 34 0 0 0 0
+RESULT wiegand 307 ran 34 0 0 0 0
+RESULT wiegand 308 ran 34 0 0 0 0
+RESULT wiegand 309 ran 34 0 0 0 0
+RESULT wiegand 310 ran 34 0 0 0 0
+RESULT wiegand 311 ran 34 0 0 0 0
+RESULT wiegand 312 ran 34 0 0 0 0
+RESULT wiegand 313 ran 34 0 0 0 0
+RESULT wiegand 314 ran 34 0 0 0 0
+RESULT wiegand 315 ran 34 0 0 0 0
+RESULT wiegand 316 ran 34 0 0 0 0
+RESULT wiegand 317 ran 34 0 0 0 0
+RESULT wiegand 318 ran 34 0 0 0 0
+RESULT wiegand 319 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp6ra4_csu.py
+RESULT wiegand 320 ran 34 0 0 0 0
+RESULT wiegand 321 ran 34 0 0 0 0
+RESULT wiegand 322 ran 34 0 0 0 0
+RESULT wiegand 323 ran 34 0 0 0 0
+RESULT wiegand 324 ran 34 0 0 0 0
+RESULT wiegand 325 ran 34 0 0 0 0
+RESULT wiegand 326 ran 34 0 0 0 0
+RESULT wiegand 327 ran 34 0 0 0 0
+RESULT wiegand 328 ran 34 0 0 0 0
+RESULT wiegand 329 ran 34 0 0 0 0
+RESULT wiegand 330 ran 34 0 0 0 0
+RESULT wiegand 331 ran 34 0 0 0 0
+RESULT wiegand 332 ran 34 0 0 0 0
+RESULT wiegand 333 ran 34 0 0 0 0
+RESULT wiegand 334 ran 34 0 0 0 0
+RESULT wiegand 335 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4khq4wf2.py
+RESULT wiegand 336 ran 34 0 0 0 0
+RESULT wiegand 337 ran 34 0 0 0 0
+RESULT wiegand 338 ran 34 0 0 0 0
+RESULT wiegand 339 ran 34 0 0 0 0
+RESULT wiegand 340 ran 34 0 0 0 0
+RESULT wiegand 341 ran 34 0 0 0 0
+RESULT wiegand 342 ran 34 0 0 0 0
+RESULT wiegand 343 ran 34 0 0 0 0
+RESULT wiegand 344 ran 34 0 0 0 0
+RESULT wiegand 345 ran 34 0 0 0 0
+RESULT wiegand 346 ran 34 0 0 0 0
+RESULT wiegand 347 ran 34 0 0 0 0
+RESULT wiegand 348 ran 34 0 0 0 0
+RESULT wiegand 349 ran 34 0 0 0 0
+RESULT wiegand 350 ran 34 0 0 0 0
+RESULT wiegand 351 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpt47wcnlv.py
+RESULT wiegand 352 ran 34 0 0 0 0
+RESULT wiegand 353 ran 34 0 0 0 0
+RESULT wiegand 354 ran 34 0 0 0 0
+RESULT wiegand 355 ran 34 0 0 0 0
+RESULT wiegand 356 ran 34 0 0 0 0
+RESULT wiegand 357 ran 34 0 0 0 0
+RESULT wiegand 358 ran 34 0 0 0 0
+RESULT wiegand 359 ran 34 0 0 0 0
+RESULT wiegand 360 ran 34 0 0 0 0
+RESULT wiegand 361 ran 34 0 0 0 0
+RESULT wiegand 362 ran 34 0 0 0 0
+RESULT wiegand 363 ran 34 0 0 0 0
+RESULT wiegand 364 ran 34 0 0 0 0
+RESULT wiegand 365 ran 34 0 0 0 0
+RESULT wiegand 366 ran 34 0 0 0 0
+RESULT wiegand 367 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp1aime92l.py
+RESULT wiegand 368 ran 34 0 0 0 0
+RESULT wiegand 369 ran 34 0 0 0 0
+RESULT wiegand 370 ran 34 0 0 0 0
+RESULT wiegand 371 ran 34 0 0 0 0
+RESULT wiegand 372 ran 34 0 0 0 0
+RESULT wiegand 373 ran 34 0 0 0 0
+RESULT wiegand 374 ran 34 0 0 0 0
+RESULT wiegand 375 ran 34 0 0 0 0
+RESULT wiegand 376 ran 34 0 0 0 0
+RESULT wiegand 377 ran 34 0 0 0 0
+RESULT wiegand 378 ran 34 0 0 0 0
+RESULT wiegand 379 ran 34 0 0 0 0
+RESULT wiegand 380 ran 34 0 0 0 0
+RESULT wiegand 381 ran 34 0 0 0 0
+RESULT wiegand 382 ran 34 0 0 0 0
+RESULT wiegand 383 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpsxjc9t9o.py
+RESULT wiegand 384 ran 34 0 0 0 0
+RESULT wiegand 385 ran 34 0 0 0 0
+RESULT wiegand 386 ran 34 0 0 0 0
+RESULT wiegand 387 ran 34 0 0 0 0
+RESULT wiegand 388 ran 34 0 0 0 0
+RESULT wiegand 389 ran 34 0 0 0 0
+RESULT wiegand 390 ran 34 0 0 0 0
+RESULT wiegand 391 ran 34 0 0 0 0
+RESULT wiegand 392 ran 34 0 0 0 0
+RESULT wiegand 393 ran 34 0 0 0 0
+RESULT wiegand 394 ran 34 0 0 0 0
+RESULT wiegand 395 ran 34 0 0 0 0
+RESULT wiegand 396 ran 34 0 0 0 0
+RESULT wiegand 397 ran 34 0 0 0 0
+RESULT wiegand 398 ran 34 0 0 0 0
+RESULT wiegand 399 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvmh383kf.py
+RESULT wiegand 400 ran 34 0 0 0 0
+RESULT wiegand 401 ran 34 0 0 0 0
+RESULT wiegand 402 ran 34 0 0 0 0
+RESULT wiegand 403 ran 34 0 0 0 0
+RESULT wiegand 404 ran 34 0 0 0 0
+RESULT wiegand 405 ran 34 0 0 0 0
+RESULT wiegand 406 ran 34 0 0 0 0
+RESULT wiegand 407 ran 34 0 0 0 0
+RESULT wiegand 408 ran 34 0 0 0 0
+RESULT wiegand 409 ran 34 0 0 0 0
+RESULT wiegand 410 ran 34 0 0 0 0
+RESULT wiegand 411 ran 34 0 0 0 0
+RESULT wiegand 412 ran 34 0 0 0 0
+RESULT wiegand 413 ran 34 0 0 0 0
+RESULT wiegand 414 ran 34 0 0 0 0
+RESULT wiegand 415 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2rt3b2ns.py
+RESULT wiegand 416 ran 34 0 0 0 0
+RESULT wiegand 417 ran 34 0 0 0 0
+RESULT wiegand 418 ran 34 0 0 0 0
+RESULT wiegand 419 ran 34 0 0 0 0
+RESULT wiegand 420 ran 34 0 0 0 0
+RESULT wiegand 421 ran 34 0 0 0 0
+RESULT wiegand 422 ran 34 0 0 0 0
+RESULT wiegand 423 ran 34 0 0 0 0
+RESULT wiegand 424 ran 34 0 0 0 0
+RESULT wiegand 425 ran 34 0 0 0 0
+RESULT wiegand 426 ran 34 0 0 0 0
+RESULT wiegand 427 ran 34 0 0 0 0
+RESULT wiegand 428 ran 34 0 0 0 0
+RESULT wiegand 429 ran 34 0 0 0 0
+RESULT wiegand 430 ran 34 0 0 0 0
+RESULT wiegand 431 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpwdtyvy19.py
+RESULT wiegand 432 ran 34 0 0 0 0
+RESULT wiegand 433 ran 34 0 0 0 0
+RESULT wiegand 434 ran 34 0 0 0 0
+RESULT wiegand 435 ran 34 0 0 0 0
+RESULT wiegand 436 ran 34 0 0 0 0
+RESULT wiegand 437 ran 34 0 0 0 0
+RESULT wiegand 438 ran 34 0 0 0 0
+RESULT wiegand 439 ran 34 0 0 0 0
+RESULT wiegand 440 ran 34 0 0 0 0
+RESULT wiegand 441 ran 34 0 0 0 0
+RESULT wiegand 442 ran 34 0 0 0 0
+RESULT wiegand 443 ran 34 0 0 0 0
+RESULT wiegand 444 ran 34 0 0 0 0
+RESULT wiegand 445 ran 34 0 0 0 0
+RESULT wiegand 446 ran 34 0 0 0 0
+RESULT wiegand 447 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp7obqr89v.py
+RESULT wiegand 448 ran 34 0 0 0 0
+RESULT wiegand 449 ran 34 0 0 0 0
+RESULT wiegand 450 ran 34 0 0 0 0
+RESULT wiegand 451 ran 34 0 0 0 0
+RESULT wiegand 452 ran 34 0 0 0 0
+RESULT wiegand 453 ran 34 0 0 0 0
+RESULT wiegand 454 ran 34 0 0 0 0
+RESULT wiegand 455 ran 34 0 0 0 0
+RESULT wiegand 456 ran 34 0 0 0 0
+RESULT wiegand 457 ran 34 0 0 0 0
+RESULT wiegand 458 ran 34 0 0 0 0
+RESULT wiegand 459 ran 34 0 0 0 0
+RESULT wiegand 460 ran 34 0 0 0 0
+RESULT wiegand 461 ran 34 0 0 0 0
+RESULT wiegand 462 ran 34 0 0 0 0
+RESULT wiegand 463 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp1gxfg9j4.py
+RESULT wiegand 464 ran 34 0 0 0 0
+RESULT wiegand 465 ran 34 0 0 0 0
+RESULT wiegand 466 ran 34 0 0 0 0
+RESULT wiegand 467 ran 34 0 0 0 0
+RESULT wiegand 468 ran 34 0 0 0 0
+RESULT wiegand 469 ran 34 0 0 0 0
+RESULT wiegand 470 ran 34 0 0 0 0
+RESULT wiegand 471 ran 34 0 0 0 0
+RESULT wiegand 472 ran 34 0 0 0 0
+RESULT wiegand 473 ran 34 0 0 0 0
+RESULT wiegand 474 ran 34 0 0 0 0
+RESULT wiegand 475 ran 34 0 0 0 0
+RESULT wiegand 476 ran 34 0 0 0 0
+RESULT wiegand 477 ran 34 0 0 0 0
+RESULT wiegand 478 ran 34 0 0 0 0
+RESULT wiegand 479 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmplvcsn9ae.py
+RESULT wiegand 480 ran 34 0 0 0 0
+RESULT wiegand 481 ran 34 0 0 0 0
+RESULT wiegand 482 ran 34 0 0 0 0
+RESULT wiegand 483 ran 34 0 0 0 0
+RESULT wiegand 484 ran 34 0 0 0 0
+RESULT wiegand 485 ran 34 0 0 0 0
+RESULT wiegand 486 ran 34 0 0 0 0
+RESULT wiegand 487 ran 34 0 0 0 0
+RESULT wiegand 488 ran 34 0 0 0 0
+RESULT wiegand 489 ran 34 0 0 0 0
+RESULT wiegand 490 ran 34 0 0 0 0
+RESULT wiegand 491 ran 34 0 0 0 0
+RESULT wiegand 492 ran 34 0 0 0 0
+RESULT wiegand 493 ran 34 0 0 0 0
+RESULT wiegand 494 ran 34 0 0 0 0
+RESULT wiegand 495 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp00qer9lf.py
+RESULT wiegand 496 ran 34 0 0 0 0
+RESULT wiegand 497 ran 34 0 0 0 0
+RESULT wiegand 498 ran 34 0 0 0 0
+RESULT wiegand 499 ran 34 0 0 0 0
+RESULT wiegand 500 ran 34 0 0 0 0
+RESULT wiegand 501 ran 34 0 0 0 0
+RESULT wiegand 502 ran 34 0 0 0 0
+RESULT wiegand 503 ran 34 0 0 0 0
+RESULT wiegand 504 ran 34 0 0 0 0
+RESULT wiegand 505 ran 34 0 0 0 0
+RESULT wiegand 506 ran 34 0 0 0 0
+RESULT wiegand 507 ran 34 0 0 0 0
+RESULT wiegand 508 ran 34 0 0 0 0
+RESULT wiegand 509 ran 34 0 0 0 0
+RESULT wiegand 510 ran 34 0 0 0 0
+RESULT wiegand 511 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpss9v5qqf.py
+RESULT wiegand 512 ran 34 0 0 0 0
+RESULT wiegand 513 ran 34 0 0 0 0
+RESULT wiegand 514 ran 34 0 0 0 0
+RESULT wiegand 515 ran 34 0 0 0 0
+RESULT wiegand 516 ran 34 0 0 0 0
+RESULT wiegand 517 ran 34 0 0 0 0
+RESULT wiegand 518 ran 34 0 0 0 0
+RESULT wiegand 519 ran 34 0 0 0 0
+RESULT wiegand 520 ran 34 0 0 0 0
+RESULT wiegand 521 ran 34 0 0 0 0
+RESULT wiegand 522 ran 34 0 0 0 0
+RESULT wiegand 523 ran 34 0 0 0 0
+RESULT wiegand 524 ran 34 0 0 0 0
+RESULT wiegand 525 ran 34 0 0 0 0
+RESULT wiegand 526 ran 34 0 0 0 0
+RESULT wiegand 527 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpqohsd2ef.py
+RESULT wiegand 528 ran 34 0 0 0 0
+RESULT wiegand 529 ran 34 0 0 0 0
+RESULT wiegand 530 ran 34 0 0 0 0
+RESULT wiegand 531 ran 34 0 0 0 0
+RESULT wiegand 532 ran 34 0 0 0 0
+RESULT wiegand 533 ran 34 0 0 0 0
+RESULT wiegand 534 ran 34 0 0 0 0
+RESULT wiegand 535 ran 34 0 0 0 0
+RESULT wiegand 536 ran 34 0 0 0 0
+RESULT wiegand 537 ran 34 0 0 0 0
+RESULT wiegand 538 ran 34 0 0 0 0
+RESULT wiegand 539 ran 34 0 0 0 0
+RESULT wiegand 540 ran 34 0 0 0 0
+RESULT wiegand 541 ran 34 0 0 0 0
+RESULT wiegand 542 ran 34 0 0 0 0
+RESULT wiegand 543 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvetspimk.py
+RESULT wiegand 544 ran 34 0 0 0 0
+RESULT wiegand 545 ran 34 0 0 0 0
+RESULT wiegand 546 ran 34 0 0 0 0
+RESULT wiegand 547 ran 34 0 0 0 0
+RESULT wiegand 548 ran 34 0 0 0 0
+RESULT wiegand 549 ran 34 0 0 0 0
+RESULT wiegand 550 ran 34 0 0 0 0
+RESULT wiegand 551 ran 34 0 0 0 0
+RESULT wiegand 552 ran 34 0 0 0 0
+RESULT wiegand 553 ran 34 0 0 0 0
+RESULT wiegand 554 ran 34 0 0 0 0
+RESULT wiegand 555 ran 34 0 0 0 0
+RESULT wiegand 556 ran 34 0 0 0 0
+RESULT wiegand 557 ran 34 0 0 0 0
+RESULT wiegand 558 ran 34 0 0 0 0
+RESULT wiegand 559 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp6o_5_8qf.py
+RESULT wiegand 560 ran 34 0 0 0 0
+RESULT wiegand 561 ran 34 0 0 0 0
+RESULT wiegand 562 ran 34 0 0 0 0
+RESULT wiegand 563 ran 34 0 0 0 0
+RESULT wiegand 564 ran 34 0 0 0 0
+RESULT wiegand 565 ran 34 0 0 0 0
+RESULT wiegand 566 ran 34 0 0 0 0
+RESULT wiegand 567 ran 34 0 0 0 0
+RESULT wiegand 568 ran 34 0 0 0 0
+RESULT wiegand 569 ran 34 0 0 0 0
+RESULT wiegand 570 ran 34 0 0 0 0
+RESULT wiegand 571 ran 34 0 0 0 0
+RESULT wiegand 572 ran 34 0 0 0 0
+RESULT wiegand 573 ran 34 0 0 0 0
+RESULT wiegand 574 ran 34 0 0 0 0
+RESULT wiegand 575 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpbx80bzm4.py
+RESULT wiegand 576 ran 34 0 0 0 0
+RESULT wiegand 577 ran 34 0 0 0 0
+RESULT wiegand 578 ran 34 0 0 0 0
+RESULT wiegand 579 ran 34 0 0 0 0
+RESULT wiegand 580 ran 34 0 0 0 0
+RESULT wiegand 581 ran 34 0 0 0 0
+RESULT wiegand 582 ran 34 0 0 0 0
+RESULT wiegand 583 ran 34 0 0 0 0
+RESULT wiegand 584 ran 34 0 0 0 0
+RESULT wiegand 585 ran 34 0 0 0 0
+RESULT wiegand 586 ran 34 0 0 0 0
+RESULT wiegand 587 ran 34 0 0 0 0
+RESULT wiegand 588 ran 34 0 0 0 0
+RESULT wiegand 589 ran 34 0 0 0 0
+RESULT wiegand 590 ran 34 0 0 0 0
+RESULT wiegand 591 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpn819opdi.py
+RESULT wiegand 592 ran 34 0 0 0 0
+RESULT wiegand 593 ran 34 0 0 0 0
+RESULT wiegand 594 ran 34 0 0 0 0
+RESULT wiegand 595 ran 34 0 0 0 0
+RESULT wiegand 596 ran 34 0 0 0 0
+RESULT wiegand 597 ran 34 0 0 0 0
+RESULT wiegand 598 ran 34 0 0 0 0
+RESULT wiegand 599 ran 34 0 0 0 0
+RESULT wiegand 600 ran 34 0 0 0 0
+RESULT wiegand 601 ran 34 0 0 0 0
+RESULT wiegand 602 ran 34 0 0 0 0
+RESULT wiegand 603 ran 34 0 0 0 0
+RESULT wiegand 604 ran 34 0 0 0 0
+RESULT wiegand 605 ran 34 0 0 0 0
+RESULT wiegand 606 ran 34 0 0 0 0
+RESULT wiegand 607 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8anfg1vy.py
+RESULT wiegand 608 ran 34 0 0 0 0
+RESULT wiegand 609 ran 34 0 0 0 0
+RESULT wiegand 610 ran 34 0 0 0 0
+RESULT wiegand 611 ran 34 0 0 0 0
+RESULT wiegand 612 ran 34 0 0 0 0
+RESULT wiegand 613 ran 34 0 0 0 0
+RESULT wiegand 614 ran 34 0 0 0 0
+RESULT wiegand 615 ran 34 0 0 0 0
+RESULT wiegand 616 ran 34 0 0 0 0
+RESULT wiegand 617 ran 34 0 0 0 0
+RESULT wiegand 618 ran 34 0 0 0 0
+RESULT wiegand 619 ran 34 0 0 0 0
+RESULT wiegand 620 ran 34 0 0 0 0
+RESULT wiegand 621 ran 34 0 0 0 0
+RESULT wiegand 622 ran 34 0 0 0 0
+RESULT wiegand 623 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpyp11515m.py
+RESULT wiegand 624 ran 34 0 0 0 0
+RESULT wiegand 625 ran 34 0 0 0 0
+RESULT wiegand 626 ran 34 0 0 0 0
+RESULT wiegand 627 ran 34 0 0 0 0
+RESULT wiegand 628 ran 34 0 0 0 0
+RESULT wiegand 629 ran 34 0 0 0 0
+RESULT wiegand 630 ran 34 0 0 0 0
+RESULT wiegand 631 ran 34 0 0 0 0
+RESULT wiegand 632 ran 34 0 0 0 0
+RESULT wiegand 633 ran 34 0 0 0 0
+RESULT wiegand 634 ran 34 0 0 0 0
+RESULT wiegand 635 ran 34 0 0 0 0
+RESULT wiegand 636 ran 34 0 0 0 0
+RESULT wiegand 637 ran 34 0 0 0 0
+RESULT wiegand 638 ran 34 0 0 0 0
+RESULT wiegand 639 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpaqj9y7up.py
+RESULT wiegand 640 ran 34 0 0 0 0
+RESULT wiegand 641 ran 34 0 0 0 0
+RESULT wiegand 642 ran 34 0 0 0 0
+RESULT wiegand 643 ran 34 0 0 0 0
+RESULT wiegand 644 ran 34 0 0 0 0
+RESULT wiegand 645 ran 34 0 0 0 0
+RESULT wiegand 646 ran 34 0 0 0 0
+RESULT wiegand 647 ran 34 0 0 0 0
+RESULT wiegand 648 ran 34 0 0 0 0
+RESULT wiegand 649 ran 34 0 0 0 0
+RESULT wiegand 650 ran 34 0 0 0 0
+RESULT wiegand 651 ran 34 0 0 0 0
+RESULT wiegand 652 ran 34 0 0 0 0
+RESULT wiegand 653 ran 34 0 0 0 0
+RESULT wiegand 654 ran 34 0 0 0 0
+RESULT wiegand 655 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpzy0kkbo2.py
+RESULT wiegand 656 ran 34 0 0 0 0
+RESULT wiegand 657 ran 34 0 0 0 0
+RESULT wiegand 658 ran 34 0 0 0 0
+RESULT wiegand 659 ran 34 0 0 0 0
+RESULT wiegand 660 ran 34 0 0 0 0
+RESULT wiegand 661 ran 34 0 0 0 0
+RESULT wiegand 662 ran 34 0 0 0 0
+RESULT wiegand 663 ran 34 0 0 0 0
+RESULT wiegand 664 ran 34 0 0 0 0
+RESULT wiegand 665 ran 34 0 0 0 0
+RESULT wiegand 666 ran 34 0 0 0 0
+RESULT wiegand 667 ran 34 0 0 0 0
+RESULT wiegand 668 ran 34 0 0 0 0
+RESULT wiegand 669 ran 34 0 0 0 0
+RESULT wiegand 670 ran 34 0 0 0 0
+RESULT wiegand 671 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp9lqjpzol.py
+RESULT wiegand 672 ran 34 0 0 0 0
+RESULT wiegand 673 ran 34 0 0 0 0
+RESULT wiegand 674 ran 34 0 0 0 0
+RESULT wiegand 675 ran 34 0 0 0 0
+RESULT wiegand 676 ran 34 0 0 0 0
+RESULT wiegand 677 ran 34 0 0 0 0
+RESULT wiegand 678 ran 34 0 0 0 0
+RESULT wiegand 679 ran 34 0 0 0 0
+RESULT wiegand 680 ran 34 0 0 0 0
+RESULT wiegand 681 ran 34 0 0 0 0
+RESULT wiegand 682 ran 34 0 0 0 0
+RESULT wiegand 683 ran 34 0 0 0 0
+RESULT wiegand 684 ran 34 0 0 0 0
+RESULT wiegand 685 ran 34 0 0 0 0
+RESULT wiegand 686 ran 34 0 0 0 0
+RESULT wiegand 687 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8w5vs3mp.py
+RESULT wiegand 688 ran 34 0 0 0 0
+RESULT wiegand 689 ran 34 0 0 0 0
+RESULT wiegand 690 ran 34 0 0 0 0
+RESULT wiegand 691 ran 34 0 0 0 0
+RESULT wiegand 692 ran 34 0 0 0 0
+RESULT wiegand 693 ran 34 0 0 0 0
+RESULT wiegand 694 ran 34 0 0 0 0
+RESULT wiegand 695 ran 34 0 0 0 0
+RESULT wiegand 696 ran 34 0 0 0 0
+RESULT wiegand 697 ran 34 0 0 0 0
+RESULT wiegand 698 ran 34 0 0 0 0
+RESULT wiegand 699 ran 34 0 0 0 0
+RESULT wiegand 700 ran 34 0 0 0 0
+RESULT wiegand 701 ran 34 0 0 0 0
+RESULT wiegand 702 ran 34 0 0 0 0
+RESULT wiegand 703 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp5sxs9xo8.py
+RESULT wiegand 704 ran 34 0 0 0 0
+RESULT wiegand 705 ran 34 0 0 0 0
+RESULT wiegand 706 ran 34 0 0 0 0
+RESULT wiegand 707 ran 34 0 0 0 0
+RESULT wiegand 708 ran 34 0 0 0 0
+RESULT wiegand 709 ran 34 0 0 0 0
+RESULT wiegand 710 ran 34 0 0 0 0
+RESULT wiegand 711 ran 34 0 0 0 0
+RESULT wiegand 712 ran 34 0 0 0 0
+RESULT wiegand 713 ran 34 0 0 0 0
+RESULT wiegand 714 ran 34 0 0 0 0
+RESULT wiegand 715 ran 34 0 0 0 0
+RESULT wiegand 716 ran 34 0 0 0 0
+RESULT wiegand 717 ran 34 0 0 0 0
+RESULT wiegand 718 ran 34 0 0 0 0
+RESULT wiegand 719 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpccz20ezy.py
+RESULT wiegand 720 ran 34 0 0 0 0
+RESULT wiegand 721 ran 34 0 0 0 0
+RESULT wiegand 722 ran 34 0 0 0 0
+RESULT wiegand 723 ran 34 0 0 0 0
+RESULT wiegand 724 ran 34 0 0 0 0
+RESULT wiegand 725 ran 34 0 0 0 0
+RESULT wiegand 726 ran 34 0 0 0 0
+RESULT wiegand 727 ran 34 0 0 0 0
+RESULT wiegand 728 ran 34 0 0 0 0
+RESULT wiegand 729 ran 34 0 0 0 0
+RESULT wiegand 730 ran 34 0 0 0 0
+RESULT wiegand 731 ran 34 0 0 0 0
+RESULT wiegand 732 ran 34 0 0 0 0
+RESULT wiegand 733 ran 34 0 0 0 0
+RESULT wiegand 734 ran 34 0 0 0 0
+RESULT wiegand 735 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpxx0ai_6b.py
+RESULT wiegand 736 ran 34 0 0 0 0
+RESULT wiegand 737 ran 34 0 0 0 0
+RESULT wiegand 738 ran 34 0 0 0 0
+RESULT wiegand 739 ran 34 0 0 0 0
+RESULT wiegand 740 ran 34 0 0 0 0
+RESULT wiegand 741 ran 34 0 0 0 0
+RESULT wiegand 742 ran 34 0 0 0 0
+RESULT wiegand 743 ran 34 0 0 0 0
+RESULT wiegand 744 ran 34 0 0 0 0
+RESULT wiegand 745 ran 34 0 0 0 0
+RESULT wiegand 746 ran 34 0 0 0 0
+RESULT wiegand 747 ran 34 0 0 0 0
+RESULT wiegand 748 ran 34 0 0 0 0
+RESULT wiegand 749 ran 34 0 0 0 0
+RESULT wiegand 750 ran 34 0 0 0 0
+RESULT wiegand 751 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvmtg4hoe.py
+RESULT wiegand 752 ran 34 0 0 0 0
+RESULT wiegand 753 ran 34 0 0 0 0
+RESULT wiegand 754 ran 34 0 0 0 0
+RESULT wiegand 755 ran 34 0 0 0 0
+RESULT wiegand 756 ran 34 0 0 0 0
+RESULT wiegand 757 ran 34 0 0 0 0
+RESULT wiegand 758 ran 34 0 0 0 0
+RESULT wiegand 759 ran 34 0 0 0 0
+RESULT wiegand 760 ran 34 0 0 0 0
+RESULT wiegand 761 ran 34 0 0 0 0
+RESULT wiegand 762 ran 34 0 0 0 0
+RESULT wiegand 763 ran 34 0 0 0 0
+RESULT wiegand 764 ran 34 0 0 0 0
+RESULT wiegand 765 ran 34 0 0 0 0
+RESULT wiegand 766 ran 34 0 0 0 0
+RESULT wiegand 767 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp0dfizur1.py
+RESULT wiegand 768 ran 34 0 0 0 0
+RESULT wiegand 769 ran 34 0 0 0 0
+RESULT wiegand 770 ran 34 0 0 0 0
+RESULT wiegand 771 ran 34 0 0 0 0
+RESULT wiegand 772 ran 34 0 0 0 0
+RESULT wiegand 773 ran 34 0 0 0 0
+RESULT wiegand 774 ran 34 0 0 0 0
+RESULT wiegand 775 ran 34 0 0 0 0
+RESULT wiegand 776 ran 34 0 0 0 0
+RESULT wiegand 777 ran 34 0 0 0 0
+RESULT wiegand 778 ran 34 0 0 0 0
+RESULT wiegand 779 ran 34 0 0 0 0
+RESULT wiegand 780 ran 34 0 0 0 0
+RESULT wiegand 781 ran 34 0 0 0 0
+RESULT wiegand 782 ran 34 0 0 0 0
+RESULT wiegand 783 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2mkcmwa_.py
+RESULT wiegand 784 ran 34 0 0 0 0
+RESULT wiegand 785 ran 34 0 0 0 0
+RESULT wiegand 786 ran 34 0 0 0 0
+RESULT wiegand 787 ran 34 0 0 0 0
+RESULT wiegand 788 ran 34 0 0 0 0
+RESULT wiegand 789 ran 34 0 0 0 0
+RESULT wiegand 790 ran 34 0 0 0 0
+RESULT wiegand 791 ran 34 0 0 0 0
+RESULT wiegand 792 ran 34 0 0 0 0
+RESULT wiegand 793 ran 34 0 0 0 0
+RESULT wiegand 794 ran 34 0 0 0 0
+RESULT wiegand 795 ran 34 0 0 0 0
+RESULT wiegand 796 ran 34 0 0 0 0
+RESULT wiegand 797 ran 34 0 0 0 0
+RESULT wiegand 798 ran 34 0 0 0 0
+RESULT wiegand 799 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpwzd7v71e.py
+RESULT wiegand 800 ran 34 0 0 0 0
+RESULT wiegand 801 ran 34 0 0 0 0
+RESULT wiegand 802 ran 34 0 0 0 0
+RESULT wiegand 803 ran 34 0 0 0 0
+RESULT wiegand 804 ran 34 0 0 0 0
+RESULT wiegand 805 ran 34 0 0 0 0
+RESULT wiegand 806 ran 34 0 0 0 0
+RESULT wiegand 807 ran 34 0 0 0 0
+RESULT wiegand 808 ran 34 0 0 0 0
+RESULT wiegand 809 ran 34 0 0 0 0
+RESULT wiegand 810 ran 34 0 0 0 0
+RESULT wiegand 811 ran 34 0 0 0 0
+RESULT wiegand 812 ran 34 0 0 0 0
+RESULT wiegand 813 ran 34 0 0 0 0
+RESULT wiegand 814 ran 34 0 0 0 0
+RESULT wiegand 815 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpntb4iw6n.py
+RESULT wiegand 816 ran 34 0 0 0 0
+RESULT wiegand 817 ran 34 0 0 0 0
+RESULT wiegand 818 ran 34 0 0 0 0
+RESULT wiegand 819 ran 34 0 0 0 0
+RESULT wiegand 820 ran 34 0 0 0 0
+RESULT wiegand 821 ran 34 0 0 0 0
+RESULT wiegand 822 ran 34 0 0 0 0
+RESULT wiegand 823 ran 34 0 0 0 0
+RESULT wiegand 824 ran 34 0 0 0 0
+RESULT wiegand 825 ran 34 0 0 0 0
+RESULT wiegand 826 ran 34 0 0 0 0
+RESULT wiegand 827 ran 34 0 0 0 0
+RESULT wiegand 828 ran 34 0 0 0 0
+RESULT wiegand 829 ran 34 0 0 0 0
+RESULT wiegand 830 ran 34 0 0 0 0
+RESULT wiegand 831 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpmofmczq3.py
+RESULT wiegand 832 ran 34 0 0 0 0
+RESULT wiegand 833 ran 34 0 0 0 0
+RESULT wiegand 834 ran 34 0 0 0 0
+RESULT wiegand 835 ran 34 0 0 0 0
+RESULT wiegand 836 ran 34 0 0 0 0
+RESULT wiegand 837 ran 34 0 0 0 0
+RESULT wiegand 838 ran 34 0 0 0 0
+RESULT wiegand 839 ran 34 0 0 0 0
+RESULT wiegand 840 ran 34 0 0 0 0
+RESULT wiegand 841 ran 34 0 0 0 0
+RESULT wiegand 842 ran 34 0 0 0 0
+RESULT wiegand 843 ran 34 0 0 0 0
+RESULT wiegand 844 ran 34 0 0 0 0
+RESULT wiegand 845 ran 34 0 0 0 0
+RESULT wiegand 846 ran 34 0 0 0 0
+RESULT wiegand 847 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp682o65nn.py
+RESULT wiegand 848 ran 34 0 0 0 0
+RESULT wiegand 849 ran 34 0 0 0 0
+RESULT wiegand 850 ran 34 0 0 0 0
+RESULT wiegand 851 ran 34 0 0 0 0
+RESULT wiegand 852 ran 34 0 0 0 0
+RESULT wiegand 853 ran 34 0 0 0 0
+RESULT wiegand 854 ran 34 0 0 0 0
+RESULT wiegand 855 ran 34 0 0 0 0
+RESULT wiegand 856 ran 34 0 0 0 0
+RESULT wiegand 857 ran 34 0 0 0 0
+RESULT wiegand 858 ran 34 0 0 0 0
+RESULT wiegand 859 ran 34 0 0 0 0
+RESULT wiegand 860 ran 34 0 0 0 0
+RESULT wiegand 861 ran 34 0 0 0 0
+RESULT wiegand 862 ran 34 0 0 0 0
+RESULT wiegand 863 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpw0rsa3l4.py
+RESULT wiegand 864 ran 34 0 0 0 0
+RESULT wiegand 865 ran 34 0 0 0 0
+RESULT wiegand 866 ran 34 0 0 0 0
+RESULT wiegand 867 ran 34 0 0 0 0
+RESULT wiegand 868 ran 34 0 0 0 0
+RESULT wiegand 869 ran 34 0 0 0 0
+RESULT wiegand 870 ran 34 0 0 0 0
+RESULT wiegand 871 ran 34 0 0 0 0
+RESULT wiegand 872 ran 34 0 0 0 0
+RESULT wiegand 873 ran 34 0 0 0 0
+RESULT wiegand 874 ran 34 0 0 0 0
+RESULT wiegand 875 ran 34 0 0 0 0
+RESULT wiegand 876 ran 34 0 0 0 0
+RESULT wiegand 877 ran 34 0 0 0 0
+RESULT wiegand 878 ran 34 0 0 0 0
+RESULT wiegand 879 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpthl89h6v.py
+RESULT wiegand 880 ran 34 0 0 0 0
+RESULT wiegand 881 ran 34 0 0 0 0
+RESULT wiegand 882 ran 34 0 0 0 0
+RESULT wiegand 883 ran 34 0 0 0 0
+RESULT wiegand 884 ran 34 0 0 0 0
+RESULT wiegand 885 ran 34 0 0 0 0
+RESULT wiegand 886 ran 34 0 0 0 0
+RESULT wiegand 887 ran 34 0 0 0 0
+RESULT wiegand 888 ran 34 0 0 0 0
+RESULT wiegand 889 ran 34 0 0 0 0
+RESULT wiegand 890 ran 34 0 0 0 0
+RESULT wiegand 891 ran 34 0 0 0 0
+RESULT wiegand 892 ran 34 0 0 0 0
+RESULT wiegand 893 ran 34 0 0 0 0
+RESULT wiegand 894 ran 34 0 0 0 0
+RESULT wiegand 895 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpr0u63gbv.py
+RESULT wiegand 896 ran 34 0 0 0 0
+RESULT wiegand 897 ran 34 0 0 0 0
+RESULT wiegand 898 ran 34 0 0 0 0
+RESULT wiegand 899 ran 34 0 0 0 0
+RESULT wiegand 900 ran 34 0 0 0 0
+RESULT wiegand 901 ran 34 0 0 0 0
+RESULT wiegand 902 ran 34 0 0 0 0
+RESULT wiegand 903 ran 34 0 0 0 0
+RESULT wiegand 904 ran 34 0 0 0 0
+RESULT wiegand 905 ran 34 0 0 0 0
+RESULT wiegand 906 ran 34 0 0 0 0
+RESULT wiegand 907 ran 34 0 0 0 0
+RESULT wiegand 908 ran 34 0 0 0 0
+RESULT wiegand 909 ran 34 0 0 0 0
+RESULT wiegand 910 ran 34 0 0 0 0
+RESULT wiegand 911 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_jqnfaqk.py
+RESULT wiegand 912 ran 34 0 0 0 0
+RESULT wiegand 913 ran 34 0 0 0 0
+RESULT wiegand 914 ran 34 0 0 0 0
+RESULT wiegand 915 ran 34 0 0 0 0
+RESULT wiegand 916 ran 34 0 0 0 0
+RESULT wiegand 917 ran 34 0 0 0 0
+RESULT wiegand 918 ran 34 0 0 0 0
+RESULT wiegand 919 ran 34 0 0 0 0
+RESULT wiegand 920 ran 34 0 0 0 0
+RESULT wiegand 921 ran 34 0 0 0 0
+RESULT wiegand 922 ran 34 0 0 0 0
+RESULT wiegand 923 ran 34 0 0 0 0
+RESULT wiegand 924 ran 34 0 0 0 0
+RESULT wiegand 925 ran 34 0 0 0 0
+RESULT wiegand 926 ran 34 0 0 0 0
+RESULT wiegand 927 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_ia3twsg.py
+RESULT wiegand 928 ran 34 0 0 0 0
+RESULT wiegand 929 ran 34 0 0 0 0
+RESULT wiegand 930 ran 34 0 0 0 0
+RESULT wiegand 931 ran 34 0 0 0 0
+RESULT wiegand 932 ran 34 0 0 0 0
+RESULT wiegand 933 ran 34 0 0 0 0
+RESULT wiegand 934 ran 34 0 0 0 0
+RESULT wiegand 935 ran 34 0 0 0 0
+RESULT wiegand 936 ran 34 0 0 0 0
+RESULT wiegand 937 ran 34 0 0 0 0
+RESULT wiegand 938 ran 34 0 0 0 0
+RESULT wiegand 939 ran 34 0 0 0 0
+RESULT wiegand 940 ran 34 0 0 0 0
+RESULT wiegand 941 ran 34 0 0 0 0
+RESULT wiegand 942 ran 34 0 0 0 0
+RESULT wiegand 943 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8rgf1hwk.py
+RESULT wiegand 944 ran 34 0 0 0 0
+RESULT wiegand 945 ran 34 0 0 0 0
+RESULT wiegand 946 ran 34 0 0 0 0
+RESULT wiegand 947 ran 34 0 0 0 0
+RESULT wiegand 948 ran 34 0 0 0 0
+RESULT wiegand 949 ran 34 0 0 0 0
+RESULT wiegand 950 ran 34 0 0 0 0
+RESULT wiegand 951 ran 34 0 0 0 0
+RESULT wiegand 952 ran 34 0 0 0 0
+RESULT wiegand 953 ran 34 0 0 0 0
+RESULT wiegand 954 ran 34 0 0 0 0
+RESULT wiegand 955 ran 34 0 0 0 0
+RESULT wiegand 956 ran 34 0 0 0 0
+RESULT wiegand 957 ran 34 0 0 0 0
+RESULT wiegand 958 ran 34 0 0 0 0
+RESULT wiegand 959 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpg8brglau.py
+RESULT wiegand 960 ran 34 0 0 0 0
+RESULT wiegand 961 ran 34 0 0 0 0
+RESULT wiegand 962 ran 34 0 0 0 0
+RESULT wiegand 963 ran 34 0 0 0 0
+RESULT wiegand 964 ran 34 0 0 0 0
+RESULT wiegand 965 ran 34 0 0 0 0
+RESULT wiegand 966 ran 34 0 0 0 0
+RESULT wiegand 967 ran 34 0 0 0 0
+RESULT wiegand 968 ran 34 0 0 0 0
+RESULT wiegand 969 ran 34 0 0 0 0
+RESULT wiegand 970 ran 34 0 0 0 0
+RESULT wiegand 971 ran 34 0 0 0 0
+RESULT wiegand 972 ran 34 0 0 0 0
+RESULT wiegand 973 ran 34 0 0 0 0
+RESULT wiegand 974 ran 34 0 0 0 0
+RESULT wiegand 975 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp383qi31f.py
+RESULT wiegand 976 ran 34 0 0 0 0
+RESULT wiegand 977 ran 34 0 0 0 0
+RESULT wiegand 978 ran 34 0 0 0 0
+RESULT wiegand 979 ran 34 0 0 0 0
+RESULT wiegand 980 ran 34 0 0 0 0
+RESULT wiegand 981 ran 34 0 0 0 0
+RESULT wiegand 982 ran 34 0 0 0 0
+RESULT wiegand 983 ran 34 0 0 0 0
+RESULT wiegand 984 ran 34 0 0 0 0
+RESULT wiegand 985 ran 34 0 0 0 0
+RESULT wiegand 986 ran 34 0 0 0 0
+RESULT wiegand 987 ran 34 0 0 0 0
+RESULT wiegand 988 ran 34 0 0 0 0
+RESULT wiegand 989 ran 34 0 0 0 0
+RESULT wiegand 990 ran 34 0 0 0 0
+RESULT wiegand 991 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpw53cii_b.py
+RESULT wiegand 992 ran 34 0 0 0 0
+RESULT wiegand 993 ran 34 0 0 0 0
+RESULT wiegand 994 ran 34 0 0 0 0
+RESULT wiegand 995 ran 34 0 0 0 0
+RESULT wiegand 996 ran 34 0 0 0 0
+RESULT wiegand 997 ran 34 0 0 0 0
+RESULT wiegand 998 ran 34 0 0 0 0
+RESULT wiegand 999 ran 34 0 0 0 0
+RESULT wiegand 1000 ran 34 0 0 0 0
+RESULT wiegand 1001 ran 34 0 0 0 0
+RESULT wiegand 1002 ran 34 0 0 0 0
+RESULT wiegand 1003 ran 34 0 0 0 0
+RESULT wiegand 1004 ran 34 0 0 0 0
+RESULT wiegand 1005 ran 34 0 0 0 0
+RESULT wiegand 1006 ran 34 0 0 0 0
+RESULT wiegand 1007 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmplcprf4_0.py
+RESULT wiegand 1008 ran 34 0 0 0 0
+RESULT wiegand 1009 ran 34 0 0 0 0
+RESULT wiegand 1010 ran 34 0 0 0 0
+RESULT wiegand 1011 ran 34 0 0 0 0
+RESULT wiegand 1012 ran 34 0 0 0 0
+RESULT wiegand 1013 ran 34 0 0 0 0
+RESULT wiegand 1014 ran 34 0 0 0 0
+RESULT wiegand 1015 ran 34 0 0 0 0
+RESULT wiegand 1016 ran 34 0 0 0 0
+RESULT wiegand 1017 ran 34 0 0 0 0
+RESULT wiegand 1018 ran 34 0 0 0 0
+RESULT wiegand 1019 ran 34 0 0 0 0
+RESULT wiegand 1020 ran 34 0 0 0 0
+RESULT wiegand 1021 ran 34 0 0 0 0
+RESULT wiegand 1022 ran 34 0 0 0 0
+RESULT wiegand 1023 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp83l8vc0z.py
+RESULT wiegand 1024 ran 34 0 0 0 0
+RESULT wiegand 1025 ran 34 0 0 0 0
+RESULT wiegand 1026 ran 34 0 0 0 0
+RESULT wiegand 1027 ran 34 0 0 0 0
+RESULT wiegand 1028 ran 34 0 0 0 0
+RESULT wiegand 1029 ran 34 0 0 0 0
+RESULT wiegand 1030 ran 34 0 0 0 0
+RESULT wiegand 1031 ran 34 0 0 0 0
+RESULT wiegand 1032 ran 34 0 0 0 0
+RESULT wiegand 1033 ran 34 0 0 0 0
+RESULT wiegand 1034 ran 34 0 0 0 0
+RESULT wiegand 1035 ran 34 0 0 0 0
+RESULT wiegand 1036 ran 34 0 0 0 0
+RESULT wiegand 1037 ran 34 0 0 0 0
+RESULT wiegand 1038 ran 34 0 0 0 0
+RESULT wiegand 1039 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpjlw_1rz5.py
+RESULT wiegand 1040 ran 34 0 0 0 0
+RESULT wiegand 1041 ran 34 0 0 0 0
+RESULT wiegand 1042 ran 34 0 0 0 0
+RESULT wiegand 1043 ran 34 0 0 0 0
+RESULT wiegand 1044 ran 34 0 0 0 0
+RESULT wiegand 1045 ran 34 0 0 0 0
+RESULT wiegand 1046 ran 34 0 0 0 0
+RESULT wiegand 1047 ran 34 0 0 0 0
+RESULT wiegand 1048 ran 34 0 0 0 0
+RESULT wiegand 1049 ran 34 0 0 0 0
+RESULT wiegand 1050 ran 34 0 0 0 0
+RESULT wiegand 1051 ran 34 0 0 0 0
+RESULT wiegand 1052 ran 34 0 0 0 0
+RESULT wiegand 1053 ran 34 0 0 0 0
+RESULT wiegand 1054 ran 34 0 0 0 0
+RESULT wiegand 1055 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp3nqw99qy.py
+RESULT wiegand 1056 ran 34 0 0 0 0
+RESULT wiegand 1057 ran 34 0 0 0 0
+RESULT wiegand 1058 ran 34 0 0 0 0
+RESULT wiegand 1059 ran 34 0 0 0 0
+RESULT wiegand 1060 ran 34 0 0 0 0
+RESULT wiegand 1061 ran 34 0 0 0 0
+RESULT wiegand 1062 ran 34 0 0 0 0
+RESULT wiegand 1063 ran 34 0 0 0 0
+RESULT wiegand 1064 ran 34 0 0 0 0
+RESULT wiegand 1065 ran 34 0 0 0 0
+RESULT wiegand 1066 ran 34 0 0 0 0
+RESULT wiegand 1067 ran 34 0 0 0 0
+RESULT wiegand 1068 ran 34 0 0 0 0
+RESULT wiegand 1069 ran 34 0 0 0 0
+RESULT wiegand 1070 ran 34 0 0 0 0
+RESULT wiegand 1071 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpasmf5tm9.py
+RESULT wiegand 1072 ran 34 0 0 0 0
+RESULT wiegand 1073 ran 34 0 0 0 0
+RESULT wiegand 1074 ran 34 0 0 0 0
+RESULT wiegand 1075 ran 34 0 0 0 0
+RESULT wiegand 1076 ran 34 0 0 0 0
+RESULT wiegand 1077 ran 34 0 0 0 0
+RESULT wiegand 1078 ran 34 0 0 0 0
+RESULT wiegand 1079 ran 34 0 0 0 0
+RESULT wiegand 1080 ran 34 0 0 0 0
+RESULT wiegand 1081 ran 34 0 0 0 0
+RESULT wiegand 1082 ran 34 0 0 0 0
+RESULT wiegand 1083 ran 34 0 0 0 0
+RESULT wiegand 1084 ran 34 0 0 0 0
+RESULT wiegand 1085 ran 34 0 0 0 0
+RESULT wiegand 1086 ran 34 0 0 0 0
+RESULT wiegand 1087 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpki3w8j6g.py
+RESULT wiegand 1088 ran 34 0 0 0 0
+RESULT wiegand 1089 ran 34 0 0 0 0
+RESULT wiegand 1090 ran 34 0 0 0 0
+RESULT wiegand 1091 ran 34 0 0 0 0
+RESULT wiegand 1092 ran 34 0 0 0 0
+RESULT wiegand 1093 ran 34 0 0 0 0
+RESULT wiegand 1094 ran 34 0 0 0 0
+RESULT wiegand 1095 ran 34 0 0 0 0
+RESULT wiegand 1096 ran 34 0 0 0 0
+RESULT wiegand 1097 ran 34 0 0 0 0
+RESULT wiegand 1098 ran 34 0 0 0 0
+RESULT wiegand 1099 ran 34 0 0 0 0
+RESULT wiegand 1100 ran 34 0 0 0 0
+RESULT wiegand 1101 ran 34 0 0 0 0
+RESULT wiegand 1102 ran 34 0 0 0 0
+RESULT wiegand 1103 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_hx8hy69.py
+RESULT wiegand 1104 ran 34 0 0 0 0
+RESULT wiegand 1105 ran 34 0 0 0 0
+RESULT wiegand 1106 ran 34 0 0 0 0
+RESULT wiegand 1107 ran 34 0 0 0 0
+RESULT wiegand 1108 ran 34 0 0 0 0
+RESULT wiegand 1109 ran 34 0 0 0 0
+RESULT wiegand 1110 ran 34 0 0 0 0
+RESULT wiegand 1111 ran 34 0 0 0 0
+RESULT wiegand 1112 ran 34 0 0 0 0
+RESULT wiegand 1113 ran 34 0 0 0 0
+RESULT wiegand 1114 ran 34 0 0 0 0
+RESULT wiegand 1115 ran 34 0 0 0 0
+RESULT wiegand 1116 ran 34 0 0 0 0
+RESULT wiegand 1117 ran 34 0 0 0 0
+RESULT wiegand 1118 ran 34 0 0 0 0
+RESULT wiegand 1119 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpc483p63p.py
+RESULT wiegand 1120 ran 34 0 0 0 0
+RESULT wiegand 1121 ran 34 0 0 0 0
+RESULT wiegand 1122 ran 34 0 0 0 0
+RESULT wiegand 1123 ran 34 0 0 0 0
+RESULT wiegand 1124 ran 34 0 0 0 0
+RESULT wiegand 1125 ran 34 0 0 0 0
+RESULT wiegand 1126 ran 34 0 0 0 0
+RESULT wiegand 1127 ran 34 0 0 0 0
+RESULT wiegand 1128 ran 34 0 0 0 0
+RESULT wiegand 1129 ran 34 0 0 0 0
+RESULT wiegand 1130 ran 34 0 0 0 0
+RESULT wiegand 1131 ran 34 0 0 0 0
+RESULT wiegand 1132 ran 34 0 0 0 0
+RESULT wiegand 1133 ran 34 0 0 0 0
+RESULT wiegand 1134 ran 34 0 0 0 0
+RESULT wiegand 1135 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmphtzvp6t5.py
+RESULT wiegand 1136 ran 34 0 0 0 0
+RESULT wiegand 1137 ran 34 0 0 0 0
+RESULT wiegand 1138 ran 34 0 0 0 0
+RESULT wiegand 1139 ran 34 0 0 0 0
+RESULT wiegand 1140 ran 34 0 0 0 0
+RESULT wiegand 1141 ran 34 0 0 0 0
+RESULT wiegand 1142 ran 34 0 0 0 0
+RESULT wiegand 1143 ran 34 0 0 0 0
+RESULT wiegand 1144 ran 34 0 0 0 0
+RESULT wiegand 1145 ran 34 0 0 0 0
+RESULT wiegand 1146 ran 34 0 0 0 0
+RESULT wiegand 1147 ran 34 0 0 0 0
+RESULT wiegand 1148 ran 34 0 0 0 0
+RESULT wiegand 1149 ran 34 0 0 0 0
+RESULT wiegand 1150 ran 34 0 0 0 0
+RESULT wiegand 1151 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2vibx2ub.py
+RESULT wiegand 1152 ran 34 0 0 0 0
+RESULT wiegand 1153 ran 34 0 0 0 0
+RESULT wiegand 1154 ran 34 0 0 0 0
+RESULT wiegand 1155 ran 34 0 0 0 0
+RESULT wiegand 1156 ran 34 0 0 0 0
+RESULT wiegand 1157 ran 34 0 0 0 0
+RESULT wiegand 1158 ran 34 0 0 0 0
+RESULT wiegand 1159 ran 34 0 0 0 0
+RESULT wiegand 1160 ran 34 0 0 0 0
+RESULT wiegand 1161 ran 34 0 0 0 0
+RESULT wiegand 1162 ran 34 0 0 0 0
+RESULT wiegand 1163 ran 34 0 0 0 0
+RESULT wiegand 1164 ran 34 0 0 0 0
+RESULT wiegand 1165 ran 34 0 0 0 0
+RESULT wiegand 1166 ran 34 0 0 0 0
+RESULT wiegand 1167 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_33rhc04.py
+RESULT wiegand 1168 ran 34 0 0 0 0
+RESULT wiegand 1169 ran 34 0 0 0 0
+RESULT wiegand 1170 ran 34 0 0 0 0
+RESULT wiegand 1171 ran 34 0 0 0 0
+RESULT wiegand 1172 ran 34 0 0 0 0
+RESULT wiegand 1173 ran 34 0 0 0 0
+RESULT wiegand 1174 ran 34 0 0 0 0
+RESULT wiegand 1175 ran 34 0 0 0 0
+RESULT wiegand 1176 ran 34 0 0 0 0
+RESULT wiegand 1177 ran 34 0 0 0 0
+RESULT wiegand 1178 ran 34 0 0 0 0
+RESULT wiegand 1179 ran 34 0 0 0 0
+RESULT wiegand 1180 ran 34 0 0 0 0
+RESULT wiegand 1181 ran 34 0 0 0 0
+RESULT wiegand 1182 ran 34 0 0 0 0
+RESULT wiegand 1183 ran 34 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp57k3l7xd.py
+RESULT wiegand 1184 ran 34 0 0 0 0
+RESULT wiegand 1185 ran 34 0 0 0 0
+RESULT wiegand 1186 ran 34 0 0 0 0
+RESULT wiegand 1187 ran 34 0 0 0 0
+RESULT wiegand 1188 ran 34 0 0 0 0
+RESULT wiegand 1189 ran 34 0 0 0 0
+RESULT wiegand 1190 refused 58 0 1
+RESULT wiegand 1191 refused 58 0 1
+RESULT wiegand 1192 refused 58 0 1
+DONE
+$ mpremote connect id:e66548545717552e cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/pico_board.py :
+Up to date: ./pico_board.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_sweep.py :
+Up to date: ./demo_sweep.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/sweep_firmware.py :
+Up to date: ./sweep_firmware.py
+cp /home/marcos/frozen-8x4/repo/demo/../python/demo_kernel_vs_board.py :
+Up to date: ./demo_kernel_vs_board.py
+$ openFPGALoader /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+
+Loading: [========                                          ] 15.25%
+
+Loading: [================                                  ] 30.51%
+
+Loading: [=======================                           ] 45.76%
+
+Loading: [===============================                   ] 61.02%
+
+Loading: [=======================================           ] 76.27%
+
+Loading: [==============================================    ] 91.53%
+
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpmktkbcnl.py
+RESULT can 0 ran 22 0 0 0 0
+RESULT can 1 ran 22 0 0 0 0
+RESULT can 2 ran 22 0 0 0 0
+RESULT can 3 ran 22 0 0 0 0
+RESULT can 4 ran 22 0 0 0 0
+RESULT can 5 ran 22 0 0 0 0
+RESULT can 6 ran 22 0 0 0 0
+RESULT can 7 ran 22 0 0 0 0
+RESULT can 8 ran 22 0 0 0 0
+RESULT can 9 ran 22 0 0 0 0
+RESULT can 10 ran 22 0 0 0 0
+RESULT can 11 ran 22 0 0 0 0
+RESULT can 12 ran 22 0 0 0 0
+RESULT can 13 ran 22 0 0 0 0
+RESULT can 14 ran 22 0 0 0 0
+RESULT can 15 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpb0ssh6hw.py
+RESULT can 16 ran 22 0 0 0 0
+RESULT can 17 ran 22 0 0 0 0
+RESULT can 18 ran 22 0 0 0 0
+RESULT can 19 ran 22 0 0 0 0
+RESULT can 20 ran 22 0 0 0 0
+RESULT can 21 ran 22 0 0 0 0
+RESULT can 22 ran 22 0 0 0 0
+RESULT can 23 ran 22 0 0 0 0
+RESULT can 24 ran 22 0 0 0 0
+RESULT can 25 ran 22 0 0 0 0
+RESULT can 26 ran 22 0 0 0 0
+RESULT can 27 ran 22 0 0 0 0
+RESULT can 28 ran 22 0 0 0 0
+RESULT can 29 ran 22 0 0 0 0
+RESULT can 30 ran 22 0 0 0 0
+RESULT can 31 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpoqbn3yl9.py
+RESULT can 32 ran 22 0 0 0 0
+RESULT can 33 ran 22 0 0 0 0
+RESULT can 34 ran 22 0 0 0 0
+RESULT can 35 ran 22 0 0 0 0
+RESULT can 36 ran 22 0 0 0 0
+RESULT can 37 ran 22 0 0 0 0
+RESULT can 38 ran 22 0 0 0 0
+RESULT can 39 ran 22 0 0 0 0
+RESULT can 40 ran 22 0 0 0 0
+RESULT can 41 ran 22 0 0 0 0
+RESULT can 42 ran 22 0 0 0 0
+RESULT can 43 ran 22 0 0 0 0
+RESULT can 44 ran 22 0 0 0 0
+RESULT can 45 ran 22 0 0 0 0
+RESULT can 46 ran 22 0 0 0 0
+RESULT can 47 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8x6e1tmd.py
+RESULT can 48 ran 22 0 0 0 0
+RESULT can 49 ran 22 0 0 0 0
+RESULT can 50 ran 22 0 0 0 0
+RESULT can 51 ran 22 0 0 0 0
+RESULT can 52 ran 22 0 0 0 0
+RESULT can 53 ran 22 0 0 0 0
+RESULT can 54 ran 22 0 0 0 0
+RESULT can 55 ran 22 0 0 0 0
+RESULT can 56 ran 22 0 0 0 0
+RESULT can 57 ran 22 0 0 0 0
+RESULT can 58 ran 22 0 0 0 0
+RESULT can 59 ran 22 0 0 0 0
+RESULT can 60 ran 22 0 0 0 0
+RESULT can 61 ran 22 0 0 0 0
+RESULT can 62 ran 22 0 0 0 0
+RESULT can 63 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpou_ppqlr.py
+RESULT can 64 ran 22 0 0 0 0
+RESULT can 65 ran 22 0 0 0 0
+RESULT can 66 ran 22 0 0 0 0
+RESULT can 67 ran 22 0 0 0 0
+RESULT can 68 ran 22 0 0 0 0
+RESULT can 69 ran 22 0 0 0 0
+RESULT can 70 ran 22 0 0 0 0
+RESULT can 71 ran 22 0 0 0 0
+RESULT can 72 ran 22 0 0 0 0
+RESULT can 73 ran 22 0 0 0 0
+RESULT can 74 ran 22 0 0 0 0
+RESULT can 75 ran 22 0 0 0 0
+RESULT can 76 ran 22 0 0 0 0
+RESULT can 77 ran 22 0 0 0 0
+RESULT can 78 ran 22 0 0 0 0
+RESULT can 79 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp0zai4wab.py
+RESULT can 80 ran 22 0 0 0 0
+RESULT can 81 ran 22 0 0 0 0
+RESULT can 82 ran 22 0 0 0 0
+RESULT can 83 ran 22 0 0 0 0
+RESULT can 84 ran 22 0 0 0 0
+RESULT can 85 ran 22 0 0 0 0
+RESULT can 86 ran 22 0 0 0 0
+RESULT can 87 ran 22 0 0 0 0
+RESULT can 88 ran 22 0 0 0 0
+RESULT can 89 ran 22 0 0 0 0
+RESULT can 90 ran 22 0 0 0 0
+RESULT can 91 ran 22 0 0 0 0
+RESULT can 92 ran 22 0 0 0 0
+RESULT can 93 ran 22 0 0 0 0
+RESULT can 94 ran 22 0 0 0 0
+RESULT can 95 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpzili34ub.py
+RESULT can 96 ran 22 0 0 0 0
+RESULT can 97 ran 22 0 0 0 0
+RESULT can 98 ran 22 0 0 0 0
+RESULT can 99 ran 22 0 0 0 0
+RESULT can 100 ran 22 0 0 0 0
+RESULT can 101 ran 22 0 0 0 0
+RESULT can 102 ran 22 0 0 0 0
+RESULT can 103 ran 22 0 0 0 0
+RESULT can 104 ran 22 0 0 0 0
+RESULT can 105 ran 22 0 0 0 0
+RESULT can 106 ran 22 0 0 0 0
+RESULT can 107 ran 22 0 0 0 0
+RESULT can 108 ran 22 0 0 0 0
+RESULT can 109 ran 22 0 0 0 0
+RESULT can 110 ran 22 0 0 0 0
+RESULT can 111 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4pt8lfne.py
+RESULT can 112 ran 22 0 0 0 0
+RESULT can 113 ran 22 0 0 0 0
+RESULT can 114 ran 22 0 0 0 0
+RESULT can 115 ran 22 0 0 0 0
+RESULT can 116 ran 22 0 0 0 0
+RESULT can 117 ran 22 0 0 0 0
+RESULT can 118 ran 22 0 0 0 0
+RESULT can 119 ran 22 0 0 0 0
+RESULT can 120 ran 22 0 0 0 0
+RESULT can 121 ran 22 0 0 0 0
+RESULT can 122 ran 22 0 0 0 0
+RESULT can 123 ran 22 0 0 0 0
+RESULT can 124 ran 22 0 0 0 0
+RESULT can 125 ran 22 0 0 0 0
+RESULT can 126 ran 22 0 0 0 0
+RESULT can 127 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvln65ewh.py
+RESULT can 128 ran 22 0 0 0 0
+RESULT can 129 ran 22 0 0 0 0
+RESULT can 130 ran 22 0 0 0 0
+RESULT can 131 ran 22 0 0 0 0
+RESULT can 132 ran 22 0 0 0 0
+RESULT can 133 ran 22 0 0 0 0
+RESULT can 134 ran 22 0 0 0 0
+RESULT can 135 ran 22 0 0 0 0
+RESULT can 136 ran 22 0 0 0 0
+RESULT can 137 ran 22 0 0 0 0
+RESULT can 138 ran 22 0 0 0 0
+RESULT can 139 ran 22 0 0 0 0
+RESULT can 140 ran 22 0 0 0 0
+RESULT can 141 ran 22 0 0 0 0
+RESULT can 142 ran 22 0 0 0 0
+RESULT can 143 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8wlqazrf.py
+RESULT can 144 ran 22 0 0 0 0
+RESULT can 145 ran 22 0 0 0 0
+RESULT can 146 ran 22 0 0 0 0
+RESULT can 147 ran 22 0 0 0 0
+RESULT can 148 ran 22 0 0 0 0
+RESULT can 149 ran 22 0 0 0 0
+RESULT can 150 ran 22 0 0 0 0
+RESULT can 151 ran 22 0 0 0 0
+RESULT can 152 ran 22 0 0 0 0
+RESULT can 153 ran 22 0 0 0 0
+RESULT can 154 ran 22 0 0 0 0
+RESULT can 155 ran 22 0 0 0 0
+RESULT can 156 ran 22 0 0 0 0
+RESULT can 157 ran 22 0 0 0 0
+RESULT can 158 ran 22 0 0 0 0
+RESULT can 159 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpf3lr6uhw.py
+RESULT can 160 ran 22 0 0 0 0
+RESULT can 161 ran 22 0 0 0 0
+RESULT can 162 ran 22 0 0 0 0
+RESULT can 163 ran 22 0 0 0 0
+RESULT can 164 ran 22 0 0 0 0
+RESULT can 165 ran 22 0 0 0 0
+RESULT can 166 ran 22 0 0 0 0
+RESULT can 167 ran 22 0 0 0 0
+RESULT can 168 ran 22 0 0 0 0
+RESULT can 169 ran 22 0 0 0 0
+RESULT can 170 ran 22 0 0 0 0
+RESULT can 171 ran 22 0 0 0 0
+RESULT can 172 ran 22 0 0 0 0
+RESULT can 173 ran 22 0 0 0 0
+RESULT can 174 ran 22 0 0 0 0
+RESULT can 175 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmprxulkpc1.py
+RESULT can 176 ran 22 0 0 0 0
+RESULT can 177 ran 22 0 0 0 0
+RESULT can 178 ran 22 0 0 0 0
+RESULT can 179 ran 22 0 0 0 0
+RESULT can 180 ran 22 0 0 0 0
+RESULT can 181 ran 22 0 0 0 0
+RESULT can 182 ran 22 0 0 0 0
+RESULT can 183 ran 22 0 0 0 0
+RESULT can 184 ran 22 0 0 0 0
+RESULT can 185 ran 22 0 0 0 0
+RESULT can 186 ran 22 0 0 0 0
+RESULT can 187 ran 22 0 0 0 0
+RESULT can 188 ran 22 0 0 0 0
+RESULT can 189 ran 22 0 0 0 0
+RESULT can 190 ran 22 0 0 0 0
+RESULT can 191 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvz8f5nzg.py
+RESULT can 192 ran 22 0 0 0 0
+RESULT can 193 ran 22 0 0 0 0
+RESULT can 194 ran 22 0 0 0 0
+RESULT can 195 ran 22 0 0 0 0
+RESULT can 196 ran 22 0 0 0 0
+RESULT can 197 ran 22 0 0 0 0
+RESULT can 198 ran 22 0 0 0 0
+RESULT can 199 ran 22 0 0 0 0
+RESULT can 200 ran 22 0 0 0 0
+RESULT can 201 ran 22 0 0 0 0
+RESULT can 202 ran 22 0 0 0 0
+RESULT can 203 ran 22 0 0 0 0
+RESULT can 204 ran 22 0 0 0 0
+RESULT can 205 ran 22 0 0 0 0
+RESULT can 206 ran 22 0 0 0 0
+RESULT can 207 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpcdclbk24.py
+RESULT can 208 ran 22 0 0 0 0
+RESULT can 209 ran 22 0 0 0 0
+RESULT can 210 ran 22 0 0 0 0
+RESULT can 211 ran 22 0 0 0 0
+RESULT can 212 ran 22 0 0 0 0
+RESULT can 213 ran 22 0 0 0 0
+RESULT can 214 ran 22 0 0 0 0
+RESULT can 215 ran 22 0 0 0 0
+RESULT can 216 ran 22 0 0 0 0
+RESULT can 217 ran 22 0 0 0 0
+RESULT can 218 ran 22 0 0 0 0
+RESULT can 219 ran 22 0 0 0 0
+RESULT can 220 ran 22 0 0 0 0
+RESULT can 221 ran 22 0 0 0 0
+RESULT can 222 ran 22 0 0 0 0
+RESULT can 223 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpdbmolv7j.py
+RESULT can 224 ran 22 0 0 0 0
+RESULT can 225 ran 22 0 0 0 0
+RESULT can 226 ran 22 0 0 0 0
+RESULT can 227 ran 22 0 0 0 0
+RESULT can 228 ran 22 0 0 0 0
+RESULT can 229 ran 22 0 0 0 0
+RESULT can 230 ran 22 0 0 0 0
+RESULT can 231 ran 22 0 0 0 0
+RESULT can 232 ran 22 0 0 0 0
+RESULT can 233 ran 22 0 0 0 0
+RESULT can 234 ran 22 0 0 0 0
+RESULT can 235 ran 22 0 0 0 0
+RESULT can 236 ran 22 0 0 0 0
+RESULT can 237 ran 22 0 0 0 0
+RESULT can 238 ran 22 0 0 0 0
+RESULT can 239 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpi10i5uhe.py
+RESULT can 240 ran 22 0 0 0 0
+RESULT can 241 ran 22 0 0 0 0
+RESULT can 242 ran 22 0 0 0 0
+RESULT can 243 ran 22 0 0 0 0
+RESULT can 244 ran 22 0 0 0 0
+RESULT can 245 ran 22 0 0 0 0
+RESULT can 246 ran 22 0 0 0 0
+RESULT can 247 ran 22 0 0 0 0
+RESULT can 248 ran 22 0 0 0 0
+RESULT can 249 ran 22 0 0 0 0
+RESULT can 250 ran 22 0 0 0 0
+RESULT can 251 ran 22 0 0 0 0
+RESULT can 252 ran 22 0 0 0 0
+RESULT can 253 ran 22 0 0 0 0
+RESULT can 254 ran 22 0 0 0 0
+RESULT can 255 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpstu65qbe.py
+RESULT can 256 ran 22 0 0 0 0
+RESULT can 257 ran 22 0 0 0 0
+RESULT can 258 ran 22 0 0 0 0
+RESULT can 259 ran 22 0 0 0 0
+RESULT can 260 ran 22 0 0 0 0
+RESULT can 261 ran 22 0 0 0 0
+RESULT can 262 ran 22 0 0 0 0
+RESULT can 263 ran 22 0 0 0 0
+RESULT can 264 ran 22 0 0 0 0
+RESULT can 265 ran 22 0 0 0 0
+RESULT can 266 ran 22 0 0 0 0
+RESULT can 267 ran 22 0 0 0 0
+RESULT can 268 ran 22 0 0 0 0
+RESULT can 269 ran 22 0 0 0 0
+RESULT can 270 ran 22 0 0 0 0
+RESULT can 271 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_pdprk5l.py
+RESULT can 272 ran 22 0 0 0 0
+RESULT can 273 ran 22 0 0 0 0
+RESULT can 274 ran 22 0 0 0 0
+RESULT can 275 ran 22 0 0 0 0
+RESULT can 276 ran 22 0 0 0 0
+RESULT can 277 ran 22 0 0 0 0
+RESULT can 278 ran 22 0 0 0 0
+RESULT can 279 ran 22 0 0 0 0
+RESULT can 280 ran 22 0 0 0 0
+RESULT can 281 ran 22 0 0 0 0
+RESULT can 282 ran 22 0 0 0 0
+RESULT can 283 ran 22 0 0 0 0
+RESULT can 284 ran 22 0 0 0 0
+RESULT can 285 ran 22 0 0 0 0
+RESULT can 286 ran 22 0 0 0 0
+RESULT can 287 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpi991fjz0.py
+RESULT can 288 ran 22 0 0 0 0
+RESULT can 289 ran 22 0 0 0 0
+RESULT can 290 ran 22 0 0 0 0
+RESULT can 291 ran 22 0 0 0 0
+RESULT can 292 ran 22 0 0 0 0
+RESULT can 293 ran 22 0 0 0 0
+RESULT can 294 ran 22 0 0 0 0
+RESULT can 295 ran 22 0 0 0 0
+RESULT can 296 ran 22 0 0 0 0
+RESULT can 297 ran 22 0 0 0 0
+RESULT can 298 ran 22 0 0 0 0
+RESULT can 299 ran 22 0 0 0 0
+RESULT can 300 ran 22 0 0 0 0
+RESULT can 301 ran 22 0 0 0 0
+RESULT can 302 ran 22 0 0 0 0
+RESULT can 303 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8405br23.py
+RESULT can 304 ran 22 0 0 0 0
+RESULT can 305 ran 22 0 0 0 0
+RESULT can 306 ran 22 0 0 0 0
+RESULT can 307 ran 22 0 0 0 0
+RESULT can 308 ran 22 0 0 0 0
+RESULT can 309 ran 22 0 0 0 0
+RESULT can 310 ran 22 0 0 0 0
+RESULT can 311 ran 22 0 0 0 0
+RESULT can 312 ran 22 0 0 0 0
+RESULT can 313 ran 22 0 0 0 0
+RESULT can 314 ran 22 0 0 0 0
+RESULT can 315 ran 22 0 0 0 0
+RESULT can 316 ran 22 0 0 0 0
+RESULT can 317 ran 22 0 0 0 0
+RESULT can 318 ran 22 0 0 0 0
+RESULT can 319 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpao9gh4pm.py
+RESULT can 320 ran 22 0 0 0 0
+RESULT can 321 ran 22 0 0 0 0
+RESULT can 322 ran 22 0 0 0 0
+RESULT can 323 ran 22 0 0 0 0
+RESULT can 324 ran 22 0 0 0 0
+RESULT can 325 ran 22 0 0 0 0
+RESULT can 326 ran 22 0 0 0 0
+RESULT can 327 ran 22 0 0 0 0
+RESULT can 328 ran 22 0 0 0 0
+RESULT can 329 ran 22 0 0 0 0
+RESULT can 330 ran 22 0 0 0 0
+RESULT can 331 ran 22 0 0 0 0
+RESULT can 332 ran 22 0 0 0 0
+RESULT can 333 ran 22 0 0 0 0
+RESULT can 334 ran 22 0 0 0 0
+RESULT can 335 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpec7te_zk.py
+RESULT can 336 ran 22 0 0 0 0
+RESULT can 337 ran 22 0 0 0 0
+RESULT can 338 ran 22 0 0 0 0
+RESULT can 339 ran 22 0 0 0 0
+RESULT can 340 ran 22 0 0 0 0
+RESULT can 341 ran 22 0 0 0 0
+RESULT can 342 ran 22 0 0 0 0
+RESULT can 343 ran 22 0 0 0 0
+RESULT can 344 ran 22 0 0 0 0
+RESULT can 345 ran 22 0 0 0 0
+RESULT can 346 ran 22 0 0 0 0
+RESULT can 347 ran 22 0 0 0 0
+RESULT can 348 ran 22 0 0 0 0
+RESULT can 349 ran 22 0 0 0 0
+RESULT can 350 ran 22 0 0 0 0
+RESULT can 351 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmphgzcc6zb.py
+RESULT can 352 ran 22 0 0 0 0
+RESULT can 353 ran 22 0 0 0 0
+RESULT can 354 ran 22 0 0 0 0
+RESULT can 355 ran 22 0 0 0 0
+RESULT can 356 ran 22 0 0 0 0
+RESULT can 357 ran 22 0 0 0 0
+RESULT can 358 ran 22 0 0 0 0
+RESULT can 359 ran 22 0 0 0 0
+RESULT can 360 ran 22 0 0 0 0
+RESULT can 361 ran 22 0 0 0 0
+RESULT can 362 ran 22 0 0 0 0
+RESULT can 363 ran 22 0 0 0 0
+RESULT can 364 ran 22 0 0 0 0
+RESULT can 365 ran 22 0 0 0 0
+RESULT can 366 ran 22 0 0 0 0
+RESULT can 367 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpz8w38y6g.py
+RESULT can 368 ran 22 0 0 0 0
+RESULT can 369 ran 22 0 0 0 0
+RESULT can 370 ran 22 0 0 0 0
+RESULT can 371 ran 22 0 0 0 0
+RESULT can 372 ran 22 0 0 0 0
+RESULT can 373 ran 22 0 0 0 0
+RESULT can 374 ran 22 0 0 0 0
+RESULT can 375 ran 22 0 0 0 0
+RESULT can 376 ran 22 0 0 0 0
+RESULT can 377 ran 22 0 0 0 0
+RESULT can 378 ran 22 0 0 0 0
+RESULT can 379 ran 22 0 0 0 0
+RESULT can 380 ran 22 0 0 0 0
+RESULT can 381 ran 22 0 0 0 0
+RESULT can 382 ran 22 0 0 0 0
+RESULT can 383 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4i0le_5y.py
+RESULT can 384 ran 22 0 0 0 0
+RESULT can 385 ran 22 0 0 0 0
+RESULT can 386 ran 22 0 0 0 0
+RESULT can 387 ran 22 0 0 0 0
+RESULT can 388 ran 22 0 0 0 0
+RESULT can 389 ran 22 0 0 0 0
+RESULT can 390 ran 22 0 0 0 0
+RESULT can 391 ran 22 0 0 0 0
+RESULT can 392 ran 22 0 0 0 0
+RESULT can 393 ran 22 0 0 0 0
+RESULT can 394 ran 22 0 0 0 0
+RESULT can 395 ran 22 0 0 0 0
+RESULT can 396 ran 22 0 0 0 0
+RESULT can 397 ran 22 0 0 0 0
+RESULT can 398 ran 22 0 0 0 0
+RESULT can 399 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_1m66lcy.py
+RESULT can 400 ran 22 0 0 0 0
+RESULT can 401 ran 22 0 0 0 0
+RESULT can 402 ran 22 0 0 0 0
+RESULT can 403 ran 22 0 0 0 0
+RESULT can 404 ran 22 0 0 0 0
+RESULT can 405 ran 22 0 0 0 0
+RESULT can 406 ran 22 0 0 0 0
+RESULT can 407 ran 22 0 0 0 0
+RESULT can 408 ran 22 0 0 0 0
+RESULT can 409 ran 22 0 0 0 0
+RESULT can 410 ran 22 0 0 0 0
+RESULT can 411 ran 22 0 0 0 0
+RESULT can 412 ran 22 0 0 0 0
+RESULT can 413 ran 22 0 0 0 0
+RESULT can 414 ran 22 0 0 0 0
+RESULT can 415 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp7lb8xc7d.py
+RESULT can 416 ran 22 0 0 0 0
+RESULT can 417 ran 22 0 0 0 0
+RESULT can 418 ran 22 0 0 0 0
+RESULT can 419 ran 22 0 0 0 0
+RESULT can 420 ran 22 0 0 0 0
+RESULT can 421 ran 22 0 0 0 0
+RESULT can 422 ran 22 0 0 0 0
+RESULT can 423 ran 22 0 0 0 0
+RESULT can 424 ran 22 0 0 0 0
+RESULT can 425 ran 22 0 0 0 0
+RESULT can 426 ran 22 0 0 0 0
+RESULT can 427 ran 22 0 0 0 0
+RESULT can 428 ran 22 0 0 0 0
+RESULT can 429 ran 22 0 0 0 0
+RESULT can 430 ran 22 0 0 0 0
+RESULT can 431 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpqtzjl_pk.py
+RESULT can 432 ran 22 0 0 0 0
+RESULT can 433 ran 22 0 0 0 0
+RESULT can 434 ran 22 0 0 0 0
+RESULT can 435 ran 22 0 0 0 0
+RESULT can 436 ran 22 0 0 0 0
+RESULT can 437 ran 22 0 0 0 0
+RESULT can 438 ran 22 0 0 0 0
+RESULT can 439 ran 22 0 0 0 0
+RESULT can 440 ran 22 0 0 0 0
+RESULT can 441 ran 22 0 0 0 0
+RESULT can 442 ran 22 0 0 0 0
+RESULT can 443 ran 22 0 0 0 0
+RESULT can 444 ran 22 0 0 0 0
+RESULT can 445 ran 22 0 0 0 0
+RESULT can 446 ran 22 0 0 0 0
+RESULT can 447 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpttavya86.py
+RESULT can 448 ran 22 0 0 0 0
+RESULT can 449 ran 22 0 0 0 0
+RESULT can 450 ran 22 0 0 0 0
+RESULT can 451 ran 22 0 0 0 0
+RESULT can 452 ran 22 0 0 0 0
+RESULT can 453 ran 22 0 0 0 0
+RESULT can 454 ran 22 0 0 0 0
+RESULT can 455 ran 22 0 0 0 0
+RESULT can 456 ran 22 0 0 0 0
+RESULT can 457 ran 22 0 0 0 0
+RESULT can 458 ran 22 0 0 0 0
+RESULT can 459 ran 22 0 0 0 0
+RESULT can 460 ran 22 0 0 0 0
+RESULT can 461 ran 22 0 0 0 0
+RESULT can 462 ran 22 0 0 0 0
+RESULT can 463 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpfcieu7jj.py
+RESULT can 464 ran 22 0 0 0 0
+RESULT can 465 ran 22 0 0 0 0
+RESULT can 466 ran 22 0 0 0 0
+RESULT can 467 ran 22 0 0 0 0
+RESULT can 468 ran 22 0 0 0 0
+RESULT can 469 ran 22 0 0 0 0
+RESULT can 470 ran 22 0 0 0 0
+RESULT can 471 ran 22 0 0 0 0
+RESULT can 472 ran 22 0 0 0 0
+RESULT can 473 ran 22 0 0 0 0
+RESULT can 474 ran 22 0 0 0 0
+RESULT can 475 ran 22 0 0 0 0
+RESULT can 476 ran 22 0 0 0 0
+RESULT can 477 ran 22 0 0 0 0
+RESULT can 478 ran 22 0 0 0 0
+RESULT can 479 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpklrnctcd.py
+RESULT can 480 ran 22 0 0 0 0
+RESULT can 481 ran 22 0 0 0 0
+RESULT can 482 ran 22 0 0 0 0
+RESULT can 483 ran 22 0 0 0 0
+RESULT can 484 ran 22 0 0 0 0
+RESULT can 485 ran 22 0 0 0 0
+RESULT can 486 ran 22 0 0 0 0
+RESULT can 487 ran 22 0 0 0 0
+RESULT can 488 ran 22 0 0 0 0
+RESULT can 489 ran 22 0 0 0 0
+RESULT can 490 ran 22 0 0 0 0
+RESULT can 491 ran 22 0 0 0 0
+RESULT can 492 ran 22 0 0 0 0
+RESULT can 493 ran 22 0 0 0 0
+RESULT can 494 ran 22 0 0 0 0
+RESULT can 495 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpiza6sg4k.py
+RESULT can 496 ran 22 0 0 0 0
+RESULT can 497 ran 22 0 0 0 0
+RESULT can 498 ran 22 0 0 0 0
+RESULT can 499 ran 22 0 0 0 0
+RESULT can 500 ran 22 0 0 0 0
+RESULT can 501 ran 22 0 0 0 0
+RESULT can 502 ran 22 0 0 0 0
+RESULT can 503 ran 22 0 0 0 0
+RESULT can 504 ran 22 0 0 0 0
+RESULT can 505 ran 22 0 0 0 0
+RESULT can 506 ran 22 0 0 0 0
+RESULT can 507 ran 22 0 0 0 0
+RESULT can 508 ran 22 0 0 0 0
+RESULT can 509 ran 22 0 0 0 0
+RESULT can 510 ran 22 0 0 0 0
+RESULT can 511 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpn1eh3vvk.py
+RESULT can 512 ran 22 0 0 0 0
+RESULT can 513 ran 22 0 0 0 0
+RESULT can 514 ran 22 0 0 0 0
+RESULT can 515 ran 22 0 0 0 0
+RESULT can 516 ran 22 0 0 0 0
+RESULT can 517 ran 22 0 0 0 0
+RESULT can 518 ran 22 0 0 0 0
+RESULT can 519 ran 22 0 0 0 0
+RESULT can 520 ran 22 0 0 0 0
+RESULT can 521 ran 22 0 0 0 0
+RESULT can 522 ran 22 0 0 0 0
+RESULT can 523 ran 22 0 0 0 0
+RESULT can 524 ran 22 0 0 0 0
+RESULT can 525 ran 22 0 0 0 0
+RESULT can 526 ran 22 0 0 0 0
+RESULT can 527 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp7z2pejth.py
+RESULT can 528 ran 22 0 0 0 0
+RESULT can 529 ran 22 0 0 0 0
+RESULT can 530 ran 22 0 0 0 0
+RESULT can 531 ran 22 0 0 0 0
+RESULT can 532 ran 22 0 0 0 0
+RESULT can 533 ran 22 0 0 0 0
+RESULT can 534 ran 22 0 0 0 0
+RESULT can 535 ran 22 0 0 0 0
+RESULT can 536 ran 22 0 0 0 0
+RESULT can 537 ran 22 0 0 0 0
+RESULT can 538 ran 22 0 0 0 0
+RESULT can 539 ran 22 0 0 0 0
+RESULT can 540 ran 22 0 0 0 0
+RESULT can 541 ran 22 0 0 0 0
+RESULT can 542 ran 22 0 0 0 0
+RESULT can 543 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpg3b9kllt.py
+RESULT can 544 ran 22 0 0 0 0
+RESULT can 545 ran 22 0 0 0 0
+RESULT can 546 ran 22 0 0 0 0
+RESULT can 547 ran 22 0 0 0 0
+RESULT can 548 ran 22 0 0 0 0
+RESULT can 549 ran 22 0 0 0 0
+RESULT can 550 ran 22 0 0 0 0
+RESULT can 551 ran 22 0 0 0 0
+RESULT can 552 ran 22 0 0 0 0
+RESULT can 553 ran 22 0 0 0 0
+RESULT can 554 ran 22 0 0 0 0
+RESULT can 555 ran 22 0 0 0 0
+RESULT can 556 ran 22 0 0 0 0
+RESULT can 557 ran 22 0 0 0 0
+RESULT can 558 ran 22 0 0 0 0
+RESULT can 559 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4utujqf_.py
+RESULT can 560 ran 22 0 0 0 0
+RESULT can 561 ran 22 0 0 0 0
+RESULT can 562 ran 22 0 0 0 0
+RESULT can 563 ran 22 0 0 0 0
+RESULT can 564 ran 22 0 0 0 0
+RESULT can 565 ran 22 0 0 0 0
+RESULT can 566 ran 22 0 0 0 0
+RESULT can 567 ran 22 0 0 0 0
+RESULT can 568 ran 22 0 0 0 0
+RESULT can 569 ran 22 0 0 0 0
+RESULT can 570 ran 22 0 0 0 0
+RESULT can 571 ran 22 0 0 0 0
+RESULT can 572 ran 22 0 0 0 0
+RESULT can 573 ran 22 0 0 0 0
+RESULT can 574 ran 22 0 0 0 0
+RESULT can 575 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpif0cjjdb.py
+RESULT can 576 ran 22 0 0 0 0
+RESULT can 577 ran 22 0 0 0 0
+RESULT can 578 ran 22 0 0 0 0
+RESULT can 579 ran 22 0 0 0 0
+RESULT can 580 ran 22 0 0 0 0
+RESULT can 581 ran 22 0 0 0 0
+RESULT can 582 ran 22 0 0 0 0
+RESULT can 583 ran 22 0 0 0 0
+RESULT can 584 ran 22 0 0 0 0
+RESULT can 585 ran 22 0 0 0 0
+RESULT can 586 ran 22 0 0 0 0
+RESULT can 587 ran 22 0 0 0 0
+RESULT can 588 ran 22 0 0 0 0
+RESULT can 589 ran 22 0 0 0 0
+RESULT can 590 ran 22 0 0 0 0
+RESULT can 591 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpnrg6k70u.py
+RESULT can 592 ran 22 0 0 0 0
+RESULT can 593 ran 22 0 0 0 0
+RESULT can 594 ran 22 0 0 0 0
+RESULT can 595 ran 22 0 0 0 0
+RESULT can 596 ran 22 0 0 0 0
+RESULT can 597 ran 22 0 0 0 0
+RESULT can 598 ran 22 0 0 0 0
+RESULT can 599 ran 22 0 0 0 0
+RESULT can 600 ran 22 0 0 0 0
+RESULT can 601 ran 22 0 0 0 0
+RESULT can 602 ran 22 0 0 0 0
+RESULT can 603 ran 22 0 0 0 0
+RESULT can 604 ran 22 0 0 0 0
+RESULT can 605 ran 22 0 0 0 0
+RESULT can 606 ran 22 0 0 0 0
+RESULT can 607 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp89kxt_59.py
+RESULT can 608 ran 22 0 0 0 0
+RESULT can 609 ran 22 0 0 0 0
+RESULT can 610 ran 22 0 0 0 0
+RESULT can 611 ran 22 0 0 0 0
+RESULT can 612 ran 22 0 0 0 0
+RESULT can 613 ran 22 0 0 0 0
+RESULT can 614 ran 22 0 0 0 0
+RESULT can 615 ran 22 0 0 0 0
+RESULT can 616 ran 22 0 0 0 0
+RESULT can 617 ran 22 0 0 0 0
+RESULT can 618 ran 22 0 0 0 0
+RESULT can 619 ran 22 0 0 0 0
+RESULT can 620 ran 22 0 0 0 0
+RESULT can 621 ran 22 0 0 0 0
+RESULT can 622 ran 22 0 0 0 0
+RESULT can 623 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpid_18p4e.py
+RESULT can 624 ran 22 0 0 0 0
+RESULT can 625 ran 22 0 0 0 0
+RESULT can 626 ran 22 0 0 0 0
+RESULT can 627 ran 22 0 0 0 0
+RESULT can 628 ran 22 0 0 0 0
+RESULT can 629 ran 22 0 0 0 0
+RESULT can 630 ran 22 0 0 0 0
+RESULT can 631 ran 22 0 0 0 0
+RESULT can 632 ran 22 0 0 0 0
+RESULT can 633 ran 22 0 0 0 0
+RESULT can 634 ran 22 0 0 0 0
+RESULT can 635 ran 22 0 0 0 0
+RESULT can 636 ran 22 0 0 0 0
+RESULT can 637 ran 22 0 0 0 0
+RESULT can 638 ran 22 0 0 0 0
+RESULT can 639 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpdtsflran.py
+RESULT can 640 ran 22 0 0 0 0
+RESULT can 641 ran 22 0 0 0 0
+RESULT can 642 ran 22 0 0 0 0
+RESULT can 643 ran 22 0 0 0 0
+RESULT can 644 ran 22 0 0 0 0
+RESULT can 645 ran 22 0 0 0 0
+RESULT can 646 ran 22 0 0 0 0
+RESULT can 647 ran 22 0 0 0 0
+RESULT can 648 ran 22 0 0 0 0
+RESULT can 649 ran 22 0 0 0 0
+RESULT can 650 ran 22 0 0 0 0
+RESULT can 651 ran 22 0 0 0 0
+RESULT can 652 ran 22 0 0 0 0
+RESULT can 653 ran 22 0 0 0 0
+RESULT can 654 ran 22 0 0 0 0
+RESULT can 655 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpc4qztwb6.py
+RESULT can 656 ran 22 0 0 0 0
+RESULT can 657 ran 22 0 0 0 0
+RESULT can 658 ran 22 0 0 0 0
+RESULT can 659 ran 22 0 0 0 0
+RESULT can 660 ran 22 0 0 0 0
+RESULT can 661 ran 22 0 0 0 0
+RESULT can 662 ran 22 0 0 0 0
+RESULT can 663 ran 22 0 0 0 0
+RESULT can 664 ran 22 0 0 0 0
+RESULT can 665 ran 22 0 0 0 0
+RESULT can 666 ran 22 0 0 0 0
+RESULT can 667 ran 22 0 0 0 0
+RESULT can 668 ran 22 0 0 0 0
+RESULT can 669 ran 22 0 0 0 0
+RESULT can 670 ran 22 0 0 0 0
+RESULT can 671 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp9he79cc6.py
+RESULT can 672 ran 22 0 0 0 0
+RESULT can 673 ran 22 0 0 0 0
+RESULT can 674 ran 22 0 0 0 0
+RESULT can 675 ran 22 0 0 0 0
+RESULT can 676 ran 22 0 0 0 0
+RESULT can 677 ran 22 0 0 0 0
+RESULT can 678 ran 22 0 0 0 0
+RESULT can 679 ran 22 0 0 0 0
+RESULT can 680 ran 22 0 0 0 0
+RESULT can 681 ran 22 0 0 0 0
+RESULT can 682 ran 22 0 0 0 0
+RESULT can 683 ran 22 0 0 0 0
+RESULT can 684 ran 22 0 0 0 0
+RESULT can 685 ran 22 0 0 0 0
+RESULT can 686 ran 22 0 0 0 0
+RESULT can 687 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpvupejzss.py
+RESULT can 688 ran 22 0 0 0 0
+RESULT can 689 ran 22 0 0 0 0
+RESULT can 690 ran 22 0 0 0 0
+RESULT can 691 ran 22 0 0 0 0
+RESULT can 692 ran 22 0 0 0 0
+RESULT can 693 ran 22 0 0 0 0
+RESULT can 694 ran 22 0 0 0 0
+RESULT can 695 ran 22 0 0 0 0
+RESULT can 696 ran 22 0 0 0 0
+RESULT can 697 ran 22 0 0 0 0
+RESULT can 698 ran 22 0 0 0 0
+RESULT can 699 ran 22 0 0 0 0
+RESULT can 700 ran 22 0 0 0 0
+RESULT can 701 ran 22 0 0 0 0
+RESULT can 702 ran 22 0 0 0 0
+RESULT can 703 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmporklj65i.py
+RESULT can 704 ran 22 0 0 0 0
+RESULT can 705 ran 22 0 0 0 0
+RESULT can 706 ran 22 0 0 0 0
+RESULT can 707 ran 22 0 0 0 0
+RESULT can 708 ran 22 0 0 0 0
+RESULT can 709 ran 22 0 0 0 0
+RESULT can 710 ran 22 0 0 0 0
+RESULT can 711 ran 22 0 0 0 0
+RESULT can 712 ran 22 0 0 0 0
+RESULT can 713 ran 22 0 0 0 0
+RESULT can 714 ran 22 0 0 0 0
+RESULT can 715 ran 22 0 0 0 0
+RESULT can 716 ran 22 0 0 0 0
+RESULT can 717 ran 22 0 0 0 0
+RESULT can 718 ran 22 0 0 0 0
+RESULT can 719 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpdawmscp7.py
+RESULT can 720 ran 22 0 0 0 0
+RESULT can 721 ran 22 0 0 0 0
+RESULT can 722 ran 22 0 0 0 0
+RESULT can 723 ran 22 0 0 0 0
+RESULT can 724 ran 22 0 0 0 0
+RESULT can 725 ran 22 0 0 0 0
+RESULT can 726 ran 22 0 0 0 0
+RESULT can 727 ran 22 0 0 0 0
+RESULT can 728 ran 22 0 0 0 0
+RESULT can 729 ran 22 0 0 0 0
+RESULT can 730 ran 22 0 0 0 0
+RESULT can 731 ran 22 0 0 0 0
+RESULT can 732 ran 22 0 0 0 0
+RESULT can 733 ran 22 0 0 0 0
+RESULT can 734 ran 22 0 0 0 0
+RESULT can 735 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp5d_ki1rg.py
+RESULT can 736 ran 22 0 0 0 0
+RESULT can 737 ran 22 0 0 0 0
+RESULT can 738 ran 22 0 0 0 0
+RESULT can 739 ran 22 0 0 0 0
+RESULT can 740 ran 22 0 0 0 0
+RESULT can 741 ran 22 0 0 0 0
+RESULT can 742 ran 22 0 0 0 0
+RESULT can 743 ran 22 0 0 0 0
+RESULT can 744 ran 22 0 0 0 0
+RESULT can 745 ran 22 0 0 0 0
+RESULT can 746 ran 22 0 0 0 0
+RESULT can 747 ran 22 0 0 0 0
+RESULT can 748 ran 22 0 0 0 0
+RESULT can 749 ran 22 0 0 0 0
+RESULT can 750 ran 22 0 0 0 0
+RESULT can 751 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2bcazp85.py
+RESULT can 752 ran 22 0 0 0 0
+RESULT can 753 ran 22 0 0 0 0
+RESULT can 754 ran 22 0 0 0 0
+RESULT can 755 ran 22 0 0 0 0
+RESULT can 756 ran 22 0 0 0 0
+RESULT can 757 ran 22 0 0 0 0
+RESULT can 758 ran 22 0 0 0 0
+RESULT can 759 ran 22 0 0 0 0
+RESULT can 760 ran 22 0 0 0 0
+RESULT can 761 ran 22 0 0 0 0
+RESULT can 762 ran 22 0 0 0 0
+RESULT can 763 ran 22 0 0 0 0
+RESULT can 764 ran 22 0 0 0 0
+RESULT can 765 ran 22 0 0 0 0
+RESULT can 766 ran 22 0 0 0 0
+RESULT can 767 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpex2azcly.py
+RESULT can 768 ran 22 0 0 0 0
+RESULT can 769 ran 22 0 0 0 0
+RESULT can 770 ran 22 0 0 0 0
+RESULT can 771 ran 22 0 0 0 0
+RESULT can 772 ran 22 0 0 0 0
+RESULT can 773 ran 22 0 0 0 0
+RESULT can 774 ran 22 0 0 0 0
+RESULT can 775 ran 22 0 0 0 0
+RESULT can 776 ran 22 0 0 0 0
+RESULT can 777 ran 22 0 0 0 0
+RESULT can 778 ran 22 0 0 0 0
+RESULT can 779 ran 22 0 0 0 0
+RESULT can 780 ran 22 0 0 0 0
+RESULT can 781 ran 22 0 0 0 0
+RESULT can 782 ran 22 0 0 0 0
+RESULT can 783 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp65do9z_9.py
+RESULT can 784 ran 22 0 0 0 0
+RESULT can 785 ran 22 0 0 0 0
+RESULT can 786 ran 22 0 0 0 0
+RESULT can 787 ran 22 0 0 0 0
+RESULT can 788 ran 22 0 0 0 0
+RESULT can 789 ran 22 0 0 0 0
+RESULT can 790 ran 22 0 0 0 0
+RESULT can 791 ran 22 0 0 0 0
+RESULT can 792 ran 22 0 0 0 0
+RESULT can 793 ran 22 0 0 0 0
+RESULT can 794 ran 22 0 0 0 0
+RESULT can 795 ran 22 0 0 0 0
+RESULT can 796 ran 22 0 0 0 0
+RESULT can 797 ran 22 0 0 0 0
+RESULT can 798 ran 22 0 0 0 0
+RESULT can 799 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpi2mji05v.py
+RESULT can 800 ran 22 0 0 0 0
+RESULT can 801 ran 22 0 0 0 0
+RESULT can 802 ran 22 0 0 0 0
+RESULT can 803 ran 22 0 0 0 0
+RESULT can 804 ran 22 0 0 0 0
+RESULT can 805 ran 22 0 0 0 0
+RESULT can 806 ran 22 0 0 0 0
+RESULT can 807 ran 22 0 0 0 0
+RESULT can 808 ran 22 0 0 0 0
+RESULT can 809 ran 22 0 0 0 0
+RESULT can 810 ran 22 0 0 0 0
+RESULT can 811 ran 22 0 0 0 0
+RESULT can 812 ran 22 0 0 0 0
+RESULT can 813 ran 22 0 0 0 0
+RESULT can 814 ran 22 0 0 0 0
+RESULT can 815 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpeifwfuqe.py
+RESULT can 816 ran 22 0 0 0 0
+RESULT can 817 ran 22 0 0 0 0
+RESULT can 818 ran 22 0 0 0 0
+RESULT can 819 ran 22 0 0 0 0
+RESULT can 820 ran 22 0 0 0 0
+RESULT can 821 ran 22 0 0 0 0
+RESULT can 822 ran 22 0 0 0 0
+RESULT can 823 ran 22 0 0 0 0
+RESULT can 824 ran 22 0 0 0 0
+RESULT can 825 ran 22 0 0 0 0
+RESULT can 826 ran 22 0 0 0 0
+RESULT can 827 ran 22 0 0 0 0
+RESULT can 828 ran 22 0 0 0 0
+RESULT can 829 ran 22 0 0 0 0
+RESULT can 830 ran 22 0 0 0 0
+RESULT can 831 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpsv33ih83.py
+RESULT can 832 ran 22 0 0 0 0
+RESULT can 833 ran 22 0 0 0 0
+RESULT can 834 ran 22 0 0 0 0
+RESULT can 835 ran 22 0 0 0 0
+RESULT can 836 ran 22 0 0 0 0
+RESULT can 837 ran 22 0 0 0 0
+RESULT can 838 ran 22 0 0 0 0
+RESULT can 839 ran 22 0 0 0 0
+RESULT can 840 ran 22 0 0 0 0
+RESULT can 841 ran 22 0 0 0 0
+RESULT can 842 ran 22 0 0 0 0
+RESULT can 843 ran 22 0 0 0 0
+RESULT can 844 ran 22 0 0 0 0
+RESULT can 845 ran 22 0 0 0 0
+RESULT can 846 ran 22 0 0 0 0
+RESULT can 847 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp5_xfsely.py
+RESULT can 848 ran 22 0 0 0 0
+RESULT can 849 ran 22 0 0 0 0
+RESULT can 850 ran 22 0 0 0 0
+RESULT can 851 ran 22 0 0 0 0
+RESULT can 852 ran 22 0 0 0 0
+RESULT can 853 ran 22 0 0 0 0
+RESULT can 854 ran 22 0 0 0 0
+RESULT can 855 ran 22 0 0 0 0
+RESULT can 856 ran 22 0 0 0 0
+RESULT can 857 ran 22 0 0 0 0
+RESULT can 858 ran 22 0 0 0 0
+RESULT can 859 ran 22 0 0 0 0
+RESULT can 860 ran 22 0 0 0 0
+RESULT can 861 ran 22 0 0 0 0
+RESULT can 862 ran 22 0 0 0 0
+RESULT can 863 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8pze13gi.py
+RESULT can 864 ran 22 0 0 0 0
+RESULT can 865 ran 22 0 0 0 0
+RESULT can 866 ran 22 0 0 0 0
+RESULT can 867 ran 22 0 0 0 0
+RESULT can 868 ran 22 0 0 0 0
+RESULT can 869 ran 22 0 0 0 0
+RESULT can 870 ran 22 0 0 0 0
+RESULT can 871 ran 22 0 0 0 0
+RESULT can 872 ran 22 0 0 0 0
+RESULT can 873 ran 22 0 0 0 0
+RESULT can 874 ran 22 0 0 0 0
+RESULT can 875 ran 22 0 0 0 0
+RESULT can 876 ran 22 0 0 0 0
+RESULT can 877 ran 22 0 0 0 0
+RESULT can 878 ran 22 0 0 0 0
+RESULT can 879 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpt11dxnut.py
+RESULT can 880 ran 22 0 0 0 0
+RESULT can 881 ran 22 0 0 0 0
+RESULT can 882 ran 22 0 0 0 0
+RESULT can 883 ran 22 0 0 0 0
+RESULT can 884 ran 22 0 0 0 0
+RESULT can 885 ran 22 0 0 0 0
+RESULT can 886 ran 22 0 0 0 0
+RESULT can 887 ran 22 0 0 0 0
+RESULT can 888 ran 22 0 0 0 0
+RESULT can 889 ran 22 0 0 0 0
+RESULT can 890 ran 22 0 0 0 0
+RESULT can 891 ran 22 0 0 0 0
+RESULT can 892 ran 22 0 0 0 0
+RESULT can 893 ran 22 0 0 0 0
+RESULT can 894 ran 22 0 0 0 0
+RESULT can 895 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpf2bd1v_s.py
+RESULT can 896 ran 22 0 0 0 0
+RESULT can 897 ran 22 0 0 0 0
+RESULT can 898 ran 22 0 0 0 0
+RESULT can 899 ran 22 0 0 0 0
+RESULT can 900 ran 22 0 0 0 0
+RESULT can 901 ran 22 0 0 0 0
+RESULT can 902 ran 22 0 0 0 0
+RESULT can 903 ran 22 0 0 0 0
+RESULT can 904 ran 22 0 0 0 0
+RESULT can 905 ran 22 0 0 0 0
+RESULT can 906 ran 22 0 0 0 0
+RESULT can 907 ran 22 0 0 0 0
+RESULT can 908 ran 22 0 0 0 0
+RESULT can 909 ran 22 0 0 0 0
+RESULT can 910 ran 22 0 0 0 0
+RESULT can 911 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp8w_cbt6i.py
+RESULT can 912 ran 22 0 0 0 0
+RESULT can 913 ran 22 0 0 0 0
+RESULT can 914 ran 22 0 0 0 0
+RESULT can 915 ran 22 0 0 0 0
+RESULT can 916 ran 22 0 0 0 0
+RESULT can 917 ran 22 0 0 0 0
+RESULT can 918 ran 22 0 0 0 0
+RESULT can 919 ran 22 0 0 0 0
+RESULT can 920 ran 22 0 0 0 0
+RESULT can 921 ran 22 0 0 0 0
+RESULT can 922 ran 22 0 0 0 0
+RESULT can 923 ran 22 0 0 0 0
+RESULT can 924 ran 22 0 0 0 0
+RESULT can 925 ran 22 0 0 0 0
+RESULT can 926 ran 22 0 0 0 0
+RESULT can 927 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpj83s94gi.py
+RESULT can 928 ran 22 0 0 0 0
+RESULT can 929 ran 22 0 0 0 0
+RESULT can 930 ran 22 0 0 0 0
+RESULT can 931 ran 22 0 0 0 0
+RESULT can 932 ran 22 0 0 0 0
+RESULT can 933 ran 22 0 0 0 0
+RESULT can 934 ran 22 0 0 0 0
+RESULT can 935 ran 22 0 0 0 0
+RESULT can 936 ran 22 0 0 0 0
+RESULT can 937 ran 22 0 0 0 0
+RESULT can 938 ran 22 0 0 0 0
+RESULT can 939 ran 22 0 0 0 0
+RESULT can 940 ran 22 0 0 0 0
+RESULT can 941 ran 22 0 0 0 0
+RESULT can 942 ran 22 0 0 0 0
+RESULT can 943 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpv97w2j2a.py
+RESULT can 944 ran 22 0 0 0 0
+RESULT can 945 ran 22 0 0 0 0
+RESULT can 946 ran 22 0 0 0 0
+RESULT can 947 ran 22 0 0 0 0
+RESULT can 948 ran 22 0 0 0 0
+RESULT can 949 ran 22 0 0 0 0
+RESULT can 950 ran 22 0 0 0 0
+RESULT can 951 ran 22 0 0 0 0
+RESULT can 952 ran 22 0 0 0 0
+RESULT can 953 ran 22 0 0 0 0
+RESULT can 954 ran 22 0 0 0 0
+RESULT can 955 ran 22 0 0 0 0
+RESULT can 956 ran 22 0 0 0 0
+RESULT can 957 ran 22 0 0 0 0
+RESULT can 958 ran 22 0 0 0 0
+RESULT can 959 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_ioyq4x3.py
+RESULT can 960 ran 22 0 0 0 0
+RESULT can 961 ran 22 0 0 0 0
+RESULT can 962 ran 22 0 0 0 0
+RESULT can 963 ran 22 0 0 0 0
+RESULT can 964 ran 22 0 0 0 0
+RESULT can 965 ran 22 0 0 0 0
+RESULT can 966 ran 22 0 0 0 0
+RESULT can 967 ran 22 0 0 0 0
+RESULT can 968 ran 22 0 0 0 0
+RESULT can 969 ran 22 0 0 0 0
+RESULT can 970 ran 22 0 0 0 0
+RESULT can 971 ran 22 0 0 0 0
+RESULT can 972 ran 22 0 0 0 0
+RESULT can 973 ran 22 0 0 0 0
+RESULT can 974 ran 22 0 0 0 0
+RESULT can 975 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2xvhxcmu.py
+RESULT can 976 ran 22 0 0 0 0
+RESULT can 977 ran 22 0 0 0 0
+RESULT can 978 ran 22 0 0 0 0
+RESULT can 979 ran 22 0 0 0 0
+RESULT can 980 ran 22 0 0 0 0
+RESULT can 981 ran 22 0 0 0 0
+RESULT can 982 ran 22 0 0 0 0
+RESULT can 983 ran 22 0 0 0 0
+RESULT can 984 ran 22 0 0 0 0
+RESULT can 985 ran 22 0 0 0 0
+RESULT can 986 ran 22 0 0 0 0
+RESULT can 987 ran 22 0 0 0 0
+RESULT can 988 ran 22 0 0 0 0
+RESULT can 989 ran 22 0 0 0 0
+RESULT can 990 ran 22 0 0 0 0
+RESULT can 991 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4jgionqh.py
+RESULT can 992 ran 22 0 0 0 0
+RESULT can 993 ran 22 0 0 0 0
+RESULT can 994 ran 22 0 0 0 0
+RESULT can 995 ran 22 0 0 0 0
+RESULT can 996 ran 22 0 0 0 0
+RESULT can 997 ran 22 0 0 0 0
+RESULT can 998 ran 22 0 0 0 0
+RESULT can 999 ran 22 0 0 0 0
+RESULT can 1000 ran 22 0 0 0 0
+RESULT can 1001 ran 22 0 0 0 0
+RESULT can 1002 ran 22 0 0 0 0
+RESULT can 1003 ran 22 0 0 0 0
+RESULT can 1004 ran 22 0 0 0 0
+RESULT can 1005 ran 22 0 0 0 0
+RESULT can 1006 ran 22 0 0 0 0
+RESULT can 1007 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpn5yzy_in.py
+RESULT can 1008 ran 22 0 0 0 0
+RESULT can 1009 ran 22 0 0 0 0
+RESULT can 1010 ran 22 0 0 0 0
+RESULT can 1011 ran 22 0 0 0 0
+RESULT can 1012 ran 22 0 0 0 0
+RESULT can 1013 ran 22 0 0 0 0
+RESULT can 1014 ran 22 0 0 0 0
+RESULT can 1015 ran 22 0 0 0 0
+RESULT can 1016 ran 22 0 0 0 0
+RESULT can 1017 ran 22 0 0 0 0
+RESULT can 1018 ran 22 0 0 0 0
+RESULT can 1019 ran 22 0 0 0 0
+RESULT can 1020 ran 22 0 0 0 0
+RESULT can 1021 ran 22 0 0 0 0
+RESULT can 1022 ran 22 0 0 0 0
+RESULT can 1023 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpl142x_bg.py
+RESULT can 1024 ran 22 0 0 0 0
+RESULT can 1025 ran 22 0 0 0 0
+RESULT can 1026 ran 22 0 0 0 0
+RESULT can 1027 ran 22 0 0 0 0
+RESULT can 1028 ran 22 0 0 0 0
+RESULT can 1029 ran 22 0 0 0 0
+RESULT can 1030 ran 22 0 0 0 0
+RESULT can 1031 ran 22 0 0 0 0
+RESULT can 1032 ran 22 0 0 0 0
+RESULT can 1033 ran 22 0 0 0 0
+RESULT can 1034 ran 22 0 0 0 0
+RESULT can 1035 ran 22 0 0 0 0
+RESULT can 1036 ran 22 0 0 0 0
+RESULT can 1037 ran 22 0 0 0 0
+RESULT can 1038 ran 22 0 0 0 0
+RESULT can 1039 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpajchvkbp.py
+RESULT can 1040 ran 22 0 0 0 0
+RESULT can 1041 ran 22 0 0 0 0
+RESULT can 1042 ran 22 0 0 0 0
+RESULT can 1043 ran 22 0 0 0 0
+RESULT can 1044 ran 22 0 0 0 0
+RESULT can 1045 ran 22 0 0 0 0
+RESULT can 1046 ran 22 0 0 0 0
+RESULT can 1047 ran 22 0 0 0 0
+RESULT can 1048 ran 22 0 0 0 0
+RESULT can 1049 ran 22 0 0 0 0
+RESULT can 1050 ran 22 0 0 0 0
+RESULT can 1051 ran 22 0 0 0 0
+RESULT can 1052 ran 22 0 0 0 0
+RESULT can 1053 ran 22 0 0 0 0
+RESULT can 1054 ran 22 0 0 0 0
+RESULT can 1055 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpez_7_0gx.py
+RESULT can 1056 ran 22 0 0 0 0
+RESULT can 1057 ran 22 0 0 0 0
+RESULT can 1058 ran 22 0 0 0 0
+RESULT can 1059 ran 22 0 0 0 0
+RESULT can 1060 ran 22 0 0 0 0
+RESULT can 1061 ran 22 0 0 0 0
+RESULT can 1062 ran 22 0 0 0 0
+RESULT can 1063 ran 22 0 0 0 0
+RESULT can 1064 ran 22 0 0 0 0
+RESULT can 1065 ran 22 0 0 0 0
+RESULT can 1066 ran 22 0 0 0 0
+RESULT can 1067 ran 22 0 0 0 0
+RESULT can 1068 ran 22 0 0 0 0
+RESULT can 1069 ran 22 0 0 0 0
+RESULT can 1070 ran 22 0 0 0 0
+RESULT can 1071 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmps663i_jr.py
+RESULT can 1072 ran 22 0 0 0 0
+RESULT can 1073 ran 22 0 0 0 0
+RESULT can 1074 ran 22 0 0 0 0
+RESULT can 1075 ran 22 0 0 0 0
+RESULT can 1076 ran 22 0 0 0 0
+RESULT can 1077 ran 22 0 0 0 0
+RESULT can 1078 ran 22 0 0 0 0
+RESULT can 1079 ran 22 0 0 0 0
+RESULT can 1080 ran 22 0 0 0 0
+RESULT can 1081 ran 22 0 0 0 0
+RESULT can 1082 ran 22 0 0 0 0
+RESULT can 1083 ran 22 0 0 0 0
+RESULT can 1084 ran 22 0 0 0 0
+RESULT can 1085 ran 22 0 0 0 0
+RESULT can 1086 ran 22 0 0 0 0
+RESULT can 1087 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpfdo5bhom.py
+RESULT can 1088 ran 22 0 0 0 0
+RESULT can 1089 ran 22 0 0 0 0
+RESULT can 1090 ran 22 0 0 0 0
+RESULT can 1091 ran 22 0 0 0 0
+RESULT can 1092 ran 22 0 0 0 0
+RESULT can 1093 ran 22 0 0 0 0
+RESULT can 1094 ran 22 0 0 0 0
+RESULT can 1095 ran 22 0 0 0 0
+RESULT can 1096 ran 22 0 0 0 0
+RESULT can 1097 ran 22 0 0 0 0
+RESULT can 1098 ran 22 0 0 0 0
+RESULT can 1099 ran 22 0 0 0 0
+RESULT can 1100 ran 22 0 0 0 0
+RESULT can 1101 ran 22 0 0 0 0
+RESULT can 1102 ran 22 0 0 0 0
+RESULT can 1103 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4t7jmq5r.py
+RESULT can 1104 ran 22 0 0 0 0
+RESULT can 1105 ran 22 0 0 0 0
+RESULT can 1106 ran 22 0 0 0 0
+RESULT can 1107 ran 22 0 0 0 0
+RESULT can 1108 ran 22 0 0 0 0
+RESULT can 1109 ran 22 0 0 0 0
+RESULT can 1110 ran 22 0 0 0 0
+RESULT can 1111 ran 22 0 0 0 0
+RESULT can 1112 ran 22 0 0 0 0
+RESULT can 1113 ran 22 0 0 0 0
+RESULT can 1114 ran 22 0 0 0 0
+RESULT can 1115 ran 22 0 0 0 0
+RESULT can 1116 ran 22 0 0 0 0
+RESULT can 1117 ran 22 0 0 0 0
+RESULT can 1118 ran 22 0 0 0 0
+RESULT can 1119 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmppc664beh.py
+RESULT can 1120 ran 22 0 0 0 0
+RESULT can 1121 ran 22 0 0 0 0
+RESULT can 1122 ran 22 0 0 0 0
+RESULT can 1123 ran 22 0 0 0 0
+RESULT can 1124 ran 22 0 0 0 0
+RESULT can 1125 ran 22 0 0 0 0
+RESULT can 1126 ran 22 0 0 0 0
+RESULT can 1127 ran 22 0 0 0 0
+RESULT can 1128 ran 22 0 0 0 0
+RESULT can 1129 ran 22 0 0 0 0
+RESULT can 1130 ran 22 0 0 0 0
+RESULT can 1131 ran 22 0 0 0 0
+RESULT can 1132 ran 22 0 0 0 0
+RESULT can 1133 ran 22 0 0 0 0
+RESULT can 1134 ran 22 0 0 0 0
+RESULT can 1135 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp9do_io_g.py
+RESULT can 1136 ran 22 0 0 0 0
+RESULT can 1137 ran 22 0 0 0 0
+RESULT can 1138 ran 22 0 0 0 0
+RESULT can 1139 ran 22 0 0 0 0
+RESULT can 1140 ran 22 0 0 0 0
+RESULT can 1141 ran 22 0 0 0 0
+RESULT can 1142 ran 22 0 0 0 0
+RESULT can 1143 ran 22 0 0 0 0
+RESULT can 1144 ran 22 0 0 0 0
+RESULT can 1145 ran 22 0 0 0 0
+RESULT can 1146 ran 22 0 0 0 0
+RESULT can 1147 ran 22 0 0 0 0
+RESULT can 1148 ran 22 0 0 0 0
+RESULT can 1149 ran 22 0 0 0 0
+RESULT can 1150 ran 22 0 0 0 0
+RESULT can 1151 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp6ddo52af.py
+RESULT can 1152 ran 22 0 0 0 0
+RESULT can 1153 ran 22 0 0 0 0
+RESULT can 1154 ran 22 0 0 0 0
+RESULT can 1155 ran 22 0 0 0 0
+RESULT can 1156 ran 22 0 0 0 0
+RESULT can 1157 ran 22 0 0 0 0
+RESULT can 1158 ran 22 0 0 0 0
+RESULT can 1159 ran 22 0 0 0 0
+RESULT can 1160 ran 22 0 0 0 0
+RESULT can 1161 ran 22 0 0 0 0
+RESULT can 1162 ran 22 0 0 0 0
+RESULT can 1163 ran 22 0 0 0 0
+RESULT can 1164 ran 22 0 0 0 0
+RESULT can 1165 ran 22 0 0 0 0
+RESULT can 1166 ran 22 0 0 0 0
+RESULT can 1167 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpsw9pxw61.py
+RESULT can 1168 ran 22 0 0 0 0
+RESULT can 1169 ran 22 0 0 0 0
+RESULT can 1170 ran 22 0 0 0 0
+RESULT can 1171 ran 22 0 0 0 0
+RESULT can 1172 ran 22 0 0 0 0
+RESULT can 1173 ran 22 0 0 0 0
+RESULT can 1174 ran 22 0 0 0 0
+RESULT can 1175 ran 22 0 0 0 0
+RESULT can 1176 ran 22 0 0 0 0
+RESULT can 1177 ran 22 0 0 0 0
+RESULT can 1178 ran 22 0 0 0 0
+RESULT can 1179 ran 22 0 0 0 0
+RESULT can 1180 ran 22 0 0 0 0
+RESULT can 1181 ran 22 0 0 0 0
+RESULT can 1182 ran 22 0 0 0 0
+RESULT can 1183 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpyxeb_e0u.py
+RESULT can 1184 ran 22 0 0 0 0
+RESULT can 1185 ran 22 0 0 0 0
+RESULT can 1186 ran 22 0 0 0 0
+RESULT can 1187 ran 22 0 0 0 0
+RESULT can 1188 ran 22 0 0 0 0
+RESULT can 1189 ran 22 0 0 0 0
+RESULT can 1190 ran 22 0 0 0 0
+RESULT can 1191 ran 22 0 0 0 0
+RESULT can 1192 ran 22 0 0 0 0
+RESULT can 1193 ran 22 0 0 0 0
+RESULT can 1194 ran 22 0 0 0 0
+RESULT can 1195 ran 22 0 0 0 0
+RESULT can 1196 ran 22 0 0 0 0
+RESULT can 1197 ran 22 0 0 0 0
+RESULT can 1198 ran 22 0 0 0 0
+RESULT can 1199 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpqp8b6w_u.py
+RESULT can 1200 ran 22 0 0 0 0
+RESULT can 1201 ran 22 0 0 0 0
+RESULT can 1202 ran 22 0 0 0 0
+RESULT can 1203 ran 22 0 0 0 0
+RESULT can 1204 ran 22 0 0 0 0
+RESULT can 1205 ran 22 0 0 0 0
+RESULT can 1206 ran 22 0 0 0 0
+RESULT can 1207 ran 22 0 0 0 0
+RESULT can 1208 ran 22 0 0 0 0
+RESULT can 1209 ran 22 0 0 0 0
+RESULT can 1210 ran 22 0 0 0 0
+RESULT can 1211 ran 22 0 0 0 0
+RESULT can 1212 ran 22 0 0 0 0
+RESULT can 1213 ran 22 0 0 0 0
+RESULT can 1214 ran 22 0 0 0 0
+RESULT can 1215 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_a74ij9p.py
+RESULT can 1216 ran 22 0 0 0 0
+RESULT can 1217 ran 22 0 0 0 0
+RESULT can 1218 ran 22 0 0 0 0
+RESULT can 1219 ran 22 0 0 0 0
+RESULT can 1220 ran 22 0 0 0 0
+RESULT can 1221 ran 22 0 0 0 0
+RESULT can 1222 ran 22 0 0 0 0
+RESULT can 1223 ran 22 0 0 0 0
+RESULT can 1224 ran 22 0 0 0 0
+RESULT can 1225 ran 22 0 0 0 0
+RESULT can 1226 ran 22 0 0 0 0
+RESULT can 1227 ran 22 0 0 0 0
+RESULT can 1228 ran 22 0 0 0 0
+RESULT can 1229 ran 22 0 0 0 0
+RESULT can 1230 ran 22 0 0 0 0
+RESULT can 1231 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpgqlgdky4.py
+RESULT can 1232 ran 22 0 0 0 0
+RESULT can 1233 ran 22 0 0 0 0
+RESULT can 1234 ran 22 0 0 0 0
+RESULT can 1235 ran 22 0 0 0 0
+RESULT can 1236 ran 22 0 0 0 0
+RESULT can 1237 ran 22 0 0 0 0
+RESULT can 1238 ran 22 0 0 0 0
+RESULT can 1239 ran 22 0 0 0 0
+RESULT can 1240 ran 22 0 0 0 0
+RESULT can 1241 ran 22 0 0 0 0
+RESULT can 1242 ran 22 0 0 0 0
+RESULT can 1243 ran 22 0 0 0 0
+RESULT can 1244 ran 22 0 0 0 0
+RESULT can 1245 ran 22 0 0 0 0
+RESULT can 1246 ran 22 0 0 0 0
+RESULT can 1247 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpxl6k4_g3.py
+RESULT can 1248 ran 22 0 0 0 0
+RESULT can 1249 ran 22 0 0 0 0
+RESULT can 1250 ran 22 0 0 0 0
+RESULT can 1251 ran 22 0 0 0 0
+RESULT can 1252 ran 22 0 0 0 0
+RESULT can 1253 ran 22 0 0 0 0
+RESULT can 1254 ran 22 0 0 0 0
+RESULT can 1255 ran 22 0 0 0 0
+RESULT can 1256 ran 22 0 0 0 0
+RESULT can 1257 ran 22 0 0 0 0
+RESULT can 1258 ran 22 0 0 0 0
+RESULT can 1259 ran 22 0 0 0 0
+RESULT can 1260 ran 22 0 0 0 0
+RESULT can 1261 ran 22 0 0 0 0
+RESULT can 1262 ran 22 0 0 0 0
+RESULT can 1263 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpa2khvtdf.py
+RESULT can 1264 ran 22 0 0 0 0
+RESULT can 1265 ran 22 0 0 0 0
+RESULT can 1266 ran 22 0 0 0 0
+RESULT can 1267 ran 22 0 0 0 0
+RESULT can 1268 ran 22 0 0 0 0
+RESULT can 1269 ran 22 0 0 0 0
+RESULT can 1270 ran 22 0 0 0 0
+RESULT can 1271 ran 22 0 0 0 0
+RESULT can 1272 ran 22 0 0 0 0
+RESULT can 1273 ran 22 0 0 0 0
+RESULT can 1274 ran 22 0 0 0 0
+RESULT can 1275 ran 22 0 0 0 0
+RESULT can 1276 ran 22 0 0 0 0
+RESULT can 1277 ran 22 0 0 0 0
+RESULT can 1278 ran 22 0 0 0 0
+RESULT can 1279 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp72rbuh64.py
+RESULT can 1280 ran 22 0 0 0 0
+RESULT can 1281 ran 22 0 0 0 0
+RESULT can 1282 ran 22 0 0 0 0
+RESULT can 1283 ran 22 0 0 0 0
+RESULT can 1284 ran 22 0 0 0 0
+RESULT can 1285 ran 22 0 0 0 0
+RESULT can 1286 ran 22 0 0 0 0
+RESULT can 1287 ran 22 0 0 0 0
+RESULT can 1288 ran 22 0 0 0 0
+RESULT can 1289 ran 22 0 0 0 0
+RESULT can 1290 ran 22 0 0 0 0
+RESULT can 1291 ran 22 0 0 0 0
+RESULT can 1292 ran 22 0 0 0 0
+RESULT can 1293 ran 22 0 0 0 0
+RESULT can 1294 ran 22 0 0 0 0
+RESULT can 1295 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_dlt9lbh.py
+RESULT can 1296 ran 22 0 0 0 0
+RESULT can 1297 ran 22 0 0 0 0
+RESULT can 1298 ran 22 0 0 0 0
+RESULT can 1299 ran 22 0 0 0 0
+RESULT can 1300 ran 22 0 0 0 0
+RESULT can 1301 ran 22 0 0 0 0
+RESULT can 1302 ran 22 0 0 0 0
+RESULT can 1303 ran 22 0 0 0 0
+RESULT can 1304 ran 22 0 0 0 0
+RESULT can 1305 ran 22 0 0 0 0
+RESULT can 1306 ran 22 0 0 0 0
+RESULT can 1307 ran 22 0 0 0 0
+RESULT can 1308 ran 22 0 0 0 0
+RESULT can 1309 ran 22 0 0 0 0
+RESULT can 1310 ran 22 0 0 0 0
+RESULT can 1311 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp9bfy0u3l.py
+RESULT can 1312 ran 22 0 0 0 0
+RESULT can 1313 ran 22 0 0 0 0
+RESULT can 1314 ran 22 0 0 0 0
+RESULT can 1315 ran 22 0 0 0 0
+RESULT can 1316 ran 22 0 0 0 0
+RESULT can 1317 ran 22 0 0 0 0
+RESULT can 1318 ran 22 0 0 0 0
+RESULT can 1319 ran 22 0 0 0 0
+RESULT can 1320 ran 22 0 0 0 0
+RESULT can 1321 ran 22 0 0 0 0
+RESULT can 1322 ran 22 0 0 0 0
+RESULT can 1323 ran 22 0 0 0 0
+RESULT can 1324 ran 22 0 0 0 0
+RESULT can 1325 ran 22 0 0 0 0
+RESULT can 1326 ran 22 0 0 0 0
+RESULT can 1327 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpyurczqtr.py
+RESULT can 1328 ran 22 0 0 0 0
+RESULT can 1329 ran 22 0 0 0 0
+RESULT can 1330 ran 22 0 0 0 0
+RESULT can 1331 ran 22 0 0 0 0
+RESULT can 1332 ran 22 0 0 0 0
+RESULT can 1333 ran 22 0 0 0 0
+RESULT can 1334 ran 22 0 0 0 0
+RESULT can 1335 ran 22 0 0 0 0
+RESULT can 1336 ran 22 0 0 0 0
+RESULT can 1337 ran 22 0 0 0 0
+RESULT can 1338 ran 22 0 0 0 0
+RESULT can 1339 ran 22 0 0 0 0
+RESULT can 1340 ran 22 0 0 0 0
+RESULT can 1341 ran 22 0 0 0 0
+RESULT can 1342 ran 22 0 0 0 0
+RESULT can 1343 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpggmb811e.py
+RESULT can 1344 ran 22 0 0 0 0
+RESULT can 1345 ran 22 0 0 0 0
+RESULT can 1346 ran 22 0 0 0 0
+RESULT can 1347 ran 22 0 0 0 0
+RESULT can 1348 ran 22 0 0 0 0
+RESULT can 1349 ran 22 0 0 0 0
+RESULT can 1350 ran 22 0 0 0 0
+RESULT can 1351 ran 22 0 0 0 0
+RESULT can 1352 ran 22 0 0 0 0
+RESULT can 1353 ran 22 0 0 0 0
+RESULT can 1354 ran 22 0 0 0 0
+RESULT can 1355 ran 22 0 0 0 0
+RESULT can 1356 ran 22 0 0 0 0
+RESULT can 1357 ran 22 0 0 0 0
+RESULT can 1358 ran 22 0 0 0 0
+RESULT can 1359 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpae8csgjg.py
+RESULT can 1360 ran 22 0 0 0 0
+RESULT can 1361 ran 22 0 0 0 0
+RESULT can 1362 ran 22 0 0 0 0
+RESULT can 1363 ran 22 0 0 0 0
+RESULT can 1364 ran 22 0 0 0 0
+RESULT can 1365 ran 22 0 0 0 0
+RESULT can 1366 ran 22 0 0 0 0
+RESULT can 1367 ran 22 0 0 0 0
+RESULT can 1368 ran 22 0 0 0 0
+RESULT can 1369 ran 22 0 0 0 0
+RESULT can 1370 ran 22 0 0 0 0
+RESULT can 1371 ran 22 0 0 0 0
+RESULT can 1372 ran 22 0 0 0 0
+RESULT can 1373 ran 22 0 0 0 0
+RESULT can 1374 ran 22 0 0 0 0
+RESULT can 1375 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpv1ie4wox.py
+RESULT can 1376 ran 22 0 0 0 0
+RESULT can 1377 ran 22 0 0 0 0
+RESULT can 1378 ran 22 0 0 0 0
+RESULT can 1379 ran 22 0 0 0 0
+RESULT can 1380 ran 22 0 0 0 0
+RESULT can 1381 ran 22 0 0 0 0
+RESULT can 1382 ran 22 0 0 0 0
+RESULT can 1383 ran 22 0 0 0 0
+RESULT can 1384 ran 22 0 0 0 0
+RESULT can 1385 ran 22 0 0 0 0
+RESULT can 1386 ran 22 0 0 0 0
+RESULT can 1387 ran 22 0 0 0 0
+RESULT can 1388 ran 22 0 0 0 0
+RESULT can 1389 ran 22 0 0 0 0
+RESULT can 1390 ran 22 0 0 0 0
+RESULT can 1391 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4wrn23am.py
+RESULT can 1392 ran 22 0 0 0 0
+RESULT can 1393 ran 22 0 0 0 0
+RESULT can 1394 ran 22 0 0 0 0
+RESULT can 1395 ran 22 0 0 0 0
+RESULT can 1396 ran 22 0 0 0 0
+RESULT can 1397 ran 22 0 0 0 0
+RESULT can 1398 ran 22 0 0 0 0
+RESULT can 1399 ran 22 0 0 0 0
+RESULT can 1400 ran 22 0 0 0 0
+RESULT can 1401 ran 22 0 0 0 0
+RESULT can 1402 ran 22 0 0 0 0
+RESULT can 1403 ran 22 0 0 0 0
+RESULT can 1404 ran 22 0 0 0 0
+RESULT can 1405 ran 22 0 0 0 0
+RESULT can 1406 ran 22 0 0 0 0
+RESULT can 1407 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2cgj9j9h.py
+RESULT can 1408 ran 22 0 0 0 0
+RESULT can 1409 ran 22 0 0 0 0
+RESULT can 1410 ran 22 0 0 0 0
+RESULT can 1411 ran 22 0 0 0 0
+RESULT can 1412 ran 22 0 0 0 0
+RESULT can 1413 ran 22 0 0 0 0
+RESULT can 1414 ran 22 0 0 0 0
+RESULT can 1415 ran 22 0 0 0 0
+RESULT can 1416 ran 22 0 0 0 0
+RESULT can 1417 ran 22 0 0 0 0
+RESULT can 1418 ran 22 0 0 0 0
+RESULT can 1419 ran 22 0 0 0 0
+RESULT can 1420 ran 22 0 0 0 0
+RESULT can 1421 ran 22 0 0 0 0
+RESULT can 1422 ran 22 0 0 0 0
+RESULT can 1423 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp6xo17wix.py
+RESULT can 1424 ran 22 0 0 0 0
+RESULT can 1425 ran 22 0 0 0 0
+RESULT can 1426 ran 22 0 0 0 0
+RESULT can 1427 ran 22 0 0 0 0
+RESULT can 1428 ran 22 0 0 0 0
+RESULT can 1429 ran 22 0 0 0 0
+RESULT can 1430 ran 22 0 0 0 0
+RESULT can 1431 ran 22 0 0 0 0
+RESULT can 1432 ran 22 0 0 0 0
+RESULT can 1433 ran 22 0 0 0 0
+RESULT can 1434 ran 22 0 0 0 0
+RESULT can 1435 ran 22 0 0 0 0
+RESULT can 1436 ran 22 0 0 0 0
+RESULT can 1437 ran 22 0 0 0 0
+RESULT can 1438 ran 22 0 0 0 0
+RESULT can 1439 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp5ysa8rib.py
+RESULT can 1440 ran 22 0 0 0 0
+RESULT can 1441 ran 22 0 0 0 0
+RESULT can 1442 ran 22 0 0 0 0
+RESULT can 1443 ran 22 0 0 0 0
+RESULT can 1444 ran 22 0 0 0 0
+RESULT can 1445 ran 22 0 0 0 0
+RESULT can 1446 ran 22 0 0 0 0
+RESULT can 1447 ran 22 0 0 0 0
+RESULT can 1448 ran 22 0 0 0 0
+RESULT can 1449 ran 22 0 0 0 0
+RESULT can 1450 ran 22 0 0 0 0
+RESULT can 1451 ran 22 0 0 0 0
+RESULT can 1452 ran 22 0 0 0 0
+RESULT can 1453 ran 22 0 0 0 0
+RESULT can 1454 ran 22 0 0 0 0
+RESULT can 1455 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpi8p_jb9d.py
+RESULT can 1456 ran 22 0 0 0 0
+RESULT can 1457 ran 22 0 0 0 0
+RESULT can 1458 ran 22 0 0 0 0
+RESULT can 1459 ran 22 0 0 0 0
+RESULT can 1460 ran 22 0 0 0 0
+RESULT can 1461 ran 22 0 0 0 0
+RESULT can 1462 ran 22 0 0 0 0
+RESULT can 1463 ran 22 0 0 0 0
+RESULT can 1464 ran 22 0 0 0 0
+RESULT can 1465 ran 22 0 0 0 0
+RESULT can 1466 ran 22 0 0 0 0
+RESULT can 1467 ran 22 0 0 0 0
+RESULT can 1468 ran 22 0 0 0 0
+RESULT can 1469 ran 22 0 0 0 0
+RESULT can 1470 ran 22 0 0 0 0
+RESULT can 1471 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpzdkg4h0y.py
+RESULT can 1472 ran 22 0 0 0 0
+RESULT can 1473 ran 22 0 0 0 0
+RESULT can 1474 ran 22 0 0 0 0
+RESULT can 1475 ran 22 0 0 0 0
+RESULT can 1476 ran 22 0 0 0 0
+RESULT can 1477 ran 22 0 0 0 0
+RESULT can 1478 ran 22 0 0 0 0
+RESULT can 1479 ran 22 0 0 0 0
+RESULT can 1480 ran 22 0 0 0 0
+RESULT can 1481 ran 22 0 0 0 0
+RESULT can 1482 ran 22 0 0 0 0
+RESULT can 1483 ran 22 0 0 0 0
+RESULT can 1484 ran 22 0 0 0 0
+RESULT can 1485 ran 22 0 0 0 0
+RESULT can 1486 ran 22 0 0 0 0
+RESULT can 1487 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpyeadc2ml.py
+RESULT can 1488 ran 22 0 0 0 0
+RESULT can 1489 ran 22 0 0 0 0
+RESULT can 1490 ran 22 0 0 0 0
+RESULT can 1491 ran 22 0 0 0 0
+RESULT can 1492 ran 22 0 0 0 0
+RESULT can 1493 ran 22 0 0 0 0
+RESULT can 1494 ran 22 0 0 0 0
+RESULT can 1495 ran 22 0 0 0 0
+RESULT can 1496 ran 22 0 0 0 0
+RESULT can 1497 ran 22 0 0 0 0
+RESULT can 1498 ran 22 0 0 0 0
+RESULT can 1499 ran 22 0 0 0 0
+RESULT can 1500 ran 22 0 0 0 0
+RESULT can 1501 ran 22 0 0 0 0
+RESULT can 1502 ran 22 0 0 0 0
+RESULT can 1503 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpg83h4944.py
+RESULT can 1504 ran 22 0 0 0 0
+RESULT can 1505 ran 22 0 0 0 0
+RESULT can 1506 ran 22 0 0 0 0
+RESULT can 1507 ran 22 0 0 0 0
+RESULT can 1508 ran 22 0 0 0 0
+RESULT can 1509 ran 22 0 0 0 0
+RESULT can 1510 ran 22 0 0 0 0
+RESULT can 1511 ran 22 0 0 0 0
+RESULT can 1512 ran 22 0 0 0 0
+RESULT can 1513 ran 22 0 0 0 0
+RESULT can 1514 ran 22 0 0 0 0
+RESULT can 1515 ran 22 0 0 0 0
+RESULT can 1516 ran 22 0 0 0 0
+RESULT can 1517 ran 22 0 0 0 0
+RESULT can 1518 ran 22 0 0 0 0
+RESULT can 1519 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpcw3e8vv7.py
+RESULT can 1520 ran 22 0 0 0 0
+RESULT can 1521 ran 22 0 0 0 0
+RESULT can 1522 ran 22 0 0 0 0
+RESULT can 1523 ran 22 0 0 0 0
+RESULT can 1524 ran 22 0 0 0 0
+RESULT can 1525 ran 22 0 0 0 0
+RESULT can 1526 ran 22 0 0 0 0
+RESULT can 1527 ran 22 0 0 0 0
+RESULT can 1528 ran 22 0 0 0 0
+RESULT can 1529 ran 22 0 0 0 0
+RESULT can 1530 ran 22 0 0 0 0
+RESULT can 1531 ran 22 0 0 0 0
+RESULT can 1532 ran 22 0 0 0 0
+RESULT can 1533 ran 22 0 0 0 0
+RESULT can 1534 ran 22 0 0 0 0
+RESULT can 1535 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp4934rxx5.py
+RESULT can 1536 ran 22 0 0 0 0
+RESULT can 1537 ran 22 0 0 0 0
+RESULT can 1538 ran 22 0 0 0 0
+RESULT can 1539 ran 22 0 0 0 0
+RESULT can 1540 ran 22 0 0 0 0
+RESULT can 1541 ran 22 0 0 0 0
+RESULT can 1542 ran 22 0 0 0 0
+RESULT can 1543 ran 22 0 0 0 0
+RESULT can 1544 ran 22 0 0 0 0
+RESULT can 1545 ran 22 0 0 0 0
+RESULT can 1546 ran 22 0 0 0 0
+RESULT can 1547 ran 22 0 0 0 0
+RESULT can 1548 ran 22 0 0 0 0
+RESULT can 1549 ran 22 0 0 0 0
+RESULT can 1550 ran 22 0 0 0 0
+RESULT can 1551 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpmaq8m85l.py
+RESULT can 1552 ran 22 0 0 0 0
+RESULT can 1553 ran 22 0 0 0 0
+RESULT can 1554 ran 22 0 0 0 0
+RESULT can 1555 ran 22 0 0 0 0
+RESULT can 1556 ran 22 0 0 0 0
+RESULT can 1557 ran 22 0 0 0 0
+RESULT can 1558 ran 22 0 0 0 0
+RESULT can 1559 ran 22 0 0 0 0
+RESULT can 1560 ran 22 0 0 0 0
+RESULT can 1561 ran 22 0 0 0 0
+RESULT can 1562 ran 22 0 0 0 0
+RESULT can 1563 ran 22 0 0 0 0
+RESULT can 1564 ran 22 0 0 0 0
+RESULT can 1565 ran 22 0 0 0 0
+RESULT can 1566 ran 22 0 0 0 0
+RESULT can 1567 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp79yqiy4l.py
+RESULT can 1568 ran 22 0 0 0 0
+RESULT can 1569 ran 22 0 0 0 0
+RESULT can 1570 ran 22 0 0 0 0
+RESULT can 1571 ran 22 0 0 0 0
+RESULT can 1572 ran 22 0 0 0 0
+RESULT can 1573 ran 22 0 0 0 0
+RESULT can 1574 ran 22 0 0 0 0
+RESULT can 1575 ran 22 0 0 0 0
+RESULT can 1576 ran 22 0 0 0 0
+RESULT can 1577 ran 22 0 0 0 0
+RESULT can 1578 ran 22 0 0 0 0
+RESULT can 1579 ran 22 0 0 0 0
+RESULT can 1580 ran 22 0 0 0 0
+RESULT can 1581 ran 22 0 0 0 0
+RESULT can 1582 ran 22 0 0 0 0
+RESULT can 1583 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpiy3zje9q.py
+RESULT can 1584 ran 22 0 0 0 0
+RESULT can 1585 ran 22 0 0 0 0
+RESULT can 1586 ran 22 0 0 0 0
+RESULT can 1587 ran 22 0 0 0 0
+RESULT can 1588 ran 22 0 0 0 0
+RESULT can 1589 ran 22 0 0 0 0
+RESULT can 1590 ran 22 0 0 0 0
+RESULT can 1591 ran 22 0 0 0 0
+RESULT can 1592 ran 22 0 0 0 0
+RESULT can 1593 ran 22 0 0 0 0
+RESULT can 1594 ran 22 0 0 0 0
+RESULT can 1595 ran 22 0 0 0 0
+RESULT can 1596 ran 22 0 0 0 0
+RESULT can 1597 ran 22 0 0 0 0
+RESULT can 1598 ran 22 0 0 0 0
+RESULT can 1599 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpe4tn7ibi.py
+RESULT can 1600 ran 22 0 0 0 0
+RESULT can 1601 ran 22 0 0 0 0
+RESULT can 1602 ran 22 0 0 0 0
+RESULT can 1603 ran 22 0 0 0 0
+RESULT can 1604 ran 22 0 0 0 0
+RESULT can 1605 ran 22 0 0 0 0
+RESULT can 1606 ran 22 0 0 0 0
+RESULT can 1607 ran 22 0 0 0 0
+RESULT can 1608 ran 22 0 0 0 0
+RESULT can 1609 ran 22 0 0 0 0
+RESULT can 1610 ran 22 0 0 0 0
+RESULT can 1611 ran 22 0 0 0 0
+RESULT can 1612 ran 22 0 0 0 0
+RESULT can 1613 ran 22 0 0 0 0
+RESULT can 1614 ran 22 0 0 0 0
+RESULT can 1615 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpm_cd62ue.py
+RESULT can 1616 ran 22 0 0 0 0
+RESULT can 1617 ran 22 0 0 0 0
+RESULT can 1618 ran 22 0 0 0 0
+RESULT can 1619 ran 22 0 0 0 0
+RESULT can 1620 ran 22 0 0 0 0
+RESULT can 1621 ran 22 0 0 0 0
+RESULT can 1622 ran 22 0 0 0 0
+RESULT can 1623 ran 22 0 0 0 0
+RESULT can 1624 ran 22 0 0 0 0
+RESULT can 1625 ran 22 0 0 0 0
+RESULT can 1626 ran 22 0 0 0 0
+RESULT can 1627 ran 22 0 0 0 0
+RESULT can 1628 ran 22 0 0 0 0
+RESULT can 1629 ran 22 0 0 0 0
+RESULT can 1630 ran 22 0 0 0 0
+RESULT can 1631 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpfr0220l8.py
+RESULT can 1632 ran 22 0 0 0 0
+RESULT can 1633 ran 22 0 0 0 0
+RESULT can 1634 ran 22 0 0 0 0
+RESULT can 1635 ran 22 0 0 0 0
+RESULT can 1636 ran 22 0 0 0 0
+RESULT can 1637 ran 22 0 0 0 0
+RESULT can 1638 ran 22 0 0 0 0
+RESULT can 1639 ran 22 0 0 0 0
+RESULT can 1640 ran 22 0 0 0 0
+RESULT can 1641 ran 22 0 0 0 0
+RESULT can 1642 ran 22 0 0 0 0
+RESULT can 1643 ran 22 0 0 0 0
+RESULT can 1644 ran 22 0 0 0 0
+RESULT can 1645 ran 22 0 0 0 0
+RESULT can 1646 ran 22 0 0 0 0
+RESULT can 1647 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpp8crs9ze.py
+RESULT can 1648 ran 22 0 0 0 0
+RESULT can 1649 ran 22 0 0 0 0
+RESULT can 1650 ran 22 0 0 0 0
+RESULT can 1651 ran 22 0 0 0 0
+RESULT can 1652 ran 22 0 0 0 0
+RESULT can 1653 ran 22 0 0 0 0
+RESULT can 1654 ran 22 0 0 0 0
+RESULT can 1655 ran 22 0 0 0 0
+RESULT can 1656 ran 22 0 0 0 0
+RESULT can 1657 ran 22 0 0 0 0
+RESULT can 1658 ran 22 0 0 0 0
+RESULT can 1659 ran 22 0 0 0 0
+RESULT can 1660 ran 22 0 0 0 0
+RESULT can 1661 ran 22 0 0 0 0
+RESULT can 1662 ran 22 0 0 0 0
+RESULT can 1663 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp3h3tarvr.py
+RESULT can 1664 ran 22 0 0 0 0
+RESULT can 1665 ran 22 0 0 0 0
+RESULT can 1666 ran 22 0 0 0 0
+RESULT can 1667 ran 22 0 0 0 0
+RESULT can 1668 ran 22 0 0 0 0
+RESULT can 1669 ran 22 0 0 0 0
+RESULT can 1670 ran 22 0 0 0 0
+RESULT can 1671 ran 22 0 0 0 0
+RESULT can 1672 ran 22 0 0 0 0
+RESULT can 1673 ran 22 0 0 0 0
+RESULT can 1674 ran 22 0 0 0 0
+RESULT can 1675 ran 22 0 0 0 0
+RESULT can 1676 ran 22 0 0 0 0
+RESULT can 1677 ran 22 0 0 0 0
+RESULT can 1678 ran 22 0 0 0 0
+RESULT can 1679 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp0y3lrlur.py
+RESULT can 1680 ran 22 0 0 0 0
+RESULT can 1681 ran 22 0 0 0 0
+RESULT can 1682 ran 22 0 0 0 0
+RESULT can 1683 ran 22 0 0 0 0
+RESULT can 1684 ran 22 0 0 0 0
+RESULT can 1685 ran 22 0 0 0 0
+RESULT can 1686 ran 22 0 0 0 0
+RESULT can 1687 ran 22 0 0 0 0
+RESULT can 1688 ran 22 0 0 0 0
+RESULT can 1689 ran 22 0 0 0 0
+RESULT can 1690 ran 22 0 0 0 0
+RESULT can 1691 ran 22 0 0 0 0
+RESULT can 1692 ran 22 0 0 0 0
+RESULT can 1693 ran 22 0 0 0 0
+RESULT can 1694 ran 22 0 0 0 0
+RESULT can 1695 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp_59k1kc5.py
+RESULT can 1696 ran 22 0 0 0 0
+RESULT can 1697 ran 22 0 0 0 0
+RESULT can 1698 ran 22 0 0 0 0
+RESULT can 1699 ran 22 0 0 0 0
+RESULT can 1700 ran 22 0 0 0 0
+RESULT can 1701 ran 22 0 0 0 0
+RESULT can 1702 ran 22 0 0 0 0
+RESULT can 1703 ran 22 0 0 0 0
+RESULT can 1704 ran 22 0 0 0 0
+RESULT can 1705 ran 22 0 0 0 0
+RESULT can 1706 ran 22 0 0 0 0
+RESULT can 1707 ran 22 0 0 0 0
+RESULT can 1708 ran 22 0 0 0 0
+RESULT can 1709 ran 22 0 0 0 0
+RESULT can 1710 ran 22 0 0 0 0
+RESULT can 1711 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2i7kpv0y.py
+RESULT can 1712 ran 22 0 0 0 0
+RESULT can 1713 ran 22 0 0 0 0
+RESULT can 1714 ran 22 0 0 0 0
+RESULT can 1715 ran 22 0 0 0 0
+RESULT can 1716 ran 22 0 0 0 0
+RESULT can 1717 ran 22 0 0 0 0
+RESULT can 1718 ran 22 0 0 0 0
+RESULT can 1719 ran 22 0 0 0 0
+RESULT can 1720 ran 22 0 0 0 0
+RESULT can 1721 ran 22 0 0 0 0
+RESULT can 1722 ran 22 0 0 0 0
+RESULT can 1723 ran 22 0 0 0 0
+RESULT can 1724 ran 22 0 0 0 0
+RESULT can 1725 ran 22 0 0 0 0
+RESULT can 1726 ran 22 0 0 0 0
+RESULT can 1727 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpaiix9kln.py
+RESULT can 1728 ran 22 0 0 0 0
+RESULT can 1729 ran 22 0 0 0 0
+RESULT can 1730 ran 22 0 0 0 0
+RESULT can 1731 ran 22 0 0 0 0
+RESULT can 1732 ran 22 0 0 0 0
+RESULT can 1733 ran 22 0 0 0 0
+RESULT can 1734 ran 22 0 0 0 0
+RESULT can 1735 ran 22 0 0 0 0
+RESULT can 1736 ran 22 0 0 0 0
+RESULT can 1737 ran 22 0 0 0 0
+RESULT can 1738 ran 22 0 0 0 0
+RESULT can 1739 ran 22 0 0 0 0
+RESULT can 1740 ran 22 0 0 0 0
+RESULT can 1741 ran 22 0 0 0 0
+RESULT can 1742 ran 22 0 0 0 0
+RESULT can 1743 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmp2ud3mwl8.py
+RESULT can 1744 ran 22 0 0 0 0
+RESULT can 1745 ran 22 0 0 0 0
+RESULT can 1746 ran 22 0 0 0 0
+RESULT can 1747 ran 22 0 0 0 0
+RESULT can 1748 ran 22 0 0 0 0
+RESULT can 1749 ran 22 0 0 0 0
+RESULT can 1750 ran 22 0 0 0 0
+RESULT can 1751 ran 22 0 0 0 0
+RESULT can 1752 ran 22 0 0 0 0
+RESULT can 1753 ran 22 0 0 0 0
+RESULT can 1754 ran 22 0 0 0 0
+RESULT can 1755 ran 22 0 0 0 0
+RESULT can 1756 ran 22 0 0 0 0
+RESULT can 1757 ran 22 0 0 0 0
+RESULT can 1758 ran 22 0 0 0 0
+RESULT can 1759 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpndx3irv6.py
+RESULT can 1760 ran 22 0 0 0 0
+RESULT can 1761 ran 22 0 0 0 0
+RESULT can 1762 ran 22 0 0 0 0
+RESULT can 1763 ran 22 0 0 0 0
+RESULT can 1764 ran 22 0 0 0 0
+RESULT can 1765 ran 22 0 0 0 0
+RESULT can 1766 ran 22 0 0 0 0
+RESULT can 1767 ran 22 0 0 0 0
+RESULT can 1768 ran 22 0 0 0 0
+RESULT can 1769 ran 22 0 0 0 0
+RESULT can 1770 ran 22 0 0 0 0
+RESULT can 1771 ran 22 0 0 0 0
+RESULT can 1772 ran 22 0 0 0 0
+RESULT can 1773 ran 22 0 0 0 0
+RESULT can 1774 ran 22 0 0 0 0
+RESULT can 1775 ran 22 0 0 0 0
+DONE
+$ mpremote connect id:e66548545717552e run /tmp/tmpwytr361s.py
+RESULT can 1776 ran 22 0 0 0 0
+RESULT can 1777 ran 22 0 0 0 0
+RESULT can 1778 ran 22 0 0 0 0
+RESULT can 1779 ran 22 0 0 0 0
+RESULT can 1780 ran 22 0 0 0 0
+RESULT can 1781 ran 22 0 0 0 0
+RESULT can 1782 ran 22 0 0 0 0
+RESULT can 1783 ran 22 0 0 0 0
+RESULT can 1784 ran 22 0 0 0 0
+RESULT can 1785 ran 22 0 0 0 0
+RESULT can 1786 refused 92 0 1
+RESULT can 1787 refused 92 0 1
+RESULT can 1788 refused 92 0 1
+DONE

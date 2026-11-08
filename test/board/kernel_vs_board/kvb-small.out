@@ -1,0 +1,107 @@
+18:52:43 jtag commit 87f76069e5f9268687fdc3e39366d9d3ebc77a06 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009  /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+jtag               k=0    ok accepted, on time
+jtag               k=1    ok refused by both
+jtag               k=2    ok refused by both
+jtag               k=3    ok refused by both
+
+firmware           wait pc  slack  kernel accepts  board late from  unsound  pessimism  gap  mismatches
+uart_tx                  8      4          k <= 4    none ran late        0          0    0           0
+    not run: 8 of 8, k from 0 to 7
+uart_tx16                8     12         k <= 12    none ran late        0          0    0           0
+    not run: 16 of 16, k from 0 to 15
+uart_tx_host_rate       10    430        k <= 430    none ran late        0          0    0           0
+    not run: 434 of 434, k from 0 to 433
+spi_master               9      4          k <= 4    none ran late        0          0    0           0
+    not run: 8 of 8, k from 0 to 7
+jtag                     8      0          k <= 0    none ran late        0          0    0           0
+can                     36   1785       k <= 1785    none ran late        0          0    0           0
+    not run: 1789 of 1789, k from 0 to 1788
+sent                    26    279        k <= 279    none ran late        0          0    0           0
+    not run: 283 of 283, k from 0 to 282
+wiegand                 20   1189       k <= 1189    none ran late        0          0    0           0
+    not run: 1193 of 1193, k from 0 to 1192
+
+18:52:54 spi_master commit 87f76069e5f9268687fdc3e39366d9d3ebc77a06 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009  /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+spi_master         k=0    ok accepted, on time
+spi_master         k=1    ok accepted, on time
+spi_master         k=2    ok accepted, on time
+spi_master         k=3    ok accepted, on time
+spi_master         k=4    ok accepted, on time
+spi_master         k=5    ok refused by both
+spi_master         k=6    ok refused by both
+spi_master         k=7    ok refused by both
+
+firmware           wait pc  slack  kernel accepts  board late from  unsound  pessimism  gap  mismatches
+uart_tx                  8      4          k <= 4    none ran late        0          0    0           0
+    not run: 8 of 8, k from 0 to 7
+uart_tx16                8     12         k <= 12    none ran late        0          0    0           0
+    not run: 16 of 16, k from 0 to 15
+uart_tx_host_rate       10    430        k <= 430    none ran late        0          0    0           0
+    not run: 434 of 434, k from 0 to 433
+spi_master               9      4          k <= 4    none ran late        0          0    0           0
+jtag                     8      0          k <= 0    none ran late        0          0    0           0
+can                     36   1785       k <= 1785    none ran late        0          0    0           0
+    not run: 1789 of 1789, k from 0 to 1788
+sent                    26    279        k <= 279    none ran late        0          0    0           0
+    not run: 283 of 283, k from 0 to 282
+wiegand                 20   1189       k <= 1189    none ran late        0          0    0           0
+    not run: 1193 of 1193, k from 0 to 1192
+
+18:53:04 uart_tx commit 87f76069e5f9268687fdc3e39366d9d3ebc77a06 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009  /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+uart_tx            k=0    ok accepted, on time
+uart_tx            k=1    ok accepted, on time
+uart_tx            k=2    ok accepted, on time
+uart_tx            k=3    ok accepted, on time
+uart_tx            k=4    ok accepted, on time
+uart_tx            k=5    ok refused by both
+uart_tx            k=6    ok refused by both
+uart_tx            k=7    ok refused by both
+
+firmware           wait pc  slack  kernel accepts  board late from  unsound  pessimism  gap  mismatches
+uart_tx                  8      4          k <= 4    none ran late        0          0    0           0
+uart_tx16                8     12         k <= 12    none ran late        0          0    0           0
+    not run: 16 of 16, k from 0 to 15
+uart_tx_host_rate       10    430        k <= 430    none ran late        0          0    0           0
+    not run: 434 of 434, k from 0 to 433
+spi_master               9      4          k <= 4    none ran late        0          0    0           0
+jtag                     8      0          k <= 0    none ran late        0          0    0           0
+can                     36   1785       k <= 1785    none ran late        0          0    0           0
+    not run: 1789 of 1789, k from 0 to 1788
+sent                    26    279        k <= 279    none ran late        0          0    0           0
+    not run: 283 of 283, k from 0 to 282
+wiegand                 20   1189       k <= 1189    none ran late        0          0    0           0
+    not run: 1193 of 1193, k from 0 to 1192
+
+18:53:14 uart_tx16 commit 87f76069e5f9268687fdc3e39366d9d3ebc77a06 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009  /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+uart_tx16          k=0    ok accepted, on time
+uart_tx16          k=1    ok accepted, on time
+uart_tx16          k=2    ok accepted, on time
+uart_tx16          k=3    ok accepted, on time
+uart_tx16          k=4    ok accepted, on time
+uart_tx16          k=5    ok accepted, on time
+uart_tx16          k=6    ok accepted, on time
+uart_tx16          k=7    ok accepted, on time
+uart_tx16          k=8    ok accepted, on time
+uart_tx16          k=9    ok accepted, on time
+uart_tx16          k=10   ok accepted, on time
+uart_tx16          k=11   ok accepted, on time
+uart_tx16          k=12   ok accepted, on time
+uart_tx16          k=13   ok refused by both
+uart_tx16          k=14   ok refused by both
+uart_tx16          k=15   ok refused by both
+
+firmware           wait pc  slack  kernel accepts  board late from  unsound  pessimism  gap  mismatches
+uart_tx                  8      4          k <= 4    none ran late        0          0    0           0
+uart_tx16                8     12         k <= 12    none ran late        0          0    0           0
+uart_tx_host_rate       10    430        k <= 430    none ran late        0          0    0           0
+    not run: 434 of 434, k from 0 to 433
+spi_master               9      4          k <= 4    none ran late        0          0    0           0
+jtag                     8      0          k <= 0    none ran late        0          0    0           0
+can                     36   1785       k <= 1785    none ran late        0          0    0           0
+    not run: 1789 of 1789, k from 0 to 1788
+sent                    26    279        k <= 279    none ran late        0          0    0           0
+    not run: 283 of 283, k from 0 to 282
+wiegand                 20   1189       k <= 1189    none ran late        0          0    0           0
+    not run: 1193 of 1193, k from 0 to 1192
+
+KVB-END 18:53:24

@@ -1,0 +1,9 @@
+firmware           wait pc  slack  kernel accepts  board late from  unsound  pessimism  gap  mismatches
+uart_tx                  8      4          k <= 4    none ran late        0          0    0           0
+uart_tx16                8     12         k <= 12    none ran late        0          0    0           0
+uart_tx_host_rate       10    430        k <= 430    none ran late        0          0    0           0
+spi_master               9      4          k <= 4    none ran late        0          0    0           0
+jtag                     8      0          k <= 0    none ran late        0          0    0           0
+can                     36   1785       k <= 1785    none ran late        0          0    0           0
+sent                    26    279        k <= 279    none ran late        0          0    0           0
+wiegand                 20   1189       k <= 1189    none ran late        0          0    0           0

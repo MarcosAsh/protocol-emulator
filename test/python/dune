@@ -140,6 +140,28 @@
  (action
   (run python3 -B %{dep:test_kernel_vs_board.py} ../../demo)))
 
+; twelve minutes on one core, so not in runtest, which each mutant runs
+
+(rule
+ (with-stdout-to
+  kernel_variants.jsonl.gen
+  (run ./write_kernel_variants.exe)))
+
+(rule
+ (alias board_variants)
+ (deps
+  ../../demo/kernel_vs_board.py
+  ../board/kernel_vs_board/SHA256SUMS.inputs
+  ../board/kernel_vs_board/verdicts.tsv)
+ (action
+  (run
+   python3
+   -B
+   %{dep:test_board_variants.py}
+   ../../demo
+   %{dep:kernel_variants.jsonl.gen}
+   ../board/kernel_vs_board)))
+
 (rule
  (alias runtest)
  (deps ../../demo/glitch_map.py ../../python/demo_glitch_map.py)

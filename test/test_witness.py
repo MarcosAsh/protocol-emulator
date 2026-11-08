@@ -2,7 +2,7 @@
 """Checks that demo/witness.py actually rejects bad input, on a copy of
 test/board/self_timing. Each of these must fail: an edited file, a SHA256SUMS regenerated
 to match it, firmware the board didn't run, and a witness.json that claims more than the
-capture shows."""
+capture shows. The kernel-vs-board judge gets what its teeth don't try."""
 
 import hashlib
 import json
@@ -67,6 +67,27 @@ class Witness(unittest.TestCase):
         w["timing"][0]["measured"] = "104.00 us to 104.30 us"
         path.write_text(json.dumps(w, indent=2) + "\n")
         self.refused("witness.json's timing is not what the run makes")
+
+
+class KernelVsBoard(unittest.TestCase):
+    """What the teeth leave alone, as they change results.jsonl and board.log together."""
+
+    def problems(self, change):
+        run = witness.kvb_run(ROOT / "test/board/kernel_vs_board")
+        change(run)
+        return witness.kvb_judge(run)[1]
+
+    def test_the_run_passes(self):
+        self.assertEqual(self.problems(lambda run: None), [])
+
+    def test_a_row_board_log_does_not_have(self):
+        problems = self.problems(lambda run: run["rows"][0].update(exact=9))
+        self.assertIn("jtag k=0 is not board.log's last RESULT line for it", problems)
+
+    def test_a_model_the_board_ran_against(self):
+        problems = self.problems(
+            lambda run: run["variants"][0].update(chip_model="refused: pc 9: in time"))
+        self.assertIn("uart_tx k=0: MISMATCH the chip ran what its model refuses", problems)
 
 
 if __name__ == "__main__":
