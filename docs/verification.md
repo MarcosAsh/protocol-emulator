@@ -10,6 +10,10 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   `kernel_table.ml`, 1,837 lines. `formal/phase_step.sv` with a
   SAT query in `test/test_kernel.ml` proves the theorem, and so does
   `formal/phase_table.sby`, with `formal/phase_table_affine.sby` for Ethernet.
+- The 74 firmwares `test/certify/write_certificate.exe -names` lists, the library's 68 among
+  them, each have their own certificate proved an inductive invariant on one engine with the
+  firmware's configuration, line code included. So do a stamped transmitter and 5 firmwares with
+  claims on their data (the `inductive_certificate` job, one run a firmware).
 - The hardened netlist equals the RTL for all time from all flops 0, and from any state
   once reset (`netlist_equiv` job).
 - When and how the host talks reaches the pins only through the program's own fifo waits
@@ -17,16 +21,23 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   must fail (`make -C formal teeth` and the other `*_teeth` targets, all run in CI).
 - The chip refuses firmware it cannot certify. A start reaches an engine only while it is
   certified, and it is certified only by a walk that began after the last program,
-  configuration or line table write, saw no data written and accepted (`formal/gate.sby`).
+  configuration or line table write, saw no data write land in its engine's data turn or at
+  a word it had read, and accepted (`formal/gate.sby`).
   An accepted walk checked every pc against the rows at its successor and its target
   (`formal/certify.sby`). The walk always ends, with the verdict, reject pc and reason of
   the model in `src/load_check.ml` (`formal/complete.sby`). Their covers and weakened
   copies use a short walk and a 32 cycle turn, as a full turn is 65,536 cycles. A walk
   takes 8,192 to 30,545 cycles.
-- Engine 0's pins and host reads are the same whatever engine 1 is given, from the clear,
-  as long as no word is routed between them, no start starts both, engine 1's frames land
-  above engine 0's region and engine 1 loads nothing while engine 0 has a frame word
-  waiting (`formal/isolation.sby`).
+- Engine 0's pins and host reads are the same whatever engine 1 is given, from the clear
+  (`formal/isolation.sby`), as long as:
+  - no word is routed between them and no start starts both
+  - engine 1 drives no pad direction or wire level on a pin engine 0 reads
+  - engine 0's data pointer and certificate stay in its data region, engine 1's host writes
+    nothing there and engine 1's frames land above it
+  - the host writes engine 0's data only while engine 1 is halted and not being walked, and
+    no data write lands in the cycle engine 0 starts or the next
+  - engine 1 loads nothing while engine 0 has a frame word waiting
+  - engine 0's configuration changes only while it is halted
 - A fault is fail-safe: from the edge it shows, a faulted engine drives no pin, halts within
   two edges and stays halted until the next clear, whatever the host does with its fifos,
   pads and clear. The proof holds each engine's configuration fixed (`formal/fail_safe.sby`).
@@ -35,6 +46,11 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   1s in a row flag a stuffing error (`formal/usb_roundtrip.sby`). It assumes exactly 8
   samples a bit. `make -C formal usb_roundtrip_64` proves packets up to 64 bytes, and CI
   does not run it.
+- The 10BASE-T receiver writes a frame of any length to the data memory as it was sent,
+  with the right count and FCS verdict, at 40 and 50 MHz with jitter and drift
+  (`formal/frame_roundtrip.sby`).
+- The flop program memory the proofs use matches IHP's SRAM model step for step from any
+  equal state (`make -C formal sram_equiv`).
 - Two engines composed: uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire,
   10 cycles a bit, is proved for all time, as long as engine 1's rx fifo never overflows.
   Engine 1 pushes the low byte of each word engine 0 pulled, once a frame
@@ -58,11 +74,14 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
 
 ## What is not proved
 
-- Trusted: Yosys, SymbiYosys, boolector, ABC, cake_lpr, Certifaiger and the aiger tools for
-  the witnesses, hardcaml_verify's translation of gates into clauses, `Bits` agreeing with
-  `Comb_gates`, stated facts of arithmetic modulo 2^24, IHP's behavioural SRAM model, the
-  self-check's contract (`test/self_check_contract.ml`), and the PDK's models and the flow's
-  timing analysis.
+- Trusted: Yosys, SymbiYosys, boolector, yices, z3, ABC, cake_lpr, Certifaiger and the aiger
+  tools for the witnesses, hardcaml_verify's translation of gates into clauses, `Bits`
+  agreeing with `Comb_gates`, facts of arithmetic modulo 2^24 (z3 checks them,
+  `make -C formal offset_axioms`), IHP's behavioural SRAM model, the self-check's contract
+  (`test/self_check_contract.ml`), the PDK's models and the flow's timing analysis, the
+  flow from the netlist `netlist_equiv` reads to the GDS, and nextpnr and ecppack after the
+  netlist `icepi_equiv` reads. The proofs use engine copies that `formal/Makefile` generates
+  apart from the chip's Verilog, from the same OCaml.
 - The theorem assumes that:
   - every write to `p` other than a `set` leaves the checked period
   - a receiver's capture pin is at the other level at `capture_arm` and, once at the
@@ -83,16 +102,28 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
     for UART, SPI, I2C, CAN data frames, CEC, 1-Wire, PS/2, JTAG, low speed USB and WS2812
     (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
-  - the 10BASE-T receiver, the edge stamps and the line code tables. No sigrok decoder
-    reads USB full speed, so the USB receiver's traces are checked against our model only
+  - the gate-level netlist with the router's delays at the slow, typical and fast corners
+    (the `gl_sdf` job, 48 runs, all green in gds run 42268510223)
+  - that no one-field variant of the library the kernel accepts misses a deadline in a run:
+    41,727 accepted and none late (`test/split/split.ml`, the `split` job, run
+    40663800189, 2026-10-28)
+  - the edge stamps, and the line code tables but for USB's bit stuffing of streams up to 96
+    bits (`formal/line_stuff.sby`, bounded). No sigrok decoder reads USB full speed, so the
+    USB receiver's traces are checked against our model only
 - Nothing has run on silicon yet. On an Icepi Zero FPGA (ECP5, 48 MHz) running the 6 x 4
   chip's RTL, `python/demo_self_timing.py` passed on 2026-10-09: engine 1 stamped all 52
   edges of engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the
   host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
-  2026-10-15 (release evidence-2026-10-15). The 8 x 4 chip's RTL has since run all 21 bench
-  demos on the same board, self-timing and keyboard included, and each one's witness in
-  `test/board/` (capture, decode, bitstream hash, recorded 2026-11-03) says PASS
-  (release evidence-2026-11-03).
+  2026-10-15 (release evidence-2026-10-15). The 8 x 4 chip's RTL has since run on the same
+  board, bitstream sha256 012dc5e1b0769f12, and `test/board/` holds 37 witnesses, each with
+  its bitstream hash:
+  - the 21 bench demos, self-timing and keyboard included, recorded 2026-11-03 (release
+    evidence-2026-11-03). eth_rx ran on a 40 MHz build, sha256 c426327526b6b574
+  - the 8 held-out protocols, recorded 2026-11-07 (see [Flexibility](flexibility.md))
+  - `kernel_vs_board`, 2026-11-07: 3,735 delay variants of 8 firmwares, 3,711 accepted by
+    the chip and on time, 24 refused by the chip and the kernel alike
+  - `fault_release`, 2026-11-07
+  - 6 protocol-learning runs (`learn_*`), committed 2026-11-03
 
 ## Trying to break it
 
@@ -101,7 +132,7 @@ a way to make them fail.
 
 | Check | What we did | Result |
 |---|---|---|
-| Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
+| Planted delays, run | at every deadline wait of the 8 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 319 planted. The kernel certified 205 and none ran late. It refused 114, and 103 of those did run late. The other 11 are late only on paths the test's input never takes |
 | One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 791 of 845 refused by the kernel. The other 54, all of ir_rc6, nec_tx and dali and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
 | Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 42283817727, 2026-11-06). The other one is equivalent, see `test/mutation_allow.txt` |
 | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth` and the other `*_teeth` targets) | every copy fails, as it must |
