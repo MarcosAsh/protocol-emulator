@@ -6,7 +6,8 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
 ## What is proved
 
 - One theorem covers every program: if the kernel accepts it, it never misses a deadline.
-  `src/kernel.ml` is a checker you can read in one sitting. `formal/phase_step.sv` with a
+  The checker is `src/kernel_types.ml`, `kernel_step.ml`, `kernel_accepts.ml` and
+  `kernel_table.ml`, 1,837 lines. `formal/phase_step.sv` with a
   SAT query in `test/test_kernel.ml` proves the theorem, and so does
   `formal/phase_table.sby`, with `formal/phase_table_affine.sby` for Ethernet.
 - The hardened netlist equals the RTL for all time from all flops 0, and from any state

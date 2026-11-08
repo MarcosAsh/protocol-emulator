@@ -16,7 +16,9 @@ instructions you hope adds up.
 ## The kernel
 
 A small kernel checks a certificate of each program's timing and refuses anything it can't
-check, and the chip runs that check itself before it starts an engine. `src/kernel.ml` is a checker you can read in one sitting. What it
+check, and the chip runs that check itself before it starts an engine. The checker is
+`src/kernel_types.ml`, `kernel_step.ml`, `kernel_accepts.ml` and `kernel_table.ml`, 1,837
+lines, and the chip's own check is `src/load_check.ml` and `load_checker.ml`. What it
 guarantees, and under which assumptions, is on [Verification](verification.md).
 
 ## One piece of Hardcaml, two uses
