@@ -5,3 +5,4 @@
   4  8008  mov pins, !pins
 5 words, 1 deadline wait, worst slack 0
 kernel: accepted, so no deadline is missed by the step lemma
+chip: its load check accepts the 10-word certificate

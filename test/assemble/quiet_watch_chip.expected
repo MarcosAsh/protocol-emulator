@@ -1,0 +1,3 @@
+23 words, 2 deadline waits, worst slack 0
+kernel: accepted, so no deadline is missed by the step lemma
+chip: its load check refuses this at pc 8 (in time), so the chip won't start it
