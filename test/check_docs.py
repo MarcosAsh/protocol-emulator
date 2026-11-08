@@ -225,7 +225,16 @@ def run(run_id):
 
 
 def same_chip(sha):
-    return git("diff", "--quiet", sha, "HEAD", "--", *HARDENED).returncode == 0
+    return (git("diff", "--quiet", sha, "HEAD", "--", *HARDENED, ":!info.yaml").returncode == 0
+            and hardened_info(sha) == hardened_info("HEAD"))
+
+
+def hardened_info(rev):
+    """info.yaml at rev less its comments and language, which no harden reads."""
+    lines = (re.sub(r'\s+#[^"]*$', "", line).rstrip()
+             for line in git("show", f"{rev}:info.yaml").stdout.splitlines())
+    return [line for line in lines
+            if line.strip() and not line.lstrip().startswith(("#", "language:"))]
 
 
 def branches():
