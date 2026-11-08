@@ -1,0 +1,9 @@
+TARGETSEL 0x01002927, DPIDR: ACK OK, 0x0bc12477, parity good
+ABORT ACK OK, CTRL/STAT 0x50000000 written ACK OK, reads 0xf0000000: powered up yes
+AP 0 IDR 0x04770031: designer 0x23b, class 8, an Arm MEM-AP
+TARGETSEL 0x11002927, DPIDR: ACK OK, 0x0bc12477, parity good
+TARGETSEL 0x21002927, DPIDR: ACK none (0b111), 0x00000000, parity good
+nobody answers instance 2: yes
+TARGETSEL 0x01002927, DPIDR: ACK OK, 0x0bc12477, parity good
+faults 0x0
+PASS
