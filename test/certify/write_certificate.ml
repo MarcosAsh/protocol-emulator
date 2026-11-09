@@ -917,6 +917,10 @@ let inductive
 // as an invariant of the RTL, for every input and every host, proved by induction.
 module certificate (input clk);
 %{host}  (* anyseq *) wire [31:0] inputs;
+  // line table writes and premises, which only set the assumption fault
+  (* anyseq *) wire line_write_valid, loads_period, floor_period, single_edge;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [15:0] line_write_data, loaded_period;
 %{data_wire}
   function [15:0] rom(input [8:0] a);
     case (a)
@@ -958,6 +962,10 @@ module certificate (input clk);
     .program_write$data(16'b0), .data_write$valid(1'b0), .data_write$addr(9'b0),
     .data_write$data(16'b0), .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop),
     .clear_irq(1'b0), .stop(1'b0), .flush(1'b0),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data), .premises$period$valid(loads_period),
+    .premises$period$value(loaded_period), .premises$floor(floor_period),
+    .premises$single_edge(single_edge),
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(%{data_dout}),
     .pin_out(pin_out), .pc(pc), .t(t), .now(now), .capture(capture), .x(x), .y(y), .p(p),
     .osr(osr), .osr_count(osr_count), .stall(stall),
