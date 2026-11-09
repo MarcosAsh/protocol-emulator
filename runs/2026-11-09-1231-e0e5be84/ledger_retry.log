@@ -1,0 +1,58 @@
+commit e0e5be848367d37271fd5448700da84402b52416, bitstream ~/repo/icepi/build/v1.3.bit, evidence ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger
+flash, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/flash PICO=id:<pico A> demo/outside.sh flash > ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/flash/outside.txt
+Pico A says None, every step did not
+eeprom, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/eeprom PICO=id:<pico A> demo/outside.sh eeprom > ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/eeprom/outside.txt
+Pico A says None, every step did not
+eeprom_stretch, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/eeprom_stretch PICO=id:<pico A> demo/outside.sh eeprom_stretch > ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/eeprom_stretch/outside.txt
+Pico A says None, every step did not
+ds18b20, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/ds18b20 PICO=id:<pico A> demo/outside.sh ds18b20 > ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/ds18b20/outside.txt
+Pico A says None, every step did not
+neopixel, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/neopixel PICO=id:<pico A> demo/outside.sh neopixel > ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/neopixel/outside.txt
+Pico A says None, every step did not
+referee, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/referee PICO=id:<pico A> demo/outside.sh referee > ~/runs/2026-11-09-1231-e0e5be84/ledger_retry/2026-11-09/ledger/referee/outside.txt
+Pico A says None, every step did not
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [========                                          ] 14.96%
+Loading: [===============                                   ] 29.91%
+Loading: [=======================                           ] 44.87%
+Loading: [==============================                    ] 59.82%
+Loading: [======================================            ] 75.08%
+Loading: [==============================================    ] 90.03%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+
+flash            ERROR  (expected PASS)
+eeprom           ERROR  (expected PASS)
+eeprom_stretch   ERROR  (expected PASS)
+ds18b20          ERROR  (expected PASS)
+neopixel         ERROR  (expected PASS)
+referee          ERROR  (expected PASS)
