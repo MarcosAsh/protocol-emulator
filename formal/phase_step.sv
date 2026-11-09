@@ -125,6 +125,12 @@ module phase_step (input clk);
   (* anyseq *) wire [1:0] dm;
   (* anyseq *) wire [8:0] frame_base;
   (* anyseq *) wire [19:0] stamps_mask;
+  // which engine's turn a frame word may take
+  (* anyseq *) wire frame_owner;
+`else
+  // the load checker's reads of the program, which only land while halted
+  (* anyseq *) wire program_read_valid;
+  (* anyseq *) wire [8:0] program_read_addr;
 `endif
 
   reg clear = 1;
@@ -226,7 +232,7 @@ module phase_step (input clk);
     .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0), \
     .check_setup$floor(1'b0), .start_all(start_all), .rd(rd), .dm(dm), \
     .frame$arm(frame_arm), .frame$base(frame_base), .frame$fifty(frame_fifty), \
-    .frame_usb(frame_usb), \
+    .frame_usb(frame_usb), .frame_owner(frame_owner), \
     .stamps$mask(stamps_mask), .stamps$engine(stamps_engine), \
     .stamps$flush(stamps_flush), .stamps$pop(stamps_pop)
 `ifdef ENGINE_1
@@ -259,7 +265,8 @@ module phase_step (input clk);
     .config$autopull_data(autopull_data), .config$manchester(manchester),
     .config$line_code(line_code), .config$route(route), .line_write$valid(line_write_valid),
     .line_write$addr(line_write_addr), .line_write$data(line_write_data),
-    .route_full(route_full),
+    .route_full(route_full), .program_read$valid(program_read_valid),
+    .program_read$value(program_read_addr),
     .premises$period$valid(loads_period), .premises$period$value(loaded_period),
     .premises$floor(floor_period), .premises$single_edge(single_edge),
     .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
