@@ -1,12 +1,11 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
 // to the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the
-// pc and, with Manchester off and edge_step.sv's lemma assumed, a watched pair's edges. A
-// deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^T, where T is
-// the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in a bounded run.
-// The engine is the chip's, with every input free except its premises (the kernel's) and
-// no line code or route, so this holds for each engine of several. CHIP runs it on one
-// engine inside the two-engine chip instead. Program memories are the flop stand-in for
-// the SRAM macro.
+// pc and, with Manchester and line code off and edge_step.sv's lemma assumed, a watched
+// pair's edges. A deadline wait entered at phase <= 0 does not fault. Equalities are mod
+// 2^T, where T is the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in
+// a bounded run. The engine is the chip's, with every input free except its premises (the
+// kernel's), so this holds for each engine of several. CHIP runs it on one engine inside
+// the two-engine chip instead. Program memories are the flop stand-in for the SRAM macro.
 
 `ifndef TIMER_BITS
 `define TIMER_BITS 24
@@ -58,6 +57,8 @@ module phase_step (input clk);
   wire [15:0] period_fraction = config_bits[52:37];
   wire autopull_data = config_bits[36];
   wire manchester = config_bits[35];
+  wire line_code = config_bits[34];
+  wire route = config_bits[33];
   wire [15:0] crc_poly_high = config_bits[32:17];
   wire [15:0] crc_init_high = config_bits[16:1];
   wire crc_complement = config_bits[0];
@@ -86,6 +87,10 @@ module phase_step (input clk);
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
+  // line table writes, and whether the next engine's fifo is full when routed
+  (* anyseq *) wire line_write_valid, route_full;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [15:0] line_write_data;
 `ifdef CHIP
   // the other engine's host (its config too), both hosts' data writes, and the pads
   (* anyseq *) wire [1:0] o_side_set_count;
@@ -109,18 +114,17 @@ module phase_step (input clk);
   (* anyseq *) wire [8:0] data_write_addr, o_data_write_addr;
   (* anyseq *) wire [15:0] data_write_data, o_data_write_data;
   (* anyseq *) wire [19:0] pads;
-  // the other engine's line code and route, both line tables, the start of both engines at
-  // once, and the frame receiver; this engine codes no line and routes nothing
-  (* anyseq *) wire o_line_code, o_route, line_write_valid, o_line_write_valid, start_all;
-  (* anyseq *) wire [4:0] line_write_addr, o_line_write_addr;
-  (* anyseq *) wire [15:0] line_write_data, o_line_write_data;
+  // the other engine's line code, route and line table, the start of both engines at
+  // once, and the frame receiver
+  (* anyseq *) wire o_line_code, o_route, o_line_write_valid, start_all;
+  (* anyseq *) wire [4:0] o_line_write_addr;
+  (* anyseq *) wire [15:0] o_line_write_data;
   (* anyseq *) wire [1:0] rd;
   (* anyseq *) wire frame_arm, frame_fifty, frame_usb;
   (* anyseq *) wire stamps_engine, stamps_flush, stamps_pop;
   (* anyseq *) wire [1:0] dm;
   (* anyseq *) wire [8:0] frame_base;
   (* anyseq *) wire [19:0] stamps_mask;
-  wire line_code = 0, route = 0;
 `endif
 
   reg clear = 1;
@@ -253,8 +257,9 @@ module phase_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
-    .config$line_code(1'b0), .config$route(1'b0), .line_write$valid(1'b0),
-    .line_write$addr(5'd0), .line_write$data(16'd0), .route_full(1'b0),
+    .config$line_code(line_code), .config$route(route), .line_write$valid(line_write_valid),
+    .line_write$addr(line_write_addr), .line_write$data(line_write_data),
+    .route_full(route_full),
     .premises$period$valid(loads_period), .premises$period$value(loaded_period),
     .premises$floor(floor_period), .premises$single_edge(single_edge),
     .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
@@ -775,9 +780,11 @@ module phase_step (input clk);
   endfunction
 
 `ifdef EDGES
-  // The spacing of the pair's edges, with Manchester off. For each pin: its cycles since it
-  // last moved (saturating), and whether it has made a counted edge in this run, meaning an
-  // edge after the run's first write of it.
+  // The spacing of the pair's edges, with Manchester and line code off, the only configs
+  // the kernel spaces. For each pin: its cycles since it last moved (saturating), and
+  // whether it has made a counted edge in this run, meaning an edge after the run's first
+  // write of it.
+  wire plain = !manchester && !line_code;
   always @(*) assume(pin_a != pin_b);
   reg c3_last_clear = 1, c3_last_entry = 0, last_a = 0, last_b = 0;
   always @(posedge clk) begin
@@ -842,7 +849,7 @@ module phase_step (input clk);
     l_want_b <= w_want[pin_b];
   end
   always @(*)
-    if (!manchester && !clear && !c3_last_clear) begin
+    if (plain && !clear && !c3_last_clear) begin
       assume(bit_a == (l_writes_a ? l_want_a : last_a));
       assume(bit_b == (l_writes_b ? l_want_b : last_b));
     end
@@ -851,7 +858,7 @@ module phase_step (input clk);
   // has held its bit for at least the ghost's cycles less one, because its next edge shows
   // a cycle after the entry
   always @(posedge clk)
-    if (!clear && entry && pending && !manchester) begin
+    if (!clear && entry && pending && plain) begin
       assert(level_a == bit_a && level_b == bit_b);
       assert(fresh_a == !wrote_a && fresh_b == !wrote_b);
 `ifdef EDGE_ONE_SHORT
@@ -880,7 +887,7 @@ module phase_step (input clk);
   reg c3_recorded = 0;
   always @(posedge clk) c3_recorded <= entry;
   always @(posedge clk)
-    if (!clear && c3_recorded && spaced && !manchester) begin
+    if (!clear && c3_recorded && spaced && plain) begin
       if (wide_a) assert(spaced_a);
       if (wide_b) assert(spaced_b);
     end
@@ -900,7 +907,7 @@ module phase_step (input clk);
     quiet_after = cycles[W] || quiet + cycles >= 17'h10000 ? 17'h10000 : quiet + cycles;
   endfunction
   always @(posedge clk)
-    if (!clear && pending && !entry && !manchester) begin
+    if (!clear && pending && !entry && plain) begin
       if (moves_a || moves_b) assert(c3_last_entry && elapsed == 1);
       // the one edge since the entry, if there is one, left the entry's bit
       assert(bit_a == (since_entry_a || moves_a ? !e_level_a : e_level_a));
@@ -927,7 +934,7 @@ module phase_step (input clk);
       if (!halted && !pending) assert(!wrote_a && !wrote_b && !moved_a && !moved_b);
       // an edge counts only after a write
       assert((wrote_a || !moved_a) && (wrote_b || !moved_b));
-      if (pending && !manchester) assert((!e_fresh_a || !e_moved_a) && (!e_fresh_b || !e_moved_b));
+      if (pending && plain) assert((!e_fresh_a || !e_moved_a) && (!e_fresh_b || !e_moved_b));
       assert(quiet_a <= 17'h10000 && quiet_b <= 17'h10000);
       if (pending) assert(e_quiet_a <= 17'h10000 && e_quiet_b <= 17'h10000);
     end
@@ -962,6 +969,9 @@ module phase_step (input clk);
     cover(pending && entry && e_may_carry && phase == e_expected - 1'd1);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
     cover(loads_period && pending && entry && wrote_p && p == e_loaded && e_loaded > 3);
+    // a routed run that jumps on its line code's flag
+    cover(line_code && route && pending && entry && e_is_jmp && e_word[12:9] == 4'd7
+      && pc == e_word[8:0] && pc != e_following);
 `ifdef CHIP
     cover(loads_period && wrote_p && loaded_before && p != last_load);
 `else
@@ -1155,7 +1165,7 @@ module phase_step (input clk);
     if (!clear) begin
       if (entry) edges_now: assert(within);
       if (pending && !entry) edges_last: assert(e_inside);
-      if (c3_last_entry && spaced && !manchester) begin
+      if (c3_last_entry && spaced && plain) begin
         spacing_a: assert(spaced_a);
         spacing_b: assert(spaced_b);
       end
