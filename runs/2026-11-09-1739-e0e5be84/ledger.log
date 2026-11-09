@@ -1,0 +1,108 @@
+commit e0e5be848367d37271fd5448700da84402b52416, bitstream ~/repo/icepi/build/v1.3.bit, evidence ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger
+smoke, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ mpremote connect id:<pico A> cp python/protocol_emulator.py python/pico_board.py :
+$ mpremote connect id:<pico A> exec 'import pico_board
+s = pico_board.host().status()
+print(s)
+faults = [s[k] for k in ("underflow", "overflow", "missed_deadline", "decode")]
+print("PASS" if s["halted"] == 1 and not any(faults) else "FAIL")' > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/smoke/smoke.log
+Pico A says PASS, every step ran
+self_timing, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ mpremote connect id:<pico A> cp python/protocol_emulator.py python/pico_board.py python/demo_self_timing.py test/uart_tx_host_rate.hex test/uart_tx_host_rate.cert.hex test/edge_logger_echo.hex test/edge_logger_echo.cert.hex :
+$ mpremote connect id:<pico B> cp python/pico_listener.py :
+& mpremote connect id:<pico B> exec 'import pico_listener; pico_listener.listen(9600, False)' > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/self_timing/pico_b.log
+& ANALYSER=A TRIES=1 RATE=2M demo/capture.sh ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/self_timing/self_timing.sr 8000
+$ mpremote connect id:<pico A> run python/demo_self_timing.py > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/self_timing/self_timing.log
+Pico A says PASS, every step did not
+sweep, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ mpremote connect id:<pico A> cp python/protocol_emulator.py python/pico_board.py python/demo_self_timing.py python/sweep_firmware.py python/demo_sweep.py :
+& ANALYSER=A TRIES=1 RATE=12M demo/capture.sh ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/sweep/sweep.sr 8000
+$ mpremote connect id:<pico A> run python/demo_sweep.py > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/sweep/sweep.log
+Pico A says PASS, every step did not
+self_check, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ mpremote connect id:<pico A> cp python/protocol_emulator.py python/pico_board.py python/demo_self_check.py test/uart_tx_host_rate.hex test/uart_tx_host_rate.cert.hex test/self_check_wire.hex test/self_check_wire.cert.hex test/uart_tx_host_rate_rows.hex :
+$ mpremote connect id:<pico A> run python/demo_self_check.py > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/self_check/self_check.log
+Pico A says PASS, every step ran
+flash, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/flash PICO=id:<pico A> demo/outside.sh flash > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/flash/outside.txt
+Pico A says None, every step did not
+eeprom, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/eeprom PICO=id:<pico A> demo/outside.sh eeprom > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/eeprom/outside.txt
+Pico A says None, every step did not
+eeprom_stretch, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/eeprom_stretch PICO=id:<pico A> demo/outside.sh eeprom_stretch > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/eeprom_stretch/outside.txt
+Pico A says None, every step did not
+ds18b20, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/ds18b20 PICO=id:<pico A> demo/outside.sh ds18b20 > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/ds18b20/outside.txt
+Pico A says None, every step did not
+neopixel, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/neopixel PICO=id:<pico A> demo/outside.sh neopixel > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/neopixel/outside.txt
+Pico A says None, every step did not
+swd, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/swd PICO=id:<pico A> demo/outside.sh swd > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/swd/outside.txt
+Pico A says None, every step did not
+referee, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/referee PICO=id:<pico A> demo/outside.sh referee > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/referee/outside.txt
+Pico A says None, every step did not
+nec, expect PASS
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+$ CAPTURES=~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/nec PICO=id:<pico A> demo/outside.sh nec > ~/runs/2026-11-09-1739-e0e5be84/ledger/2026-11-09/ledger/nec/outside.txt
+Pico A says None, every step did not
+$ mpremote connect id:<pico A> exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero ~/repo/icepi/build/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [=======                                           ] 12.56%
+Loading: [=============                                     ] 25.13%
+Loading: [===================                               ] 37.69%
+Loading: [=========================                         ] 49.95%
+Loading: [===============================                   ] 61.62%
+Loading: [=====================================             ] 73.88%
+Loading: [============================================      ] 86.44%
+Loading: [==================================================] 98.71%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+
+smoke            PASS
+self_timing      ERROR  (expected PASS)
+sweep            ERROR  (expected PASS)
+self_check       PASS
+flash            ERROR  (expected PASS)
+eeprom           ERROR  (expected PASS)
+eeprom_stretch   ERROR  (expected PASS)
+ds18b20          ERROR  (expected PASS)
+neopixel         ERROR  (expected PASS)
+swd              ERROR  (expected PASS)
+referee          ERROR  (expected PASS)
+nec              ERROR  (expected PASS)

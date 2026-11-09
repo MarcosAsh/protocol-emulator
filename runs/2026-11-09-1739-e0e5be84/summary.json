@@ -1,0 +1,91 @@
+{
+ "commit": "e0e5be848367d37271fd5448700da84402b52416",
+ "reason": "tt_ci",
+ "started": 1794245948.391096,
+ "rev": "v1.3",
+ "dir": "2026-11-09-1739-e0e5be84",
+ "commit_time": 1794165963,
+ "build_seconds": 847.5183096110122,
+ "build_ok": true,
+ "seed": 7,
+ "fmax_mhz": 49.65,
+ "carrier_nets": null,
+ "carrier_ok": false,
+ "demos": {
+  "smoke": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "self_timing": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "sweep": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "self_check": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "flash": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "eeprom": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "eeprom_stretch": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "ds18b20": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "neopixel": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "swd": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "referee": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  },
+  "nec": {
+   "result": "ERROR",
+   "expected": "PASS",
+   "retried": true,
+   "first": "ERROR"
+  }
+ },
+ "both_roles_cases": {
+  "ok": 12,
+  "fail": 0
+ },
+ "both_roles_ok": true,
+ "seconds": 1157.6847307682037,
+ "ok": false
+}
