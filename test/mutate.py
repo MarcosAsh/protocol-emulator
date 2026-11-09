@@ -114,8 +114,11 @@ RTL = [
     "src/program_memory.ml", "src/sram_macro.ml", "src/engines.ml", "src/top.ml",
     "src/isa.ml", "src/program_config.ml",
 ]
-# the load checker and the frame receivers, all in the chip
-ONCHIP = ["src/load_checker.ml", "src/frame_rx.ml", "src/manchester_rx.ml", "src/usb_frame_rx.ml", "src/usb_rx.ml"]
+# chip files RTL leaves out
+ONCHIP = [
+    "src/load_checker.ml", "src/frame_rx.ml", "src/manchester_rx.ml", "src/usb_frame_rx.ml",
+    "src/usb_rx.ml", "src/edge_stamps.ml", "src/line_stuff.ml", "src/both_edges.ml",
+]
 # files the chip doesn't instantiate, each with the generators that elaborate it alone.
 # The kernel's step is in both of its circuits and its table is in neither
 KERNEL = [["kernel"], ["kernel-accepts"]]
@@ -134,7 +137,7 @@ APART = {
 }
 ELABORATE = {f: CHIP for f in RTL + ONCHIP} | APART
 # engine is the published score's four files, with five mutants per operator. wide is
-# every file that makes RTL, plus the kernel and the analyser, with every match
+# the RTL list above, plus the kernel and the analyser, with every match
 SCOPES = {
     "engine": {
         "files": ["src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/host_port.ml"],

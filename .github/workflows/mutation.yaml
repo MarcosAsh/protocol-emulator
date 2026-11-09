@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser; kernel: the trusted checker alone; onchip: the load checker and the frame receivers'
+        description: 'engine: the four files of the published score; wide: the RTL list in test/mutate.py, the kernel and the analyser; kernel: the trusted checker alone; onchip: the chip files wide misses, such as the load checker and the frame receivers'
         type: choice
         options: [engine, wide, kernel, onchip]
         default: engine
@@ -77,7 +77,7 @@ jobs:
 
   # a mutant costs about nine runner-minutes, four at a time on four cores. Engine's 114
   # take twelve shards of about two hours, wide's thousand take twenty of about three and
-  # a half, kernel's 658 with their proofs take twenty, and onchip's 243 take twenty. Six
+  # a half, kernel's 658 with their proofs take twenty, and onchip's 274 take twenty. Six
   # shards run at a time so the other branches keep the rest of the shared runners.
   mutate:
     needs: plan
