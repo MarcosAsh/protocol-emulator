@@ -51,6 +51,8 @@ jobs:
         run: opam install . --deps-only --locked
 
       - name: Build the assembler
+        env:
+          PROTOCOL_EMULATOR_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
         run: |
           opam exec -- dune build --profile release bin/generate.exe
           mkdir release
