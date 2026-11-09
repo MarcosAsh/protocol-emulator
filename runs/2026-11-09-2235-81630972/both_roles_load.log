@@ -1,0 +1,20 @@
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [======                                            ] 11.96%
+Loading: [============                                      ] 23.33%
+Loading: [==================                                ] 35.30%
+Loading: [========================                          ] 47.86%
+Loading: [==============================                    ] 59.82%
+Loading: [=====================================             ] 72.09%
+Loading: [==========================================        ] 83.15%
+Loading: [================================================  ] 94.52%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
