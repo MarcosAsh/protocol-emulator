@@ -42,6 +42,12 @@ module late_step (
   wire [7:0] opcode_onehot;
   wire [31:0] wait_select;
   wire [31:0] wait_pin = 32'd1 << instruction[4:0];
+`ifdef OWN_LINE_CODE
+  // a line code per copy, which a jump on the stuffing flag tells apart
+  (* anyseq *) wire line_code;
+`else
+  wire line_code = config_bits[142];
+`endif
 
   engine_top dut (
     .clock(clock), .clear(clear),
@@ -59,7 +65,7 @@ module late_step (
     .config$stuff_threshold(config_bits[104:100]), .config$stuff_level(config_bits[105]),
     .config$wrap_bottom(config_bits[114:106]), .config$wrap_top(config_bits[123:115]),
     .config$period_fraction(config_bits[139:124]), .config$autopull_data(config_bits[140]),
-    .config$manchester(config_bits[141]), .config$line_code(config_bits[142]),
+    .config$manchester(config_bits[141]), .config$line_code(line_code),
     .config$route(config_bits[143]), .config$crc_poly_high(config_bits[159:144]),
     .config$crc_init_high(config_bits[175:160]), .config$crc_complement(config_bits[176]),
     .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),

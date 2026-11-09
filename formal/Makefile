@@ -556,7 +556,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v guard_teeth
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse \
 	  own_line_code
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
-	  no_overflow_excuse
+	  no_overflow_excuse own_line_code
 
 # One firmware's certificate as an inductive invariant, for all time: make
 # inductive_certificate NAME=uart_tx16. Teeth, which fail from reset: a claim that the pc

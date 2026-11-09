@@ -6,6 +6,7 @@ admit_fifo_jump teeth
 private_pull teeth
 no_underflow_excuse teeth
 no_overflow_excuse teeth
+own_line_code teeth
 
 [options]
 mode bmc
@@ -50,6 +51,7 @@ admit_fifo_wait: verilog_defines -DADMIT_FIFO_WAIT
 admit_fifo_jump: verilog_defines -DADMIT_FIFO_JUMP
 no_underflow_excuse: verilog_defines -DNO_UNDERFLOW_EXCUSE
 no_overflow_excuse: verilog_defines -DNO_OVERFLOW_EXCUSE
+own_line_code: verilog_defines -DOWN_LINE_CODE
 read_verilog -formal -sv late_host.sv
 proc
 flatten late_step
