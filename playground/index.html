@@ -204,7 +204,16 @@ A row no line names is listed as not checked. # starts a comment.</pre>
   const pe = protocolEmulator;
   const $ = (id) => document.getElementById(id);
   pe.examples.forEach(([name], i) => $("example").add(new Option(name, i)));
-  const load = () => { $("source").value = pe.examples[$("example").value][1]; };
+  // the chip refuses these examples without test/firmware.mk's assumptions
+  const SETTINGS = { uart_rx_wire: { pin: 20, falling: true, single: true } };
+  const load = () => {
+    const [name, source] = pe.examples[$("example").value];
+    const s = SETTINGS[name] || {};
+    $("source").value = source;
+    $("capture-pin").value = s.pin || 0;
+    $("capture-falling").checked = !!s.falling;
+    $("single-edge").checked = !!s.single;
+  };
   const run = () => {
     const period = $("period").value === "" ? null : Number($("period").value);
     const pin = Number($("capture-pin").value) || 0;
