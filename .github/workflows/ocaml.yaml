@@ -52,7 +52,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.proofs == 'true'
     runs-on: ubuntu-24.04
-    # id-token and attestations are for signing the provenance of the proof bundle below
+    # id-token and attestations sign the provenance of the proved Verilog and certificates below
     permissions:
       contents: read
       id-token: write
@@ -137,7 +137,7 @@ jobs:
         run: echo "parts=$(make -s -C formal phase_spacing_parts | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
 
       # only for a push to main, so a fork's pull request never signs
-      - name: Attest the proof bundle
+      - name: Attest the proved Verilog and certificates
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@v3.0.0
         with:
