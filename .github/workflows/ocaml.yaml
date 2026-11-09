@@ -268,7 +268,9 @@ jobs:
       - name: Install OSS CAD Suite
         if: needs.changes.outputs.proofs == 'true'
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -464,7 +466,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       # The kit's iCE40 UP5K was at 85% of its cells before the load checker, which needs
@@ -504,7 +508,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove the netlist equal to the RTL
@@ -548,7 +554,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       # proves the invariant by induction, then runs the teeth, which have to fail
@@ -578,7 +586,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -602,7 +612,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -625,7 +637,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -654,7 +668,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -677,7 +693,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -701,7 +719,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -725,7 +745,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -749,7 +771,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
@@ -784,7 +808,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Key the SAT tools
