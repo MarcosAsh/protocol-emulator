@@ -23,13 +23,21 @@ module data_step (input clk);
   (* anyconst *) wire crc_reflect, crc_complement, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester;
+  (* anyconst *) wire autopull_data, manchester, line_code, route;
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
+  // line table writes, program reads, the routed fifo's full flag, and premises, which
+  // only set the assumption fault
+  (* anyseq *) wire line_write_valid, program_read_valid, route_full;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [15:0] line_write_data;
+  (* anyseq *) wire [8:0] program_read_addr;
+  (* anyseq *) wire loads_period, floor_period, single_edge;
+  (* anyseq *) wire [15:0] loaded_period;
 
   // the top clears the engine at power-on and whenever reset comes again
   (* anyseq *) wire reset;
@@ -69,12 +77,18 @@ module data_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(line_code), .config$route(route),
     .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
     .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .data_word(data_word),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data), .route_full(route_full),
+    .program_read$valid(program_read_valid), .program_read$value(program_read_addr),
+    .premises$period$valid(loads_period), .premises$period$value(loaded_period),
+    .premises$floor(floor_period), .premises$single_edge(single_edge),
     .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop), .clear_irq(clear_irq),
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
