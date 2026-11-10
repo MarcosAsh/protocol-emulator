@@ -1,0 +1,46 @@
+PASS HOST_SCK HOST_MOSI HOST_MISO HOST_CS_N [J1.19 J1.21 J1.23 J1.24 J2.1 J2.2 J2.3 J2.4 J13.4 J13.5 J13.6 J13.7]: the bitstream answers 'pin' and takes frames
+PASS UART_B UART_B_PICO [J1.8 J2.5 J15.2 R8.1 R8.2]: header 8 and Pico B GP1 reach each other through R8
+PASS I2C_SDA I2C_SCL [J1.33 J1.35 J3.7 J3.8 J10.3 J10.4 J15.4 J15.5 J17.3 J17.4 R5.1 R6.1 TP7.1 TP8.1]: header 33 is Pico B GP2 (SDA) and header 35 GP3 (SCL)
+PASS SPARE_IN2 SPARE_IN3 SPARE_IN4 [J1.7 J1.11 J1.13 J12.1 J12.2 J12.3]: let go they read 0, and nothing else moves them (J12 is open)
+PASS no shorts among the 21 header pins
+PASS I2C_SDA [J1.33 J3.7 J10.4 J15.4 J17.3 R5.1 TP7.1]: R5 2k2 to 3V3_A pulls header 33 up within 25 us
+PASS I2C_SCL [J1.35 J3.8 J10.3 J15.5 J17.4 R6.1 TP8.1]: R6 2k2 to 3V3_A pulls header 35 up within 25 us
+PASS DQ [J1.37 J3.6 R7.1 TP6.1 U5.2]: R7 4k7 to 3V3_A pulls header 37 up within 25 us
+PASS FLASH_CS_N [J1.28 J3.4 R2.1 U4.1]: R2 10k to 3V3_A pulls header 28 up within 25 us
+PASS SWDIO SWDIO_PICO [J1.36 J2.8 J8.3 R12.1 R12.2 R13.1]: R12 220R and R13 4k7 to 3V3_B pulls header 36 up within 25 us
+PASS USB_MIR0 [J1.29 J13.9]: header 29 reaches Pico A GP6
+PASS USB_MIR1 [J1.31 J13.10]: header 31 reaches Pico A GP7
+PASS USB_DETACH [J1.15 J13.11]: Pico A GP8 and header 15 reach each other
+PASS I2C_SDA I2C_SCL 3V3_A [C3.1 C4.1 J1.33 J1.35 J3.7 J3.8 J4.4 J10.1 J10.3 J10.4 J14.5 J15.4 J15.5 J17.2 J17.3 J17.4 R2.2 R5.1 R5.2 R6.1 R6.2 R7.2 R17.1 TP7.1 TP8.1 U4.3 U4.7 U4.8 U5.3]: the EEPROM ACKs at 0x50, from Pico B and from the header, and 0x51 does not
+PASS DQ [J1.37 J3.6 R7.1 TP6.1 U5.2]: DS18B20 ROM 28 f0 f3 b7 11 00 00 72, CRC good
+PASS FLASH_CLK FLASH_DI FLASH_DO FLASH_CS_N [J1.3 J1.22 J1.26 J1.28 J3.1 J3.2 J3.3 J3.4 R2.1 U4.1 U4.2 U4.5 U4.6]: JEDEC ID ef 40 17: W25Q64JV
+PASS CAN_TX CANA_CTX CANA_CRX CAN_RX [J1.5 J1.10 J2.6 J4.1 J4.2 R9.1 R9.2 R10.1 R10.2]: header 10 low makes board A's R low on header 5
+PASS CANB_TX CANB_RX [J6.1 J6.2 J15.9 J15.10]: Pico B GP7 low makes board B's R low on GP6
+PASS CANH CANL [J5.1 J5.2 J7.1 J7.2 JP1.2 R1.1 TP4.1 TP5.1]: each board's dominant reaches the other
+PASS SWCLK SWCLK_PICO SWDIO SWDIO_PICO [J1.12 J1.36 J2.7 J2.8 J8.1 J8.3 R11.1 R11.2 R12.1 R12.2 R13.1]: Pico B's core 0 answers DPIDR 0x0bc12477 through J8
+PASS ETH_TXP ETH_TXP_J ETH_TXN_J ETH_TXN [J1.38 J1.40 J11.5 J11.6 R14.1 R14.2 R15.1 R15.2 R16.1 R16.2]: headers 38 and 40 reach each other through R14, R16 and R15
+SKIP NEO_3V3 NEO_5V NEO_DIN [J1.18 J3.5 J9.2 R3.1 R4.1 R4.2 U3.2 U3.3]: no pin reads past U3's input: --analysers sees header 18, the stick the rest
+PASS HOST_SCK [J1.23 J2.1 J13.4]: analyser A D0 moves (77808 edges)
+PASS HOST_MOSI [J1.19 J2.2 J13.5]: analyser A D1 moves (86384 edges)
+PASS HOST_MISO [J1.21 J2.3 J13.6]: analyser A D2 moves (152706 edges)
+PASS HOST_CS_N [J1.24 J2.4 J13.7]: analyser A D3 moves (14139 edges)
+PASS UART_B [J1.8 J2.5 R8.1]: analyser A D4 sees its 1 pulses
+PASS CAN_RX [J1.5 J2.6 R10.1]: analyser A D5 sees its 2 pulses
+PASS SWCLK [J1.12 J2.7 R11.1]: analyser A D6 sees its 3 pulses
+PASS SWDIO [J1.36 J2.8 R12.1]: analyser A D7 sees its 4 pulses
+PASS FLASH_CLK [J1.26 J3.1 U4.6]: analyser B D0 sees its 5 pulses
+FAIL FLASH_DI [J1.22 J3.2 U4.5]: analyser B D1 sees 10 edges, FLASH_CLK's 5 pulses, not FLASH_DI's 6: its probe
+FAIL FLASH_DO [J1.3 J3.3 U4.2]: analyser B D2 sees 16 edges, FLASH_CS_N's 8 pulses, not FLASH_DO's 7: its probe
+PASS FLASH_CS_N [J1.28 J3.4 R2.1 U4.1]: analyser B D3 sees its 8 pulses
+FAIL NEO_3V3 [J1.18 J3.5 R3.1 U3.2]: analyser B D4 sees 20 edges, DQ's 10 pulses, not NEO_3V3's 9: its probe
+PASS DQ [J1.37 J3.6 R7.1 TP6.1 U5.2]: analyser B D5 sees its 10 pulses
+PASS I2C_SDA [J1.33 J3.7 J10.4 J15.4 J17.3 R5.1 TP7.1]: analyser B D6 sees its 11 pulses
+FAIL I2C_SCL [J1.35 J3.8 J10.3 J15.5 J17.4 R6.1 TP8.1]: analyser B D7 sees 26 edges, no net's pulses, not I2C_SCL's 12: its probe
+PASS 3V3_A [C3.1 C4.1 J4.4 J10.1 J14.5 J17.2 R2.2 R5.2 R6.2 R7.2 R17.1 U4.3 U4.7 U4.8 U5.3]: Pico A's 3V3 reaches the pull-ups and parts on it
+PASS 3V3_B [J6.4 J16.5 R13.2 R18.1]: Pico B's 3V3 reaches CAN board B and R13
+PASS 5V_A [C1.1 C2.1 C5.1 J9.1 J14.1 R19.1 U3.4 U3.10 U3.13 U3.14]: Pico A's VSYS reads 4.76 V, so its VBUS (pin 40) is up; D3 (red) says it reaches the carrier
+SKIP REPLUG [J13.12 SW1.1]: --no-button: demo/carrier_check.py --button-only
+36 PASS, 4 FAIL, 2 SKIP
+FAIL
+{'overflow': 0, 'missed_deadline': 0, 'decode': 0, 'irq': 0, 'tx_level': 0, 'halted': 1, 'rx_level': 0, 'assumption': 0, 'other_irq': 0, 'underflow': 0}
+chip from flash: PASS
