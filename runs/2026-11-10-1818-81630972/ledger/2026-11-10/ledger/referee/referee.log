@@ -1,0 +1,21 @@
+rows: writes at 434 868 1302 1736 2170 2604 3038 3472 3906, the next frame from 4346
+caught: 0xff's start bit ended at cycle 435, rows say 434 (21 ns late), the rows put the catch at cycle 868
+you 0, referee 1
+caught: 0xff's start bit ended at cycle 433, rows say 434 (21 ns early), the rows put the catch at cycle 434
+you 0, referee 2
+caught: 0xff's start bit ended at cycle 436, rows say 434 (42 ns late), the rows put the catch at cycle 868
+you 0, referee 3
+caught: 0xff's start bit ended at cycle 432, rows say 434 (42 ns early), the rows put the catch at cycle 434
+you 0, referee 4
+caught: 0xff's start bit ended at cycle 435, rows say 434 (21 ns late), the rows put the catch at cycle 868
+you 0, referee 5
+caught: 0xff's start bit ended at cycle 433, rows say 434 (21 ns early), the rows put the catch at cycle 434
+you 0, referee 6
+caught: 0xff's start bit ended at cycle 436, rows say 434 (42 ns late), the rows put the catch at cycle 868
+you 0, referee 7
+280 honest frames, no alarm: green sweep
+caught: 0xff's start bit ended at cycle 432, rows say 434 (42 ns early), the rows put the catch at cycle 434
+you 0, referee 8
+slipped past: 0 of 8
+faults [0, 0]
+PASS
