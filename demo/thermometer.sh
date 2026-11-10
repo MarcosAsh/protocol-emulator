@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # A finger thermometer on Pico A: the chip reads the DS18B20 with one engine and shows how
-# far it is above the first reading on the NeoPixel stick with the other. Reset the chip
+# far it has moved from the first reading on the NeoPixel stick with the other. Reset the chip
 # first, because faults stick until reset.
 # Usage: PICO=id:<serial of Pico A> demo/thermometer.sh [SECONDS]
 set -e

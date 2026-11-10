@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A finger thermometer (MicroPython, Pico A). Engine 0 reads the DS18B20 on IO4 as the
-# 1-Wire master while engine 1 drives the NeoPixel stick on OUT3. The stick lights one more
-# pixel, blue through to red, for each half degree above the first reading.
+# 1-Wire master while engine 1 drives the NeoPixel stick on OUT3. The stick starts half lit
+# and gains or loses a pixel, blue through to red, for each eighth of a degree.
 # demo/thermometer.sh runs it.
 
 import bench
@@ -12,11 +12,13 @@ import protocol_emulator as pe
 
 PIXELS = 8
 OFF = (0, 0, 0)
-# sixteenths of a degree a pixel
-STEP = 8
+# pixels lit at the first reading
+MIDDLE = 4
+# sixteenths of a degree a pixel, which is one step of an 11-bit reading
+STEP = 2
 WRITE_SCRATCHPAD = 0x4E
-# 10 bits, a quarter degree in 187.5 ms, and the power-on 12
-FAST = 0x3F
+# 11 bits, an eighth of a degree in 375 ms, and the power-on 12
+FAST = 0x5F
 SLOW = 0x7F
 
 
@@ -27,14 +29,9 @@ def colour(n):
 
 
 def bar(raw, base):
-    """One pixel at the first reading and one more for each STEP above it. The next one up
-    is lit by how far into its step the reading is."""
-    above = max(0, raw - base)
-    lit = min(PIXELS, 1 + above // STEP)
-    frame = [colour(n) for n in range(lit)]
-    if lit < PIXELS:
-        frame.append(tuple(c * (above % STEP) // STEP for c in colour(lit)))
-    return frame + [OFF] * (PIXELS - len(frame))
+    """MIDDLE pixels at the first reading, one more or fewer for each STEP from it."""
+    lit = max(1, min(PIXELS, MIDDLE + (raw - base) // STEP))
+    return [colour(n) for n in range(lit)] + [OFF] * (PIXELS - lit)
 
 
 def fit(host, firmware, engine):
@@ -132,6 +129,6 @@ def main(seconds=60):
 
     # the stick needs this rate and the 1-Wire master takes any
     spi = pico_board.PicoSpi(baudrate=stick.SPI_HZ)
-    print("hold the DS18B20 between two fingers")
+    print("pinch the DS18B20, or breathe on it")
     ok = run(spi.transfer, time.sleep_ms, time.ticks_ms, seconds)
     print("PASS" if ok else "FAIL")
