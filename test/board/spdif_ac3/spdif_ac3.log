@@ -1,0 +1,3 @@
+stream at SPI(0, baudrate=1714285, polarity=0, phase=0, bits=8, sck=2, mosi=3, miso=4)
+faults 0x0
+PASS
