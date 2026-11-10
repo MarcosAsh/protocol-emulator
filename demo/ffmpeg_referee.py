@@ -9,6 +9,7 @@
 import struct
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import sigrok
@@ -26,20 +27,20 @@ def pack(words):
     return struct.pack("<%dH" % len(words), *words)
 
 
-def captured(samples, rate):
-    """Returns each subframe's 16-bit sample, read from the line's runs in half slots. A
-    preamble opens with three half slots low and takes eight; then a slot with an edge in
-    its middle is a 1, and the sample is slots 12 to 27, LSB first."""
+def subframes(samples, rate):
+    """Returns each subframe's first sample and 16-bit word, read from the line's runs in
+    half slots. A preamble opens with three half slots low and takes eight; then a slot with
+    an edge in its middle is a 1, and the word is slots 12 to 27, LSB first."""
     levels = samples.translate(bytes((b >> LINE) & 1 for b in range(256)))
     halves, at = [], 0
     while at < len(levels):
         end = levels.find(bytes([levels[at] ^ 1]), at)
         end = len(levels) if end < 0 else end
-        halves.append((levels[at], max(1, round((end - at) / (HALF * rate)))))
+        halves.append((levels[at], max(1, round((end - at) / (HALF * rate))), at))
         at = end
-    words, i = [], 0
+    found, i = [], 0
     while i < len(halves):
-        level, n = halves[i]
+        level, n, start = halves[i]
         i += 1
         if level or n != 3:
             continue
@@ -53,18 +54,44 @@ def captured(samples, rate):
             bits.append(one)
             i += 2 if one else 1
         if len(bits) == 28:
-            words.append(sum(bit << k for k, bit in enumerate(bits[8:24])))
-    return words
+            found.append((start, sum(bit << k for k, bit in enumerate(bits[8:24]))))
+    return found
+
+
+def captured(samples, rate):
+    return [word for _, word in subframes(samples, rate)]
+
+
+def lines(words):
+    """Returns the words one a line, as demo/traffic.py compares them."""
+    return ["%04x" % word for word in words]
 
 
 def ffmpeg(*args):
-    return subprocess.run(["ffmpeg", "-v", "error", "-y", *args], capture_output=True, text=True)
+    try:
+        return subprocess.run(["ffmpeg", "-v", "error", "-y", *args], capture_output=True,
+                              text=True)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(args, 1, "", "no ffmpeg on the PATH")
 
 
 def frame_md5(path):
     """Returns the MD5 of the frames FFmpeg's spdif demuxer finds in path, or its error."""
     done = ffmpeg("-f", "spdif", "-i", str(path), "-c", "copy", "-f", "md5", "-")
     return done.stdout.strip() or done.stderr.strip() or "no frame"
+
+
+def problems(words):
+    """Returns how the frame FFmpeg finds in words differs from the one in the burst sent."""
+    with tempfile.TemporaryDirectory() as scratch:
+        got, sent = Path(scratch) / "got.spdif", Path(scratch) / "sent.spdif"
+        got.write_bytes(pack(words))
+        sent.write_bytes(pack(demo_spdif_ac3.WORDS))
+        want, found = frame_md5(sent), frame_md5(got)
+    if not want.startswith("MD5="):
+        return ["FFmpeg reads no frame in the burst sent: %s" % want]
+    return [] if want == found else [
+        "FFmpeg's frame in the capture is %s, in the burst sent %s" % (found, want)]
 
 
 def main():

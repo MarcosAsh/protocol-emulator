@@ -125,6 +125,8 @@ DEMOS = [
     outside("dali", pico_b="micropython"),
     outside("dmx512", pico_b="micropython"),
     outside("spdif", pico_b="micropython"),
+    # ours, where FFmpeg reads an AC-3 frame back from the S/PDIF line
+    outside("spdif_ac3", pico_b="micropython"),
     outside("usb_power_delivery", pico_b="micropython"),
     # CAN board B recessive, so CAN board A's R follows OUT1 (DATA1) onto D5
     outside("wiegand", pico_b="can_node"),

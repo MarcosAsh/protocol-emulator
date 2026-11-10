@@ -21,6 +21,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import ffmpeg_referee
 import frames
 import kernel_vs_board
 import keys
@@ -33,6 +34,7 @@ import traffic
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
 import demo_ir_rc6  # noqa: E402
 import demo_lfast  # noqa: E402
+import demo_spdif_ac3  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 # copied from the ledger run; each is listed in its SHA256SUMS
@@ -1264,6 +1266,29 @@ def spdif_problems(capture, _decoded, log):
                          joined.splitlines() if joined else [], log)
 
 
+def spdif_ac3(line):
+    timing, _, edge_tooth = spdif(line)
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Removes the middle edges of slots 16 and 17 in the subframe with the burst's
+        first word, which turns its bits 4 and 5 (both 1) to 0 and keeps the parity."""
+        start = next(at for at, word in ffmpeg_referee.subframes(samples, rate)
+                     if word == demo_spdif_ac3.BURST[0])
+        at, half = edges(samples, line)[0], SPDIF_HALF * rate
+        first, last = (nearest(at, round(start + (2 * slot + 1) * half), half / 2)
+                       for slot in (16, 17))
+        return changed(samples, line, first, last), "the burst's first word's bits 4 and 5 cleared"
+
+    return timing, byte_tooth, edge_tooth
+
+
+def spdif_ac3_problems(capture, _decoded, log):
+    """Judges the words demo/traffic.py reads by run length, as it does."""
+    rate, _, samples = sigrok.read(capture)
+    return traffic.judge("spdif_ac3", traffic.lines("spdif_ac3", samples),
+                         traffic.own("spdif_ac3", rate, samples), log)
+
+
 PD = "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 %s"
 
 
@@ -1743,6 +1768,21 @@ DEMOS = {
                   judge=spdif_problems,
                   partial="without the frames before the line first idles high: sigrok's "
                           "spdif reads nothing past the low from reset"),
+    "spdif_ac3": Demo(outside("spdif_ac3"), "A", {"D4": "OUT0"}, ("SPDIF",),
+                      ("python/demo_spdif_ac3.py",), "nothing, Pico B idle on OUT0",
+                      spdif_ac3(4),
+                      ("our own demo on the held-out S/PDIF firmware, not a drawn or sealed "
+                       "protocol, sending one AC-3 frame in an IEC 61937 burst that FFmpeg made",
+                       "sigrok's spdif reads nothing past the line's low from reset and "
+                       "misreads the burst when started after it, so its decode is not judged",
+                       "demo/ffmpeg_referee.py reads the words by run length, and FFmpeg's "
+                       "spdif demuxer must find the frame sent in them",
+                       "FFmpeg holds the frame's bytes, not the line code",
+                       "the capture holds fewer frames than a 192-frame block, so the "
+                       "block's windows hold 192 times their mean",
+                       "a half slot is about four samples, so its windows can stay "
+                       "unresolved"),
+                      judge=spdif_ac3_problems),
     "usb_power_delivery": Demo(outside("usb_power_delivery"), "A",
                                {"D4": "OUT0, the BMC level, low when idle"},
                                ("USB_POWER_DELIVERY",), ("python/demo_usb_power_delivery.py",),
