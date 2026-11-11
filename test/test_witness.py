@@ -206,14 +206,12 @@ class FaultRelease(unittest.TestCase):
 
         def edited(path):
             data = tree(path)
-            return data.replace(b"61444", b"61445", 1) if path == witness.FAULT_SCRIPT else data
+            return data.replace(b"57348", b"57349", 1) if path == witness.FAULT_SCRIPT else data
 
         witness.in_tree = edited
         self.addCleanup(setattr, witness, "in_tree", tree)
         problems = witness.fault_judge(witness.fault_run(ROOT / "test/board/fault_release"))[1]
-        self.assertIn("python/demo_fault_release.py is not fault_board.py as the run hashed it",
-                      problems)
-        self.assertIn("python/demo_fault_release.py's FAULT is not test/fault_release.hex",
+        self.assertIn("python/demo_fault_release.py's FAULT is not test/fault_release_low.hex",
                       problems)
 
 

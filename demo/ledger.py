@@ -56,7 +56,7 @@ class Demo:
     exec: str | None = None
     # baud rate at which pico_listener reads OUT0 on Pico B
     listen: int | None = None
-    # capture analyser A on D4 (OUT0) for this long, at RATE (or the environment's), plus the decode
+    # capture analyser A for this long, at RATE (or the environment's), plus the decode
     capture_ms: int | None = None
     rate: str | None = None
     decode: str | None = None
@@ -135,6 +135,8 @@ DEMOS = [
     outside("ir_nec", pico_b="micropython"),
     outside("lin"),
     outside("swd_blind"),
+    # engine 0 holds SWDIO low until it underflows, where the pull-up shows the chip let go
+    outside("fault_release", pico_b="micropython"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
     # 10BASE-T needs the 40 MHz build. The chip hears its own frames on TD+, then frames
