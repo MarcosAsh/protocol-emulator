@@ -138,6 +138,7 @@ let%expect_test "every firmware against the chip's walk" =
     asm/ethernet                  38     42  accepted
     asm/ethernet_rx                9      5  accepted
     asm/fault_release              7      2  accepted
+    asm/fault_release_low          6      2  accepted
     asm/i2c_master_marked         84     66  accepted
     asm/i2c_start_watch           10      7  accepted
     asm/quiet_watch               23     18  refused at 8: in time

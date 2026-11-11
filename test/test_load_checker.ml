@@ -327,6 +327,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     asm/ethernet                  9162  accepted
     asm/ethernet_rx               8263  accepted
     asm/fault_release             8192  accepted
+    asm/fault_release_low         8192  accepted
     asm/i2c_master_marked         9793  accepted
     asm/i2c_start_watch           8308  accepted
     asm/quiet_watch                392  refused at 8, reason 0
