@@ -1,4 +1,0 @@
-rate 24000000 Hz, 4.000 s
-OUT0 edges 2 at [np.float64(1268595.375), np.float64(1569499.208)] us
-OUT2 edges 29136513 in all, 25924003 after OUT0's fall, last at 3999999.917 us
-PASS
