@@ -402,6 +402,13 @@ def spdif_ac3(_levels):
     return judge
 
 
+def spdif_codecs(_levels):
+    """The words of OWN's reader hold every burst sent, on its codec's period, and FFmpeg
+    names each codec and finds its frames in them."""
+    return lambda decoded, _log: ffmpeg_referee.codecs_problems(
+        [int(word, 16) for word in decoded])
+
+
 def usb_power_delivery(_levels):
     m = demo_usb_power_delivery
     expected = m.lines(m.HEADER, m.PDOS)
@@ -479,6 +486,7 @@ CHECKS = {
     "dmx512": (OUT0, dmx512),
     "spdif": (OUT0, spdif),
     "spdif_ac3": (OUT0, spdif_ac3),
+    "spdif_codecs": (OUT0, spdif_codecs),
     "usb_power_delivery": (OUT0, usb_power_delivery),
     "wiegand": ({4: "DATA0", 5: "DATA1, CAN board A's R"}, wiegand),
     "ir_nec": (OUT0, ir_nec),
@@ -522,9 +530,9 @@ def joined_decode(name, d, rate, samples):
     return out.splitlines()
 
 
-# sigrok's spdif misreads the AC-3 burst, so demo/ffmpeg_referee.py reads these by run
+# sigrok's spdif misreads an IEC 61937 burst, so demo/ffmpeg_referee.py reads these by run
 # length, one word a line. Saved as DEMO.words.
-OWN = {"spdif_ac3": ffmpeg_referee.captured}
+OWN = {"spdif_ac3": ffmpeg_referee.captured, "spdif_codecs": ffmpeg_referee.captured}
 
 
 def own(name, rate, samples):

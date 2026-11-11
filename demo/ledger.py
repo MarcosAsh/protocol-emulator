@@ -127,6 +127,8 @@ DEMOS = [
     outside("spdif", pico_b="micropython"),
     # ours, where FFmpeg reads an AC-3 frame back from the S/PDIF line
     outside("spdif_ac3", pico_b="micropython"),
+    # and names AC-3, MP3, AAC and DTS, each from its bursts on the same line
+    outside("spdif_codecs", pico_b="micropython"),
     outside("usb_power_delivery", pico_b="micropython"),
     # CAN board B recessive, so CAN board A's R follows OUT1 (DATA1) onto D5
     outside("wiegand", pico_b="can_node"),

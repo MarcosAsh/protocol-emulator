@@ -95,7 +95,7 @@ pio_spi)
     ;;
 *)
     # anything else is a protocol; its script's "# outside:" line gives the analyser, the
-    # capture length and the sigrok decoders
+    # capture length, any more files to copy and the sigrok decoders
     line=$(sed -n 's/^# outside: //p' "python/demo_$name.py" 2>/dev/null | head -1)
     if [ -z "$line" ]; then
         echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee|pio_ws2812|pio_uart_tx|pio_spi|<protocol>" >&2
@@ -104,6 +104,7 @@ pio_spi)
     analyser=$(echo "$line" | sed -n 's/.*analyser=\([^ ]*\).*/\1/p')
     # match ms= as a whole word, since a decoder option can end in it (wiegand's bitwidth_ms=)
     ms=$(echo "$line" | sed -n 's/.* ms=\([0-9]*\).*/\1/p')
+    files=$(echo "$line" | sed -n 's/.* files=\([^ ]*\).*/\1/p')
     decode=$(echo "$line" | sed -n 's/.*decode=//p')
     ;;
 esac

@@ -1282,11 +1282,14 @@ def spdif_ac3(line):
     return timing, byte_tooth, edge_tooth
 
 
-def spdif_ac3_problems(capture, _decoded, log):
-    """Judges the words demo/traffic.py reads by run length, as it does."""
-    rate, _, samples = sigrok.read(capture)
-    return traffic.judge("spdif_ac3", traffic.lines("spdif_ac3", samples),
-                         traffic.own("spdif_ac3", rate, samples), log)
+def spdif_words_problems(name):
+    def problems(capture, _decoded, log):
+        """Judges the words demo/traffic.py reads by run length, as it does."""
+        rate, _, samples = sigrok.read(capture)
+        return traffic.judge(name, traffic.lines(name, samples),
+                             traffic.own(name, rate, samples), log)
+
+    return problems
 
 
 PD = "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 %s"
@@ -1782,7 +1785,26 @@ DEMOS = {
                        "block's windows hold 192 times their mean",
                        "a half slot is about four samples, so its windows can stay "
                        "unresolved"),
-                      judge=spdif_ac3_problems),
+                      judge=spdif_words_problems("spdif_ac3")),
+    "spdif_codecs": Demo(outside("spdif_codecs"), "A", {"D4": "OUT0"}, ("SPDIF",),
+                         ("python/demo_spdif_codecs.py", "python/spdif_bursts.py"),
+                         "nothing, Pico B idle on OUT0", spdif_ac3(4),
+                         ("our own demo on the held-out S/PDIF firmware, not a drawn or "
+                          "sealed protocol, sending a chirp that FFmpeg encoded as AC-3, "
+                          "MP3, AAC and DTS and muxed to IEC 61937 bursts",
+                          "sigrok's spdif misreads the bursts, so its decode is not judged",
+                          "demo/ffmpeg_referee.py reads the words by run length, and "
+                          "FFmpeg's spdif demuxer must name each codec and find the frames "
+                          "sent in its bursts",
+                          "FFmpeg holds the frames' bytes, not the line code",
+                          "the Pico pushes each burst at its place and the firmware starts "
+                          "it on a frame, so a burst is held to its period within 8 words, "
+                          "not to IEC 61937's exact repetition",
+                          "the line runs at 44.1 kHz for every codec, which no receiver "
+                          "was asked to lock to",
+                          "a half slot is about four samples, so its windows can stay "
+                          "unresolved"),
+                         judge=spdif_words_problems("spdif_codecs")),
     "usb_power_delivery": Demo(outside("usb_power_delivery"), "A",
                                {"D4": "OUT0, the BMC level, low when idle"},
                                ("USB_POWER_DELIVERY",), ("python/demo_usb_power_delivery.py",),
