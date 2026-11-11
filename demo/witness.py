@@ -2205,6 +2205,75 @@ def fault_says(tally):
                 tally["status"]["after a start"], tally["pc"]["after a start"]))
 
 
+USB_FS_DEMO = "python/demo_usb_fs.py"
+# the SETUPs a host sends to enumerate, as the demo logs them
+USB_FS_REQUESTS = ("80 06 0100", "80 06 0200", "00 09 0001", "81 06 2200")
+
+
+def usb_fs_run(directory):
+    return {"log": text(directory, "usb_fs_device.log"),
+            "host": text(directory, "usb_fs_device.host")}
+
+
+def usb_fs_judge(run):
+    """The host's kernel read the descriptors python/demo_usb_fs.py serves, at full speed,
+    configured the device and bound a driver, and the chip's side logged the same
+    enumeration."""
+    scope = {"__name__": "demo_usb_fs"}
+    exec(in_tree(USB_FS_DEMO).decode(), scope)
+    host = dict(line.split(" ", 1) for line in run["host"].splitlines() if " " in line)
+    want = {"id": "1209:0002", "speed": "12", "product": scope["PRODUCT"],
+            "bConfigurationValue": "1", "driver": "usbhid",
+            "descriptors": bytes(scope["DEVICE"] + scope["CONFIGURATION"]).hex(),
+            "report_descriptor": bytes(scope["REPORT"]).hex()}
+    problems = ["the host's %s is %s, not %s" % (k, host.get(k), v)
+                for k, v in want.items() if host.get(k) != v]
+    lines = run["log"].splitlines()
+    address = re.search(r"^address (\d+)$", run["log"], re.M)
+    problems += ["the log has no %r" % line for line in ("bus reset", "configured")
+                 if line not in lines]
+    problems += ["the log has no request %s" % r for r in USB_FS_REQUESTS
+                 if not any(line.startswith("request " + r) for line in lines)]
+    if not address:
+        problems.append("the log has no address")
+    if lines[-1:] != ["PASS"]:
+        problems.append("the log does not end in PASS")
+    tally = {"host": {k: host.get(k) for k in ("id", "speed", "version", "product",
+                                               "bConfigurationValue", "driver")},
+             "descriptor_bytes": len(want["descriptors"]) // 2,
+             "report_descriptor_bytes": len(want["report_descriptor"]) // 2,
+             "address": int(address[1]) if address else None,
+             "requests": sum(line.startswith("request ") for line in lines)}
+    return tally, problems
+
+
+def usb_fs_teeth(directory):
+    run = usb_fs_run(directory)
+
+    def bitten(what, **changes):
+        wrong = usb_fs_judge(dict(run, **changes))[1]
+        return what, wrong[0] if wrong else None
+
+    at = run["host"].index("descriptors ") + len("descriptors ") + 16
+    digit = "1" if run["host"][at] != "1" else "2"
+    return [
+        bitten("one digit of the descriptors the host read changed",
+               host=run["host"][:at] + digit + run["host"][at + 1:]),
+        bitten("the host seeing a low speed device",
+               host=run["host"].replace("speed 12", "speed 1.5")),
+        bitten("the log without its configured line",
+               log=run["log"].replace("configured\n", "")),
+    ]
+
+
+def usb_fs_says(tally):
+    return ("the host read the %d descriptor bytes and %d report descriptor bytes served, at "
+            "%s Mbit/s, and bound %s, and the chip's side logged address %d over %d requests" % (
+                tally["descriptor_bytes"], tally["report_descriptor_bytes"],
+                tally["host"]["speed"], tally["host"]["driver"], tally["address"],
+                tally["requests"]))
+
+
 LOG_DEMOS = {
     "eth_rx": LogDemo(
         ("test/ethernet_rx.hex", "test/ethernet_rx.cert.hex"),
@@ -2226,6 +2295,18 @@ LOG_DEMOS = {
         lambda directory: kvb_judge(kvb_run(directory)), kvb_teeth, kvb_says,
         kept=("results.jsonl", "board.log", "summary.txt", "verdicts.tsv", "SHA256SUMS.inputs",
               "kvb.sh", "kvb-small.out", "kvb-big.out")),
+    "usb_fs_device": LogDemo(
+        ("python/usb_fs_device_firmware.py",),
+        ("python/demo_usb_fs_device.py", USB_FS_DEMO, "python/usb_fs_board.py"),
+        "the bench pc as the USB host on the Icepi's first USB-C port, through a hub",
+        lambda directory: usb_fs_judge(usb_fs_run(directory)), usb_fs_teeth, usb_fs_says,
+        ("the host's side is what one Linux kernel kept in sysfs, read by "
+         "demo/usb_fs_host.py",
+         "no capture of D+ and D-, as the analyser shares the pc's USB controller with the "
+         "device and stops early when it attaches",
+         "the bitstream is the FS=1 build, whose pull-up is on D+, so not the one the other "
+         "witnesses ran"),
+        kept=("usb_fs_device.log", "usb_fs_device.host")),
     "fault_release": LogDemo(
         ("test/fault_release_low.hex", "test/fault_release_low.cert.hex", "test/blink.hex",
          "test/blink.cert.hex"), (FAULT_SCRIPT,),
