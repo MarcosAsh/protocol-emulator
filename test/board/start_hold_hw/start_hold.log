@@ -1,0 +1,5 @@
+chip, engine 1: 64 STARTs, SDA fall to SCL fall, 48 MHz cycles
+    213 cycles   4437 ns    29  #################################
+    214 cycles   4458 ns    35  ########################################
+host, against t_HD;STA >= 4000 ns (192 cycles): PASS, 0 of 64 short, least 213 cycles (4437 ns)
+engine 0: the stick is green
