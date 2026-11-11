@@ -1194,6 +1194,50 @@ def dmx512(line):
     return timing, byte_tooth, edge_tooth
 
 
+HOLD = "THD:STA"
+# UM10204's Standard-mode least, in seconds and in the chip's 48 MHz cycles
+HOLD_LEAST, HOLD_CYCLES = 4000e-9, 192
+
+
+def start_hold(sda, scl, short):
+    """A master's START holds, from SDA's fall to SCL's. A short master's must all be under
+    Standard-mode's least, which is the fault the demo is there to catch."""
+    def holds(samples):
+        s_at, s_to = edges(samples, sda)
+        scl_level = np.frombuffer(samples, np.uint8) >> scl & 1
+        falls = [a for a, t in zip(*edges(samples, scl)) if not t]
+        starts = [a for a, t in zip(s_at, s_to) if not t and scl_level[a - 1] and scl_level[a]]
+        return [(s, f) for s in starts for f in [after(falls, s)] if f is not None]
+
+    def timing(samples, rate, _capture, _decode, log):
+        spans = [span(f - s, rate) for s, f in holds(samples)]
+        stamped = sum(([int(cycles)] * int(n) for cycles, n in
+                       re.findall(r"^ +(\d+) cycles +\d+ ns +(\d+)", log, re.M)), [])
+        sheet = UM10204 % "Standard"
+        chip = "%s as the chip stamped it" % HOLD
+        if short:
+            return [bound(HOLD, sheet + ", whose least this master is under", spans,
+                          at_most=HOLD_LEAST, source="own"),
+                    count(chip, sheet + ", whose least is 192 cycles", stamped,
+                          at_most=HOLD_CYCLES - 1, unit="cycles", source="own")]
+        return [bound(HOLD, sheet, spans, at_least=HOLD_LEAST),
+                count(chip, sheet, stamped, at_least=HOLD_CYCLES, unit="cycles", source="own")]
+
+    def byte_tooth(samples, _rate, _capture, _decode):
+        return changed(samples, sda, 0, len(samples), 1), "SDA held high throughout"
+
+    def edge_tooth(samples, rate):
+        """Moves the first START's SCL fall across the least."""
+        start, fall = holds(samples)[0]
+        if short:
+            return (moved(samples, scl, fall, start + round(4.2e-6 * rate)),
+                    "the first START's SCL fall moved to 4.2 us", HOLD)
+        return (moved(samples, scl, fall, start + round(3e-6 * rate)),
+                "the first START's SCL fall moved to 3 us", HOLD)
+
+    return timing, byte_tooth, edge_tooth
+
+
 SPDIF = "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, %s"
 SPDIF_HALF = (8 + 32991 / 65536) / 48e6
 SPDIF_CELL = ("8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it "
@@ -1652,6 +1696,20 @@ HELD_OUT = ("sealed on the held-out list and written blind from its spec "
             "(docs/flexibility.md)",)
 
 
+def start_hold_demo(how, short, master, limits=()):
+    return Demo("-P i2c:sda=D6:scl=D7 -A i2c=start:repeat-start", "B",
+                {"D6": "SDA, IO3, 2k2 pull-up", "D7": "SCL, IO2, 2k2 pull-up"},
+                ("START_HOLD", "SK6812"), ("python/demo_start_hold.py", "python/demo_neopixel.py"),
+                "Pico B as the I2C master of a 24LC256, through %s" % master,
+                start_hold(6, 7, short),
+                limits + ("the chip drives neither line and only stamps them, and the stick's "
+                          "colour is not captured",
+                          "Pico B runs start_hold_%s.uf2, built from demo/start_hold_master, "
+                          "which the run names but does not hash" % how,
+                          "the holds are from one fall to another, so no rise time comes off"),
+                stem="start_hold")
+
+
 def sweep_i2c(mode, firmware):
     return Demo(I2C, "B", I2C_PINS, (firmware,), ("python/demo_rates.py", "python/demo_eeprom.py"),
                 "a 24LC256 on the I2C bus", i2c(6, 7, mode), I2C_LIMITS,
@@ -1676,6 +1734,11 @@ DEMOS = {
     "flash": Demo("-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv "
                   "-A spiflash", "B", SPI_PINS, ("SPI_CS_MODE0",), ("python/demo_flash.py",),
                   "a W25Q64JV flash, erased, programmed and read back", spi(0, 1, 2, 3)),
+    "start_hold_pio": start_hold_demo(
+        "pio", True, "pico-examples' pio_i2c as shipped (raspberrypi/pico-examples#796)",
+        ("the run is expected to fail, as Pico A judges the chip's stamps against 4.0 us "
+         "and says FAIL, and the windows here are proved when every hold is under it",)),
+    "start_hold_hw": start_hold_demo("hw", False, "the RP2040's I2C block"),
     "sweep_i2c_100k": sweep_i2c("standard", "I2C_STANDARD"),
     "sweep_i2c_400k": sweep_i2c("fast", "I2C_FAST"),
     "sweep_spi_mode0": sweep_spi(0),
