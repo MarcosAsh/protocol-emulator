@@ -27,6 +27,7 @@
       "parameter": "SCLK periods FSYNC is high",
       "limit": ">= 1 periods",
       "sheet": "Cirrus Logic AN301 Rev. 1, p.3 and Figure 4",
+      "source": "spec",
       "spans": 43,
       "measured": "1 to 1 periods",
       "verdict": "proved"
@@ -35,6 +36,7 @@
       "parameter": "SCLK rises a frame",
       "limit": ">= 256 rises",
       "sheet": "Cirrus Logic AN301 Rev. 1, Figure 3, 8 channels of 32 bits",
+      "source": "spec",
       "spans": 42,
       "measured": "256 to 256 rises",
       "verdict": "proved"
@@ -43,6 +45,7 @@
       "parameter": "SCLK rises a frame",
       "limit": "<= 256 rises",
       "sheet": "Cirrus Logic AN301 Rev. 1, Figure 3, 8 channels of 32 bits",
+      "source": "spec",
       "spans": 42,
       "measured": "256 to 256 rises",
       "verdict": "proved"
@@ -51,6 +54,7 @@
       "parameter": "SCLK period",
       "limit": ">= 62 ns",
       "sheet": "6 cycles at 48 MHz, the firmware's SCLK, to half a period (AN301 gives no least or most)",
+      "source": "own",
       "spans": 10897,
       "measured": "42 ns to 208 ns",
       "verdict": "unresolved"
@@ -59,11 +63,19 @@
       "parameter": "SCLK period",
       "limit": "<= 188 ns",
       "sheet": "6 cycles at 48 MHz, the firmware's SCLK, to half a period (AN301 gives no least or most)",
+      "source": "own",
       "spans": 10897,
       "measured": "42 ns to 208 ns",
       "verdict": "unresolved"
     }
   ],
+  "proved": {
+    "spec": 3,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "SDATA inverted over channel 1's MSB",
     "the second FSYNC six bits early"

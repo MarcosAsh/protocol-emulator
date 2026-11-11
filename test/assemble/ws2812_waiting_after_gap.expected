@@ -32,3 +32,4 @@ a047
 0003
 32 words, 4 deadline waits, worst slack 0
 kernel: accepted, so no deadline is missed by the step lemma
+chip: its load check refuses this at pc 11 (in time), so the chip won't start it

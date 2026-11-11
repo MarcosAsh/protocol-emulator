@@ -21,7 +21,7 @@ the board, and the refusal names the limit.
    [empty form](https://github.com/MarcosAsh/protocol-emulator/issues/new?template=lab.yml).
 
 This is the job from [issue #2](https://github.com/MarcosAsh/protocol-emulator/issues/2), two
-UART bytes at 1.92 Mbaud:
+UART bytes at 1.846 Mbaud, 26 cycles a bit at 48 MHz:
 
 ```json
 {

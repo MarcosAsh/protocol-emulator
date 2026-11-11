@@ -12,7 +12,7 @@ serial=${PICO_B_SERIAL:-e66548545740ad29}
 uf2s=$HOME/.local/share/protocol-emulator/uf2
 case $1 in
 micropython) uf2=${MICROPYTHON_UF2:-$uf2s/RPI_PICO-v1.29.0.uf2} ;;
-can_node) uf2=${CAN_NODE_UF2:-$HOME/can_node/can_node.uf2} ;;
+can_node) uf2=${CAN_NODE_UF2:-$(dirname "$0")/../build/can_node/can_node.uf2} ;;
 start_hold_pio | start_hold_hw) uf2=${START_HOLD_DIR:-$uf2s}/$1.uf2 ;;
 *)
     echo "usage: [PICO_B_SERIAL=<serial>] $0 micropython|can_node|start_hold_pio|start_hold_hw" >&2

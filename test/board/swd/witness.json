@@ -26,6 +26,7 @@
       "parameter": "SWCLK high",
       "limit": ">= 21 ns",
       "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
+      "source": "spec",
       "spans": 1345,
       "measured": "458 ns to 3703787 ns",
       "verdict": "proved"
@@ -34,6 +35,7 @@
       "parameter": "SWCLK low",
       "limit": ">= 21 ns",
       "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
+      "source": "spec",
       "spans": 1344,
       "measured": "417 ns to 542 ns",
       "verdict": "proved"
@@ -42,11 +44,19 @@
       "parameter": "line reset",
       "limit": ">= 50 cycles",
       "sheet": "ADIv5.2, Arm IHI 0031, B4.3.3, SWDIO high",
+      "source": "spec",
       "spans": 4,
       "measured": "64 to 68 cycles",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 3,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "SWDIO inverted over a bit of AP 0's IDR",
     "the first line reset's rise 20 cycles late"

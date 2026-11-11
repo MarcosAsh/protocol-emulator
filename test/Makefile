@@ -8,14 +8,7 @@ TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(CURDIR)/../src
 PROJECT_SOURCES = project.v protocol_emulator.v
 
-ifeq ($(FPGA),yes)
-
-# The FPGA kit's iCE40 netlist from yosys (`make fpga_netlist.v`):
-SIM_BUILD				= sim_build/fpga
-VERILOG_SOURCES += $(shell yosys-config --datdir)/ice40/cells_sim.v
-VERILOG_SOURCES += $(CURDIR)/fpga_netlist.v
-
-else ifeq ($(ICEPI),yes)
+ifeq ($(ICEPI),yes)
 
 # The Icepi Zero's top synthesised for its ECP5 (`make icepi_netlist.v`) on yosys' cell
 # models. Yosys' block RAM model is empty, so models/ has our own, plus a PLL that passes
@@ -83,15 +76,10 @@ endif
 
 # List test modules to run, separated by commas and without the .py suffix:
 COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
-# the kit build has one engine, the chip has two
-ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame,test_ethernet_rx
-else
-export REPLAY_ENGINES = 1
-endif
 GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
 # the bench demo rehearsals simulate milliseconds, so they only run on the RTL
-ifeq ($(FPGA)$(GATES)$(ICEPI),)
+ifeq ($(GATES)$(ICEPI),)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board,test_pyocd,test_usb_fs
 endif
 
@@ -118,31 +106,12 @@ $(CURDIR)/sim_build/cells/sg13cmos5l_stdcell.v: $(CELLS_SRC)
 	  $< > $@
 	test "$$(grep -c 'force int_fwire_IQ' $@)" = "$$(grep -c 'ihp_dff[a-z0-9_]* (int_fwire_IQ,' $<)"
 
-# The kit has no SRAM macro, so program memory is the flop variant, which yosys maps to
-# block RAM.
-fpga_netlist.v: $(SRC_DIR)/project.v $(wildcard $(SRC_DIR)/*.ml) $(SRC_DIR)/../bin/generate.ml
-	cd .. && dune exec -- bin/generate.exe top > test/fpga_top.v
-	yosys -q -p "read_verilog $(SRC_DIR)/project.v fpga_top.v; synth_ice40 -top tt_um_marcosash_protocol_emulator; write_verilog -noattr fpga_netlist.v"
-
-# Place and route the kit's own top and pin file. The design must fit the iCE40 UP5K and
-# meet the clock the kit demos run at.
-FPGA_MHZ ?= 16
-fpga_fit: fpga_netlist.v
-	sed "s/__tt_um_placeholder/tt_um_marcosash_protocol_emulator/" ../tt/fpga/tt_fpga_top.v > fpga_kit_top.v
-	yosys -q -p "read_verilog -sv fpga_kit_top.v $(SRC_DIR)/project.v fpga_top.v; synth_ice40 -top tt_fpga_top -json fpga_kit.json"
-	nextpnr-ice40 --up5k --package sg48 --json fpga_kit.json --pcf ../tt/fpga/tt_fpga_top.pcf --pcf-allow-unconstrained --freq $(FPGA_MHZ) --seed 1 -q --log fpga_kit.log --asc fpga_kit.asc
-	grep -h "ICESTORM_LC:\|Max frequency" fpga_kit.log | tail -3
-
-# The bitstream for Tiny Tapeout's classic FPGA breakout, shipped with the release.
-fpga_kit.bin: fpga_fit
-	icepack fpga_kit.asc $@
-
 # The Icepi Zero's netlist, synthesised by its own flow in ../icepi.
 icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/icepi_top.v
 	$(MAKE) -C ../icepi build/usb1.json
 	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
 
-# The outside-chip demos from BRINGUP.md on the RTL, against picosoc's SPI flash model,
+# The outside-chip demos (docs/hardware.md) on the RTL, against picosoc's SPI flash model,
 # cocotbext-i2c's memory and cocotbext-spi's loopback slave, checked with sigrok decoders.
 # Needs cocotbext-i2c 0.1.2, cocotbext-spi 0.5.0, cocotb-bus 0.3.0 and sigrok-cli.
 outside:

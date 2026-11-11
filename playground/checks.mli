@@ -14,7 +14,9 @@ module Report : sig
 end
 
 (** Same as [generate.exe assemble -listing] and [-rows] with [config] and the assumption
-    flags. A refusal names whichever of the assembler, analyser or kernel refused. *)
+    flags. A refusal names whichever of the assembler, analyser or kernel refused. What
+    the kernel accepts still goes through the chip's load check, whose refusal the verdict
+    names too. *)
 val check
   :  ?period:int
   -> ?period_floor:int

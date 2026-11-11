@@ -26,6 +26,7 @@
       "parameter": "SWCLK high",
       "limit": ">= 250 ns",
       "sheet": "24 cycles at 48 MHz, the firmware's half period, to half of it (IHI 0031C gives no times, p.4-94)",
+      "source": "own",
       "spans": 320,
       "measured": "458 ns to 542 ns",
       "verdict": "proved"
@@ -34,6 +35,7 @@
       "parameter": "SWCLK low",
       "limit": ">= 250 ns",
       "sheet": "24 cycles at 48 MHz, the firmware's half period, to half of it (IHI 0031C gives no times, p.4-94)",
+      "source": "own",
       "spans": 319,
       "measured": "458 ns to 1469480 ns",
       "verdict": "proved"
@@ -42,6 +44,7 @@
       "parameter": "line reset",
       "limit": ">= 50 cycles",
       "sheet": "SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104",
+      "source": "spec",
       "spans": 1,
       "measured": "56 to 56 cycles",
       "verdict": "proved"
@@ -50,11 +53,19 @@
       "parameter": "idle cycles",
       "limit": ">= 2 cycles",
       "sheet": "SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104",
+      "source": "spec",
       "spans": 1,
       "measured": "8 to 8 cycles",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 2,
+    "own": 2,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "SWDIO inverted over a bit of the DPIDR",
     "the line reset's rise 10 cycles late"

@@ -1,0 +1,12 @@
+demo: usb_fs_device
+result: PASS
+pico_a_says: PASS
+expected: PASS
+time: 2026-11-11T13:56:57
+commit: d93077a921d18ff4389a9c9ce0f50deb79dbc32f
+bitstream: /home/marcos/runs/dune-land-8x4-bits/icepi/build/v1.3-fs-probe.bit
+bitstream_sha256: 25d1deeeb29b3c58abdfd1686fbf53da0c311e0c505e36ef2347fad66d09302a
+netlist_sha256: da296b78be176d677685dd9e2d770b348ecd9eaf1597510cde7e6739356c0cba
+pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 micropython
+rate: 24M

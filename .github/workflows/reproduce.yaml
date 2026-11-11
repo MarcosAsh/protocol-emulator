@@ -1,0 +1,71 @@
+name: reproduce
+
+# Follows docs/getting-started.md on a bare Ubuntu 24.04 with nothing cached, so a step the
+# page leaves out fails here.
+on:
+  push:
+    branches: [reproduce]
+  workflow_dispatch:
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 340
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+    steps:
+      - name: Install the system packages
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git curl ca-certificates build-essential unzip bubblewrap rsync m4 pkg-config \
+            libgmp-dev libffi-dev zlib1g-dev autoconf cmake python3
+
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      # the container's root does not own the checkout, and opam lists it with git
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$PWD"
+
+      - name: Install opam
+        run: |
+          curl -fsSL -o /usr/local/bin/opam \
+            https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-x86_64-linux
+          chmod +x /usr/local/bin/opam
+          opam init -y --bare --disable-sandboxing
+
+      # the switch as CI makes it, with the oxcaml repository at the commit ocaml.yaml pins
+      - name: Create the OxCaml switch
+        run: |
+          opam switch create . ocaml-variants.5.2.0+ox -y --no-install --repos \
+            ox=git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05,default
+
+      # from here on, the Build block of docs/getting-started.md
+      - name: Install dependencies
+        run: opam exec -- opam install . --deps-only --with-test --locked -y
+
+      - name: Build the SAT tools
+        run: make -C formal sat_tools
+
+      - name: Run the tests
+        run: PATH=$PWD/formal/sat_tools/bin:$PATH opam exec -- dune build @runtest
+
+      - name: Generate the Verilog
+        run: |
+          opam exec -- dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
+          git diff --exit-code src/protocol_emulator.v
+
+      # the transcript at the top of the page
+      - name: Assemble uart_tx and its late copy
+        run: |
+          opam exec -- dune exec -- bin/generate.exe assemble -listing test/uart_tx.asm 2>&1 | tee ok.txt
+          grep -q "worst slack 12" ok.txt
+          sed 's/out pins, 1/out pins, 1 [13]/' test/uart_tx.asm > late.asm
+          if opam exec -- dune exec -- bin/generate.exe assemble late.asm 2>&1 | tee late.txt; then
+            echo "::error::the late copy assembled"
+            exit 1
+          fi
+          grep -q "3 of 3 deadline waits may be missed" late.txt

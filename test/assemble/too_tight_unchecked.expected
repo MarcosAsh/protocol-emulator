@@ -13,3 +13,4 @@ c0ca
 a001
 2040
 0002
+chip: its load check refuses this at pc 8 (in time), so the chip won't start it

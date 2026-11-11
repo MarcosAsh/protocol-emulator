@@ -1,6 +1,6 @@
-(** The library firmware that the outside-chip demos in BRINGUP.md load, with the
-    parameters the bench clock needs, the assumption the analyser and kernel check each
-    under, and the bench's pins and clock. *)
+(** The library firmware that the outside-chip demos load, with the parameters the bench
+    clock needs, the assumption the analyser and kernel check each under, and the bench's
+    pins and clock. *)
 
 open! Core
 open Protocol_emulator

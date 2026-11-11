@@ -6,6 +6,7 @@
 # moved) and expects the check to fail.
 # Usage: python3 demo/witness.py check test/board/*/
 #        python3 demo/witness.py write LEDGER_RUN test/board/RUN [--bitstream FROM]
+#        python3 demo/witness.py refresh test/board/*/
 
 import argparse
 import ast
@@ -20,6 +21,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import ffmpeg_referee
 import frames
 import kernel_vs_board
 import keys
@@ -32,6 +34,7 @@ import traffic
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
 import demo_ir_rc6  # noqa: E402
 import demo_lfast  # noqa: E402
+import demo_spdif_ac3  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 # copied from the ledger run; each is listed in its SHA256SUMS
@@ -43,6 +46,9 @@ PPM = 100e-6
 # 24LC256, Table 1-2 param 4: SDA and SCL take up to 300 ns to rise, which the analyser's
 # threshold doesn't see, so subtract it from every I2C interval's minimum
 TR = 300e-9
+# a window's limit is the cited spec's, our firmware's or decoder's where the spec gives none,
+# sigrok's decoder's, or derived from what the capture holds
+SOURCES = ("spec", "own", "decoder", "derived")
 
 
 def sha256(data):
@@ -63,10 +69,11 @@ def show(seconds, limit):
     return "%.2f us" % (seconds * 1e6)
 
 
-def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0):
+def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0, source="spec"):
     """Checks a datasheet window against spans, each (lo, hi). Proved if every span is
     inside the window (with `slack` less at the bottom), failed if one is wholly outside,
     otherwise unresolved."""
+    assert source in SOURCES
     limit = at_least if at_most is None else at_most
     if not spans:
         verdict = "absent"
@@ -80,6 +87,7 @@ def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0):
         "parameter": parameter,
         "limit": "%s %s" % (">=" if at_most is None else "<=", show(limit, limit)),
         "sheet": sheet,
+        "source": source,
         "spans": len(spans),
         "measured": "%s to %s" % (show(min(s[0] for s in spans), limit),
                                   show(max(s[1] for s in spans), limit)) if spans else "-",
@@ -87,9 +95,10 @@ def bound(parameter, sheet, spans, at_least=None, at_most=None, slack=0.0):
     }
 
 
-def count(parameter, sheet, counts, at_least=None, at_most=None, unit="bits"):
+def count(parameter, sheet, counts, at_least=None, at_most=None, unit="bits", source="spec"):
     """Like bound(), but over whole counts, which the analyser sees exactly."""
-    record = bound(parameter, sheet, [(c, c) for c in counts], at_least, at_most)
+    record = bound(parameter, sheet, [(c, c) for c in counts], at_least, at_most,
+                   source=source)
     limit = at_least if at_most is None else at_most
     record["limit"] = "%s %d %s" % (record["limit"][:2], limit, unit)
     if counts:
@@ -526,6 +535,7 @@ def uart(line, baud, clock_hz, logged=True):
             "parameter": "edge after its start bit",
             "limit": "where the chip's edge log puts it",
             "sheet": "Pico A's log, the chip's cycles at %g MHz" % (clock_hz / 1e6),
+            "source": "own",
             "spans": len(misses),
             "measured": "%d frames of %d logged, misses %s" % (
                 len(found), len(logged), show(max(misses, default=0.0), 1e-6)),
@@ -655,10 +665,10 @@ def nec(line):
         records = []
         for p, k in units.items():
             spans = [span(w, rate) for w in n[p]]
-            records.append(bound(p, NEC, spans, at_least=0.95 * k * NEC_UNIT))
-            records.append(bound(p, NEC, spans, at_most=1.05 * k * NEC_UNIT))
+            records.append(bound(p, NEC, spans, at_least=0.95 * k * NEC_UNIT, source="own"))
+            records.append(bound(p, NEC, spans, at_most=1.05 * k * NEC_UNIT, source="own"))
         return records + [bound("period", NEC, [span(w, rate) for w in n["period"]],
-                                at_least=0.95 * 192 * NEC_UNIT)]
+                                at_least=0.95 * 192 * NEC_UNIT, source="own")]
 
     def byte_tooth(samples, rate, _capture, _decode):
         """Swaps the first command's bits 3 and 4 (a one then a zero) within the same six
@@ -905,9 +915,9 @@ def lfast(line, words):
             for _, k, w in frame:
                 n.setdefault(k, []).append(w)
         return ([bound("%d-bit level" % k, LFAST, [span(w, rate) for w in n.get(k, [])],
-                       at_least=(k - 0.5) * LFAST_BIT) for k in sorted(n)]
+                       at_least=(k - 0.5) * LFAST_BIT, source="own") for k in sorted(n)]
                 + [bound("%d-bit level" % k, LFAST, [span(w, rate) for w in n.get(k, [])],
-                         at_most=(k + 0.5) * LFAST_BIT) for k in sorted(n)]
+                         at_most=(k + 0.5) * LFAST_BIT, source="own") for k in sorted(n)]
                 + [bound("a level", "NXP AN5134 Rev. 0, p.3: rates up to 320 Mb/s",
                          [span(w, rate) for v in n.values() for w in v], at_least=3.125e-9)])
 
@@ -966,10 +976,10 @@ def ir_rc6(line, frames_sent):
         for p in sorted(n, key=lambda p: (p[:4], int(p.split()[1][:-1]))):
             k = int(p.split()[1][:-1])
             spans = [span(w, rate) for w in n[p]]
-            records.append(bound(p, RC6, spans, at_least=0.95 * k * RC6_UNIT))
-            records.append(bound(p, RC6, spans, at_most=1.05 * k * RC6_UNIT))
+            records.append(bound(p, RC6, spans, at_least=0.95 * k * RC6_UNIT, source="own"))
+            records.append(bound(p, RC6, spans, at_most=1.05 * k * RC6_UNIT, source="own"))
         return records + [bound("signal free time", RC6, [span(w, rate) for w in free],
-                                at_least=0.95 * 6 * RC6_UNIT)]
+                                at_least=0.95 * 6 * RC6_UNIT, source="own")]
 
     def byte_tooth(samples, rate, _capture, _decode):
         """Swaps the halves of the first frame's first address bit, 20 units in (after the
@@ -1022,10 +1032,10 @@ def tdm_audio(sclk, fsync, sdata):
                       at_most=256, unit="rises"),
                 bound("SCLK period", "6 cycles at 48 MHz, the firmware's SCLK, to half a period "
                       "(AN301 gives no least or most)", [span(p, rate) for p in periods],
-                      at_least=0.5 * TDM_BIT),
+                      at_least=0.5 * TDM_BIT, source="own"),
                 bound("SCLK period", "6 cycles at 48 MHz, the firmware's SCLK, to half a period "
                       "(AN301 gives no least or most)", [span(p, rate) for p in periods],
-                      at_most=1.5 * TDM_BIT)]
+                      at_most=1.5 * TDM_BIT, source="own")]
 
     def byte_tooth(samples, _rate, _capture, _decode):
         """Inverts SDATA over channel 1's MSB, from FSYNC's fall to the next SCLK fall."""
@@ -1100,8 +1110,8 @@ def dali(line):
         records = []
         for k in sorted(n):
             name = "1 half bit" if k == 1 else "%d half bits" % k
-            records += [bound(name, DALI_RATE, n[k], at_least=0.95 * k * DALI_HALF),
-                        bound(name, DALI_RATE, n[k], at_most=1.05 * k * DALI_HALF)]
+            records += [bound(name, DALI_RATE, n[k], at_least=0.95 * k * DALI_HALF, source="own"),
+                        bound(name, DALI_RATE, n[k], at_most=1.05 * k * DALI_HALF, source="own")]
         return records + [bound("idle after a frame", DALI % 178, idle, at_least=2.45e-3)]
 
     def byte_tooth(samples, rate, _capture, _decode):
@@ -1148,8 +1158,10 @@ def dmx512(line):
                     "(Wikipedia's DMX512 page gives 250 kbit/s no tolerance)")
         return [bound("bit at 250 kbit/s, a low per bit", exact, per_bit, at_least=4e-6),
                 bound("bit at 250 kbit/s, a low per bit", exact, per_bit, at_most=4e-6),
-                bound("bit, a low per bit", fraction, per_bit, at_least=(1 - 1 / 18) * DMX_BIT),
-                bound("bit, a low per bit", fraction, per_bit, at_most=(1 + 1 / 18) * DMX_BIT),
+                bound("bit, a low per bit", fraction, per_bit, at_least=(1 - 1 / 18) * DMX_BIT,
+                      source="own"),
+                bound("bit, a low per bit", fraction, per_bit, at_most=(1 + 1 / 18) * DMX_BIT,
+                      source="own"),
                 bound("BREAK transmitted", DMX % "table, lines 303-306", brk, at_least=92e-6),
                 bound("BREAK receiver recognized", DMX % "table, lines 303, 308-309", brk,
                       at_least=88e-6),
@@ -1178,6 +1190,50 @@ def dmx512(line):
         _, first, n = found[at[0]]
         return (moved(samples, line, first + n, first + n - round(10e-6 * rate)),
                 "the first break 10 us short", "BREAK transmitted")
+
+    return timing, byte_tooth, edge_tooth
+
+
+HOLD = "THD:STA"
+# UM10204's Standard-mode least, in seconds and in the chip's 48 MHz cycles
+HOLD_LEAST, HOLD_CYCLES = 4000e-9, 192
+
+
+def start_hold(sda, scl, short):
+    """A master's START holds, from SDA's fall to SCL's. A short master's must all be under
+    Standard-mode's least, which is the fault the demo is there to catch."""
+    def holds(samples):
+        s_at, s_to = edges(samples, sda)
+        scl_level = np.frombuffer(samples, np.uint8) >> scl & 1
+        falls = [a for a, t in zip(*edges(samples, scl)) if not t]
+        starts = [a for a, t in zip(s_at, s_to) if not t and scl_level[a - 1] and scl_level[a]]
+        return [(s, f) for s in starts for f in [after(falls, s)] if f is not None]
+
+    def timing(samples, rate, _capture, _decode, log):
+        spans = [span(f - s, rate) for s, f in holds(samples)]
+        stamped = sum(([int(cycles)] * int(n) for cycles, n in
+                       re.findall(r"^ +(\d+) cycles +\d+ ns +(\d+)", log, re.M)), [])
+        sheet = UM10204 % "Standard"
+        chip = "%s as the chip stamped it" % HOLD
+        if short:
+            return [bound(HOLD, sheet + ", whose least this master is under", spans,
+                          at_most=HOLD_LEAST, source="own"),
+                    count(chip, sheet + ", whose least is 192 cycles", stamped,
+                          at_most=HOLD_CYCLES - 1, unit="cycles", source="own")]
+        return [bound(HOLD, sheet, spans, at_least=HOLD_LEAST),
+                count(chip, sheet, stamped, at_least=HOLD_CYCLES, unit="cycles", source="own")]
+
+    def byte_tooth(samples, _rate, _capture, _decode):
+        return changed(samples, sda, 0, len(samples), 1), "SDA held high throughout"
+
+    def edge_tooth(samples, rate):
+        """Moves the first START's SCL fall across the least."""
+        start, fall = holds(samples)[0]
+        if short:
+            return (moved(samples, scl, fall, start + round(4.2e-6 * rate)),
+                    "the first START's SCL fall moved to 4.2 us", HOLD)
+        return (moved(samples, scl, fall, start + round(3e-6 * rate)),
+                "the first START's SCL fall moved to 3 us", HOLD)
 
     return timing, byte_tooth, edge_tooth
 
@@ -1211,14 +1267,16 @@ def spdif(line):
         records = []
         for k in sorted(n):
             name = "%d half slot%s" % (k, "" if k == 1 else "s")
-            records += [bound(name, SPDIF_CELL, n[k], at_least=(k - 0.5) * SPDIF_HALF),
-                        bound(name, SPDIF_CELL, n[k], at_most=(k + 0.5) * SPDIF_HALF)]
+            records += [bound(name, SPDIF_CELL, n[k], at_least=(k - 0.5) * SPDIF_HALF,
+                              source="own"),
+                        bound(name, SPDIF_CELL, n[k], at_most=(k + 0.5) * SPDIF_HALF,
+                              source="own")]
         byte_3 = SPDIF % "S/PDIF control word components, byte 3, spec.txt l.222-224"
         return records + [
             bound("a block of 192 frames, 44.1 kHz and 1100 ppm", byte_3, block,
-                  at_least=192 / 44100 * (1 - 1100e-6)),
+                  at_least=192 / 44100 * (1 - 1100e-6), source="derived"),
             bound("a block of 192 frames, 44.1 kHz less 1100 ppm", byte_3, block,
-                  at_most=192 / 44100 * (1 + 1100e-6)),
+                  at_most=192 / 44100 * (1 + 1100e-6), source="derived"),
             bound("a frame, Mode 0's 192 kHz at most", SPDIF % "text, spec.txt l.180", each,
                   at_least=1 / 192e3)]
 
@@ -1250,6 +1308,32 @@ def spdif_problems(capture, _decoded, log):
     joined = traffic.joined("spdif", rate, samples)
     return traffic.judge("spdif", traffic.lines("spdif", samples),
                          joined.splitlines() if joined else [], log)
+
+
+def spdif_ac3(line):
+    timing, _, edge_tooth = spdif(line)
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """Removes the middle edges of slots 16 and 17 in the subframe with the burst's
+        first word, which turns its bits 4 and 5 (both 1) to 0 and keeps the parity."""
+        start = next(at for at, word in ffmpeg_referee.subframes(samples, rate)
+                     if word == demo_spdif_ac3.BURST[0])
+        at, half = edges(samples, line)[0], SPDIF_HALF * rate
+        first, last = (nearest(at, round(start + (2 * slot + 1) * half), half / 2)
+                       for slot in (16, 17))
+        return changed(samples, line, first, last), "the burst's first word's bits 4 and 5 cleared"
+
+    return timing, byte_tooth, edge_tooth
+
+
+def spdif_words_problems(name):
+    def problems(capture, _decoded, log):
+        """Judges the words demo/traffic.py reads by run length, as it does."""
+        rate, _, samples = sigrok.read(capture)
+        return traffic.judge(name, traffic.lines(name, samples),
+                             traffic.own(name, rate, samples), log)
+
+    return problems
 
 
 PD = "USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 %s"
@@ -1350,13 +1434,15 @@ def wiegand(d0, d1):
         interval = ("10 pulses, the firmware's interval, to half a pulse (the page gives no "
                     "timing)")
         return [bound("pulse", width, [span(n, rate) for _, n, _ in found],
-                      at_least=0.5 * WIEGAND_PULSE),
+                      at_least=0.5 * WIEGAND_PULSE, source="own"),
                 bound("pulse", width, [span(n, rate) for _, n, _ in found],
-                      at_most=1.5 * WIEGAND_PULSE),
-                bound("pulse to pulse", interval, apart, at_least=9.5 * WIEGAND_PULSE),
-                bound("pulse to pulse", interval, apart, at_most=10.5 * WIEGAND_PULSE),
+                      at_most=1.5 * WIEGAND_PULSE, source="own"),
+                bound("pulse to pulse", interval, apart, at_least=9.5 * WIEGAND_PULSE,
+                      source="own"),
+                bound("pulse to pulse", interval, apart, at_most=10.5 * WIEGAND_PULSE,
+                      source="own"),
                 bound("pulse to pulse", "sigrok's wiegand, bitwidth_ms=1: past it the read "
-                      "ends", apart, at_most=1e-3),
+                      "ends", apart, at_most=1e-3, source="decoder"),
                 count("lines low at once", WIEGAND, low, at_most=1, unit="lines")]
 
     def byte_tooth(samples, _rate, _capture, _decode):
@@ -1524,9 +1610,9 @@ def swd_blind(swclk, swdio):
         half = ("24 cycles at 48 MHz, the firmware's half period, to half of it (IHI 0031C "
                 "gives no times, p.4-94)")
         return [bound("SWCLK high", half, [span(n, rate) for level, _, n in found if level],
-                      at_least=0.5 * 24 / 48e6),
+                      at_least=0.5 * 24 / 48e6, source="own"),
                 bound("SWCLK low", half, [span(n, rate) for level, _, n in found if not level],
-                      at_least=0.5 * 24 / 48e6),
+                      at_least=0.5 * 24 / 48e6, source="own"),
                 count("line reset", ADI % "4.4.3, p.4-104",
                       [len(clocks) for _, clocks, _ in resets(samples)], at_least=50,
                       unit="cycles"),
@@ -1572,6 +1658,8 @@ class Demo:
     # text and Pico A's log
     also: tuple = ()
     also_problems: object = None
+    # what a run that passes on only part of the protocol leaves out
+    partial: str = ""
 
     def name(self, demo):
         return self.stem or demo
@@ -1608,6 +1696,20 @@ HELD_OUT = ("sealed on the held-out list and written blind from its spec "
             "(docs/flexibility.md)",)
 
 
+def start_hold_demo(how, short, master, limits=()):
+    return Demo("-P i2c:sda=D6:scl=D7 -A i2c=start:repeat-start", "B",
+                {"D6": "SDA, IO3, 2k2 pull-up", "D7": "SCL, IO2, 2k2 pull-up"},
+                ("START_HOLD", "SK6812"), ("python/demo_start_hold.py", "python/demo_neopixel.py"),
+                "Pico B as the I2C master of a 24LC256, through %s" % master,
+                start_hold(6, 7, short),
+                limits + ("the chip drives neither line and only stamps them, and the stick's "
+                          "colour is not captured",
+                          "Pico B runs start_hold_%s.uf2, built from demo/start_hold_master, "
+                          "which the run names but does not hash" % how,
+                          "the holds are from one fall to another, so no rise time comes off"),
+                stem="start_hold")
+
+
 def sweep_i2c(mode, firmware):
     return Demo(I2C, "B", I2C_PINS, (firmware,), ("python/demo_rates.py", "python/demo_eeprom.py"),
                 "a 24LC256 on the I2C bus", i2c(6, 7, mode), I2C_LIMITS,
@@ -1632,6 +1734,11 @@ DEMOS = {
     "flash": Demo("-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv "
                   "-A spiflash", "B", SPI_PINS, ("SPI_CS_MODE0",), ("python/demo_flash.py",),
                   "a W25Q64JV flash, erased, programmed and read back", spi(0, 1, 2, 3)),
+    "start_hold_pio": start_hold_demo(
+        "pio", True, "pico-examples' pio_i2c as shipped (raspberrypi/pico-examples#796)",
+        ("the run is expected to fail, as Pico A judges the chip's stamps against 4.0 us "
+         "and says FAIL, and the windows here are proved when every hold is under it",)),
+    "start_hold_hw": start_hold_demo("hw", False, "the RP2040's I2C block"),
     "sweep_i2c_100k": sweep_i2c("standard", "I2C_STANDARD"),
     "sweep_i2c_400k": sweep_i2c("fast", "I2C_FAST"),
     "sweep_spi_mode0": sweep_spi(0),
@@ -1714,7 +1821,8 @@ DEMOS = {
                                "way can't settle, so each low is also held to the firmware's "
                                "bit within half a bit over nine",
                                "the first packet reads misframed, as the line is low from "
-                               "reset, so the bytes are the second's")),
+                               "reset, so the bytes are the second's"),
+                   partial="without the first packet: the line's low from reset misframes it"),
     "spdif": Demo(outside("spdif"), "A", {"D4": "OUT0"}, ("SPDIF",), ("python/demo_spdif.py",),
                   "nothing, Pico B idle on OUT0", spdif(4),
                   HELD_OUT + ("sigrok's spdif reads nothing past the line's low from reset, so "
@@ -1723,7 +1831,43 @@ DEMOS = {
                               "block's windows hold 192 times their mean",
                               "a half slot is about four samples, so its windows can stay "
                               "unresolved"),
-                  judge=spdif_problems),
+                  judge=spdif_problems,
+                  partial="without the frames before the line first idles high: sigrok's "
+                          "spdif reads nothing past the low from reset"),
+    "spdif_ac3": Demo(outside("spdif_ac3"), "A", {"D4": "OUT0"}, ("SPDIF",),
+                      ("python/demo_spdif_ac3.py",), "nothing, Pico B idle on OUT0",
+                      spdif_ac3(4),
+                      ("our own demo on the held-out S/PDIF firmware, not a drawn or sealed "
+                       "protocol, sending one AC-3 frame in an IEC 61937 burst that FFmpeg made",
+                       "sigrok's spdif reads nothing past the line's low from reset and "
+                       "misreads the burst when started after it, so its decode is not judged",
+                       "demo/ffmpeg_referee.py reads the words by run length, and FFmpeg's "
+                       "spdif demuxer must find the frame sent in them",
+                       "FFmpeg holds the frame's bytes, not the line code",
+                       "the capture holds fewer frames than a 192-frame block, so the "
+                       "block's windows hold 192 times their mean",
+                       "a half slot is about four samples, so its windows can stay "
+                       "unresolved"),
+                      judge=spdif_words_problems("spdif_ac3")),
+    "spdif_codecs": Demo(outside("spdif_codecs"), "A", {"D4": "OUT0"}, ("SPDIF",),
+                         ("python/demo_spdif_codecs.py", "python/spdif_bursts.py"),
+                         "nothing, Pico B idle on OUT0", spdif_ac3(4),
+                         ("our own demo on the held-out S/PDIF firmware, not a drawn or "
+                          "sealed protocol, sending a chirp that FFmpeg encoded as AC-3, "
+                          "MP3, AAC and DTS and muxed to IEC 61937 bursts",
+                          "sigrok's spdif misreads the bursts, so its decode is not judged",
+                          "demo/ffmpeg_referee.py reads the words by run length, and "
+                          "FFmpeg's spdif demuxer must name each codec and find the frames "
+                          "sent in its bursts",
+                          "FFmpeg holds the frames' bytes, not the line code",
+                          "the Pico pushes each burst at its place and the firmware starts "
+                          "it on a frame, so a burst is held to its period within 8 words, "
+                          "not to IEC 61937's exact repetition",
+                          "the line runs at 44.1 kHz for every codec, which no receiver "
+                          "was asked to lock to",
+                          "a half slot is about four samples, so its windows can stay "
+                          "unresolved"),
+                         judge=spdif_words_problems("spdif_codecs")),
     "usb_power_delivery": Demo(outside("usb_power_delivery"), "A",
                                {"D4": "OUT0, the BMC level, low when idle"},
                                ("USB_POWER_DELIVERY",), ("python/demo_usb_power_delivery.py",),
@@ -1750,7 +1894,8 @@ DEMOS = {
                 HELD_OUT + ("IO5 is open drain, so at the analyser's threshold a low reads a "
                             "little long and a high as much short",
                             "THeader_Maximum adds the PID's ten nominal bits to the break's "
-                            "fall to the PID's, as test/lin.ml does")),
+                            "fall to the PID's, as test/lin.ml does"),
+                partial="without the response: no slave on the bench answers the header"),
     "swd_blind": Demo(outside("swd_blind"), "A",
                       {"D6": "SWCLK, OUT2", "D7": "SWDIO, IO5, 4k7 pull-up"}, ("SWD_BLIND",),
                       ("python/demo_swd_blind.py",), "Pico B's RP2040 as the SWD target",
@@ -1812,6 +1957,7 @@ class LogDemo:
     limits: tuple = ()
     # the run's files besides ledger.txt and run.txt, the first named in witness.json
     kept: tuple = ("{}.log",)
+    clock: str = "48 MHz"
 
 
 def text(directory, name):
@@ -1948,22 +2094,20 @@ def kvb_says(tally):
         ", ".join("%d %s" % (n, o) for o, n in tally["outcomes"].items()))
 
 
-# fault_release's side-set pin and blink's set pin on analyser A
-FAULT_OUT0, FAULT_OUT2 = 4, 6
+# fault_release_low's set pin and blink's on analyser A
+FAULT_IO, FAULT_BLINK = 7, 6
 # blink's longest level, set pins 0 [2] then jmp
 BLINK_LEVEL = 5 / 48e6
 # the script starts engine 0 again 10 ms after the push, well inside this
-FAULT_LOW = 1.0
+FAULT_HIGH = 1.0
+# the pull-up's rise can cross the analyser's threshold more than once
+FAULT_SETTLE = 1e-6
 FAULT_SCRIPT = "python/demo_fault_release.py"
 
 
 def fault_run(directory):
-    rate, _, samples = sigrok.read(Path(directory) / "fault.sr")
-    return {"rate": rate, "samples": samples, "log": text(directory, "fault.log"),
-            "sums": recorded(text(directory, "SHA256SUMS.run")),
-            "kept": {name: sha256((Path(directory) / name).read_bytes())
-                     for name in ("fault.sr", "fault.log")},
-            "fields": ledger_fields(directory)}
+    rate, _, samples = sigrok.read(Path(directory) / "fault_release.sr")
+    return {"rate": rate, "samples": samples, "log": text(directory, "fault_release.log")}
 
 
 def words_of(script, name):
@@ -1976,32 +2120,34 @@ def hex_words(path):
 
 
 def fault_judge(run):
-    """Engine 0 underflows, so OUT0 rises and falls once and stays low past the script's
-    start after it. Engine 1's blink toggles OUT2 throughout, and the log has engine 0
-    halted with the underflow at one pc through that start."""
+    """Engine 0 underflows, so SWDIO falls and rises once and stays high past the script's
+    start after it. Nothing in its program drives SWDIO high or lets go of it, so the rise is
+    the chip's. Engine 1's blink toggles throughout, and the log has engine 0 halted with
+    the underflow at one pc through that start."""
     rate, samples, problems = run["rate"], run["samples"], []
-    at, to = sigrok.edges(samples, FAULT_OUT0)
-    if to.tolist() != [1, 0] or samples[0] >> FAULT_OUT0 & 1:
-        problems.append("OUT0 has %d edges, not one rise and one fall" % len(at))
-        rise = fall = len(samples)
+    at, to = sigrok.edges(samples, FAULT_IO)
+    late = [a for a in at[2:] if a - at[1] > FAULT_SETTLE * rate]
+    if to[:2].tolist() != [0, 1] or not to[-1] or late or not samples[0] >> FAULT_IO & 1:
+        problems.append("SWDIO has %d edges, not one fall and one rise" % len(at))
+        fall = rise = len(samples)
     else:
-        rise, fall = at.tolist()
-    if (len(samples) - fall) / rate < FAULT_LOW:
-        problems.append("OUT0 is low only %.3f s after its fall" % ((len(samples) - fall) / rate))
-    blink, _ = sigrok.edges(samples, FAULT_OUT2)
-    if not len(blink) or blink[0] > fall:
-        problems.append("OUT2 toggles only after OUT0's fall")
+        fall, rise = at[:2].tolist()
+    if (len(samples) - rise) / rate < FAULT_HIGH:
+        problems.append("SWDIO is high only %.3f s after its rise" % ((len(samples) - rise) / rate))
+    blink, _ = sigrok.edges(samples, FAULT_BLINK)
+    if not len(blink) or blink[0] > rise:
+        problems.append("the blink toggles only after SWDIO's rise")
     else:
         # the level after the last edge runs to the capture's end, so a stop there shows
         held = np.diff(np.append(blink, len(samples)))
         i = int(np.argmax(held))
         if span(int(held[i]), rate)[0] > BLINK_LEVEL:
-            problems.append("OUT2 holds a level %.6f s from %.3f s, longer than blink's 5 "
+            problems.append("the blink holds a level %.6f s from %.3f s, longer than its 5 "
                             "cycles" % (span(int(held[i]), rate)[0], blink[i] / rate))
     status = dict(re.findall(r"^(before|after|after a start|engine 1) 0x(\w+)", run["log"], re.M))
     pcs = dict(re.findall(r"^(after|after a start) 0x\w+ pc (\d+)", run["log"], re.M))
     if len(status) != 4 or len(pcs) != 2:
-        problems.append("fault.log lacks a status line")
+        problems.append("the log lacks a status line")
     else:
         s = {k: int(v, 16) & 0x3D for k, v in status.items()}
         if s["before"] or s["engine 1"]:
@@ -2012,26 +2158,19 @@ def fault_judge(run):
             problems.append("a start ran engine 0 again: STATUS 0x%s pc %s" % (
                 status["after a start"], pcs["after a start"]))
     if run["log"].splitlines()[-1:] != ["PASS"]:
-        problems.append("fault.log does not end in PASS")
-    problems += ["%s is not the one the run's SHA256SUMS.run lists" % name
-                 for name, sha in run["kept"].items() if run["sums"].get(name) != sha]
-    if [sha for name, sha in run["sums"].items() if name.endswith(".bit")] != [
-            run["fields"]["bitstream_sha256"]]:
-        problems.append("SHA256SUMS.run names another bitstream than the ledger's")
-    script = in_tree(FAULT_SCRIPT)
-    if run["sums"].get("fault_board.py") != sha256(script):
-        problems.append("%s is not fault_board.py as the run hashed it" % FAULT_SCRIPT)
-    for name, firmware in [("FAULT", "fault_release"), ("BLINK", "blink")]:
-        if words_of(script.decode(), name) != (hex_words("test/%s.hex" % firmware),
-                                               hex_words("test/%s.cert.hex" % firmware)):
+        problems.append("the log does not end in PASS")
+    script = in_tree(FAULT_SCRIPT).decode()
+    for name, firmware in [("FAULT", "fault_release_low"), ("BLINK", "blink")]:
+        if words_of(script, name) != (hex_words("test/%s.hex" % firmware),
+                                      hex_words("test/%s.cert.hex" % firmware)):
             problems.append("%s's %s is not test/%s.hex" % (FAULT_SCRIPT, name, firmware))
-    tally = {"capture": {"file": "fault.sr", "sha256": run["kept"]["fault.sr"],
-                         "rate_hz": int(rate), "seconds": len(samples) / rate,
-                         "analyser": "A",
-                         "channels": {"D4": "OUT0, fault_release's side-set pin",
+    tally = {"capture": {"file": "fault_release.sr", "rate_hz": int(rate),
+                         "seconds": len(samples) / rate, "analyser": "A",
+                         "channels": {"D7": "SWDIO, IO5, pulled up by R13, fault_release_low's "
+                                            "set pin",
                                       "D6": "OUT2, engine 1's blink"}},
-             "out0_rise_s": round(rise / rate, 6), "out0_fall_s": round(fall / rate, 6),
-             "out2_edges_after_fall": int((blink > fall).sum()),
+             "swdio_fall_s": round(fall / rate, 6), "swdio_rise_s": round(rise / rate, 6),
+             "blink_edges_after_rise": int((blink > rise).sum()),
              "status": {k: "0x" + v for k, v in status.items()},
              "pc": {k: int(v) for k, v in pcs.items()}}
     return tally, problems
@@ -2040,30 +2179,99 @@ def fault_judge(run):
 def fault_teeth(directory):
     run = fault_run(directory)
     rate, samples = run["rate"], run["samples"]
-    fall = int(sigrok.edges(samples, FAULT_OUT0)[0][-1])
+    rise = int(sigrok.edges(samples, FAULT_IO)[0][1])
 
     def bitten(what, **changes):
         wrong = fault_judge(dict(run, **changes))[1]
         return what, wrong[0] if wrong else None
 
-    later = fall + round(0.5 * rate)
-    still = fall + round(1.0 * rate)
+    later = rise + round(0.5 * rate)
+    still = rise + round(1.0 * rate)
     return [
-        bitten("OUT0 driven high again for 1 ms, 0.5 s after its fall",
-               samples=changed(samples, FAULT_OUT0, later, later + round(1e-3 * rate), 1)),
-        bitten("OUT2 held still from 1 s after OUT0's fall",
-               samples=changed(samples, FAULT_OUT2, still, len(samples),
-                               samples[still] >> FAULT_OUT2 & 1)),
+        bitten("SWDIO driven low again for 1 ms, 0.5 s after its rise",
+               samples=changed(samples, FAULT_IO, later, later + round(1e-3 * rate), 0)),
+        bitten("the blink held still from 1 s after SWDIO's rise",
+               samples=changed(samples, FAULT_BLINK, still, len(samples),
+                               samples[still] >> FAULT_BLINK & 1)),
         bitten("the log's start leaving engine 0 running",
                log=re.sub(r"(?m)^after a start 0x\w+", "after a start 0x0000", run["log"])),
     ]
 
 
 def fault_says(tally):
-    return ("OUT0 fell at %.3f s and stayed low, OUT2 toggled %d times after, engine 0 halted "
-            "with STATUS %s at pc %d through a start" % (
-                tally["out0_fall_s"], tally["out2_edges_after_fall"],
+    return ("SWDIO rose at %.3f s and stayed high, the blink toggled %d times after, engine 0 "
+            "halted with STATUS %s at pc %d through a start" % (
+                tally["swdio_rise_s"], tally["blink_edges_after_rise"],
                 tally["status"]["after a start"], tally["pc"]["after a start"]))
+
+
+USB_FS_DEMO = "python/demo_usb_fs.py"
+# the SETUPs a host sends to enumerate, as the demo logs them
+USB_FS_REQUESTS = ("80 06 0100", "80 06 0200", "00 09 0001", "81 06 2200")
+
+
+def usb_fs_run(directory):
+    return {"log": text(directory, "usb_fs_device.log"),
+            "host": text(directory, "usb_fs_device.host")}
+
+
+def usb_fs_judge(run):
+    """The host's kernel read the descriptors python/demo_usb_fs.py serves, at full speed,
+    configured the device and bound a driver, and the chip's side logged the same
+    enumeration."""
+    scope = {"__name__": "demo_usb_fs"}
+    exec(in_tree(USB_FS_DEMO).decode(), scope)
+    host = dict(line.split(" ", 1) for line in run["host"].splitlines() if " " in line)
+    want = {"id": "1209:0002", "speed": "12", "product": scope["PRODUCT"],
+            "bConfigurationValue": "1", "driver": "usbhid",
+            "descriptors": bytes(scope["DEVICE"] + scope["CONFIGURATION"]).hex(),
+            "report_descriptor": bytes(scope["REPORT"]).hex()}
+    problems = ["the host's %s is %s, not %s" % (k, host.get(k), v)
+                for k, v in want.items() if host.get(k) != v]
+    lines = run["log"].splitlines()
+    address = re.search(r"^address (\d+)$", run["log"], re.M)
+    problems += ["the log has no %r" % line for line in ("bus reset", "configured")
+                 if line not in lines]
+    problems += ["the log has no request %s" % r for r in USB_FS_REQUESTS
+                 if not any(line.startswith("request " + r) for line in lines)]
+    if not address:
+        problems.append("the log has no address")
+    if lines[-1:] != ["PASS"]:
+        problems.append("the log does not end in PASS")
+    tally = {"host": {k: host.get(k) for k in ("id", "speed", "version", "product",
+                                               "bConfigurationValue", "driver")},
+             "descriptor_bytes": len(want["descriptors"]) // 2,
+             "report_descriptor_bytes": len(want["report_descriptor"]) // 2,
+             "address": int(address[1]) if address else None,
+             "requests": sum(line.startswith("request ") for line in lines)}
+    return tally, problems
+
+
+def usb_fs_teeth(directory):
+    run = usb_fs_run(directory)
+
+    def bitten(what, **changes):
+        wrong = usb_fs_judge(dict(run, **changes))[1]
+        return what, wrong[0] if wrong else None
+
+    at = run["host"].index("descriptors ") + len("descriptors ") + 16
+    digit = "1" if run["host"][at] != "1" else "2"
+    return [
+        bitten("one digit of the descriptors the host read changed",
+               host=run["host"][:at] + digit + run["host"][at + 1:]),
+        bitten("the host seeing a low speed device",
+               host=run["host"].replace("speed 12", "speed 1.5")),
+        bitten("the log without its configured line",
+               log=run["log"].replace("configured\n", "")),
+    ]
+
+
+def usb_fs_says(tally):
+    return ("the host read the %d descriptor bytes and %d report descriptor bytes served, at "
+            "%s Mbit/s, and bound %s, and the chip's side logged address %d over %d requests" % (
+                tally["descriptor_bytes"], tally["report_descriptor_bytes"],
+                tally["host"]["speed"], tally["host"]["driver"], tally["address"],
+                tally["requests"]))
 
 
 LOG_DEMOS = {
@@ -2078,7 +2286,8 @@ LOG_DEMOS = {
         ("10 Mb/s is past the analyser, so the log is the run's only record: CI judges its "
          "frames again from the bytes it says were sent",
          "the line is Pico A's 3.3 V logic, as a line receiver with squelch would give "
-         "the chip, not a twisted pair through a transformer")),
+         "the chip, not a twisted pair through a transformer"),
+        clock="40 MHz"),
     "kernel_vs_board": LogDemo(
         (), ("python/demo_kernel_vs_board.py", "python/demo_sweep.py",
              "python/demo_self_timing.py", "python/sweep_firmware.py"),
@@ -2086,12 +2295,28 @@ LOG_DEMOS = {
         lambda directory: kvb_judge(kvb_run(directory)), kvb_teeth, kvb_says,
         kept=("results.jsonl", "board.log", "summary.txt", "verdicts.tsv", "SHA256SUMS.inputs",
               "kvb.sh", "kvb-small.out", "kvb-big.out")),
+    "usb_fs_device": LogDemo(
+        ("python/usb_fs_device_firmware.py",),
+        ("python/demo_usb_fs_device.py", USB_FS_DEMO, "python/usb_fs_board.py"),
+        "the bench pc as the USB host on the Icepi's first USB-C port, through a hub",
+        lambda directory: usb_fs_judge(usb_fs_run(directory)), usb_fs_teeth, usb_fs_says,
+        ("the host's side is what one Linux kernel kept in sysfs, read by "
+         "demo/usb_fs_host.py",
+         "no capture of D+ and D-, as the analyser shares the pc's USB controller with the "
+         "device and stops early when it attaches",
+         "the bitstream is the FS=1 build, whose pull-up is on D+, so not the one the other "
+         "witnesses ran"),
+        kept=("usb_fs_device.log", "usb_fs_device.host")),
     "fault_release": LogDemo(
-        ("test/fault_release.hex", "test/fault_release.cert.hex", "test/blink.hex",
+        ("test/fault_release_low.hex", "test/fault_release_low.cert.hex", "test/blink.hex",
          "test/blink.cert.hex"), (FAULT_SCRIPT,),
-        "analyser A (fx2lafw) at 24 MS/s on OUT0 and OUT2",
+        "Pico B idle with its SWD port on the two lines, analyser A (fx2lafw) at 24 MS/s on "
+        "SWDIO and OUT2",
         lambda directory: fault_judge(fault_run(directory)), fault_teeth, fault_says,
-        kept=("fault.log", "fault.sr", "SHA256SUMS.run", "fault.sh", "edges.py", "edges.txt")),
+        ("the capture shows SWDIO let go, by its pull-up, and not the cycle it happened on, "
+         "which test_two_engines.py checks at the pads in simulation",
+         "the fault is an underflow, the one fault this run makes"),
+        kept=("fault_release.log", "fault_release.sr")),
 }
 
 
@@ -2208,6 +2433,21 @@ def check_log(directory, w):
     return problems + d.judge(directory)[1], bitten
 
 
+def proved(timing):
+    """Returns how many windows were proved from each source."""
+    return {source: sum(r["verdict"] == "proved" and r["source"] == source for r in timing)
+            for source in SOURCES}
+
+
+def says(w):
+    """Returns what a PASS or PARTIAL line says of a capture's windows."""
+    n = w["proved"]
+    rest = "".join(", %d %s" % (n[s], s) for s in SOURCES[2:] if n[s])
+    return "%s, bitstream %s, %d of %d windows proved (%d spec, %d own%s), %d unresolved" % (
+        w["capture"]["sha256"][:16], w["bitstream_sha256"][:16], sum(n.values()),
+        len(w["timing"]), n["spec"], n["own"], rest, len(w["timing"]) - sum(n.values()))
+
+
 def witness(directory, scratch):
     """Returns the witness.json fields for the run in directory (everything except what it
     can't say), and its teeth()."""
@@ -2233,6 +2473,8 @@ def witness(directory, scratch):
                     "analyser": d.analyser, "channels": d.channels},
         "decode": {"arguments": d.decode, "sha256": sums(directory)["%s.decode" % name]},
         "timing": timing,
+        "proved": proved(timing),
+        "partial": d.partial or None,
         "teeth": [what for what, _ in bitten],
     }, bitten
 
@@ -2320,7 +2562,7 @@ def write(run, directory, carrier, bitstream):
         "host_scripts": {f: sha256(ran(f)) for f in d.scripts},
         "bench": ("an Icepi Zero (ECP5 LFE5U-25F) running the chip at %s on bench carrier "
                   "%s, Pico A as the host on SPI, %s%s" % (
-                      "40 MHz" if demo in LOG_DEMOS else "48 MHz", carrier, d.peer,
+                      d.clock if demo in LOG_DEMOS else "48 MHz", carrier, d.peer,
                       "" if demo in LOG_DEMOS else ", analyser %s (fx2lafw) at %g MS/s" % (
                           d.analyser, made["capture"]["rate_hz"] / 1e6))),
         "scope": ("each frame's bytes and the receiver's verdict in one run of %s, as Pico "
@@ -2337,6 +2579,23 @@ def write(run, directory, carrier, bitstream):
     return not problems
 
 
+def refresh(directory):
+    """Rewrites what witness.json derives from the run in directory, keeping what the run
+    recorded (its bench, bitstream source, firmware and script hashes)."""
+    directory = Path(directory)
+    path = directory / "witness.json"
+    w = json.loads(path.read_text())
+    if w["demo"].startswith("learn_"):
+        return
+    if w["demo"] in LOG_DEMOS:
+        made, _ = log_witness(directory)
+    else:
+        with tempfile.TemporaryDirectory() as scratch:
+            made, _ = witness(directory, scratch)
+    path.write_text(json.dumps({**made, **{k: v for k, v in w.items() if k not in made}},
+                               indent=2) + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -2347,9 +2606,15 @@ def main():
     writing.add_argument("directory")
     writing.add_argument("--carrier", default="v1.2")
     writing.add_argument("--bitstream", help="what the bitstream was built from")
+    refreshing = sub.add_parser("refresh")
+    refreshing.add_argument("directories", nargs="+")
     args = parser.parse_args()
     if args.command == "write":
         sys.exit(0 if write(args.run, args.directory, args.carrier, args.bitstream) else 1)
+    if args.command == "refresh":
+        for directory in args.directories:
+            refresh(directory)
+        return
     ok = True
     for directory in args.directories:
         problems, bitten = check(directory)
@@ -2361,14 +2626,14 @@ def main():
                   "MISSED %s: %s passed" % (name, what))
         w = json.loads((Path(directory) / "witness.json").read_text())
         if not problems and w["demo"].startswith("learn_"):
-            print("PASS %s: sigrok reads the chip's message, the edges are the captures'" % name)
+            print("PASS %s: sigrok reads the chip's message in each of the %d frames sent, the "
+                  "edges are the captures'" % (name, learn_witness.sent(Path(directory))))
         elif not problems and "tally" in w:
             print("PASS %s: %s" % (name, LOG_DEMOS[w["demo"]].says(w["tally"])))
+        elif not problems and w.get("partial"):
+            print("PARTIAL %s: %s, %s" % (name, says(w), w["partial"]))
         elif not problems:
-            proved = sum(r["verdict"] == "proved" for r in w["timing"])
-            print("PASS %s: %s, bitstream %s, %d of %d windows proved, %d unresolved" % (
-                name, w["capture"]["sha256"][:16], w["bitstream_sha256"][:16], proved,
-                len(w["timing"]), len(w["timing"]) - proved))
+            print("PASS %s: %s" % (name, says(w)))
         ok = ok and not problems and all(why for _, why in bitten)
     sys.exit(0 if ok else 1)
 

@@ -4,7 +4,7 @@
 # stops early, so we retry until it sends every sample, and keep the last try if none does.
 # COMMAND should return at once and start its traffic after a pause.
 # With two analysers, ANALYSER=A or B picks one by USB port. ANALYSER_A_PORT and
-# ANALYSER_B_PORT are /sys/bus/usb/devices names, default 3-4 and 3-3.1.3.3 (the carrier).
+# ANALYSER_B_PORT are /sys/bus/usb/devices names, default 3-3 and 3-2 (the bench pc).
 # DEVICE picks the analyser instead, e.g. fx2lafw:conn=1.7 as `sigrok-cli --scan` prints it.
 # TRIES caps the attempts (default 8). Samples are written raw and packed afterwards,
 # because srzip's compression in sigrok-cli's USB loop makes the analyser stop early.
@@ -20,8 +20,8 @@ pack() {
     python3 "$(dirname "$0")/sigrok.py" "$raw" "${RATE:-24M}" "$out" && rm -f "$raw"
 }
 case ${ANALYSER:-} in
-A) port=${ANALYSER_A_PORT:-3-4} ;;
-B) port=${ANALYSER_B_PORT:-3-3.1.3.3} ;;
+A) port=${ANALYSER_A_PORT:-3-3} ;;
+B) port=${ANALYSER_B_PORT:-3-2} ;;
 '') port= ;;
 *)
     echo "ANALYSER is A or B, not $ANALYSER" >&2

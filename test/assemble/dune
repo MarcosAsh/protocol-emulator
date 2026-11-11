@@ -273,6 +273,21 @@
  (action
   (diff ../quiet_watch_slow.settings quiet_watch_slow.settings.gen)))
 
+; the host kernel accepts the compiled quiet watch, but its rows are affine, which the
+; chip's certificate can't carry, so the chip's load check refuses it
+
+(rule
+ (with-stderr-to
+  quiet_watch_chip.gen
+  (with-stdout-to
+   %{null}
+   (run %{exe:../../bin/generate.exe} assemble %{dep:../quiet_watch.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff quiet_watch_chip.expected quiet_watch_chip.gen)))
+
 ; a period and a floor are two answers to what p carries, so the command takes one
 
 (rule

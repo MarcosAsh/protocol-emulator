@@ -36,7 +36,7 @@ SPI_HALF = 8
 # analyser B: SCK D0, MOSI D1, MISO D2, CS D3 for the flash; SDA D6, SCL D7 for the EEPROM
 SCK, MOSI, MISO, CS = 0, 1, 2, 3
 # USB port of analyser B (the environment can override it)
-ANALYSER_B_PORT = "3-3.1.3.3"
+ANALYSER_B_PORT = "3-2"
 # how close the measured clock must be to what the firmware should produce
 RATE_TOLERANCE = 0.10
 # files to copy to Pico A, same as demo/rates.sh

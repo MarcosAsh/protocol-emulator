@@ -51,7 +51,8 @@
 <section id="firmware-tab">
 <p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
 with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
-proofs that its check is sound run in CI, not here.</p>
+proofs that its check is sound run in CI, not here. What the kernel accepts then goes
+through a model of the chip's own load check, which can refuse it.</p>
 <div class="controls">
   <label>Example <select id="example"></select></label>
   <label>Period <input id="period" type="number" min="1" placeholder="none"></label>

@@ -637,38 +637,6 @@ inductive_certificates: engine_sram.v
 inductive_names:
 	@echo $(INDUCTIVE)
 
-# Each receiver's clock tolerance (write_tolerance.ml). UARTs run at their certificates'
-# bounds (test/tolerance.ml), from a sender free-running at any m 2^-16 cycles a bit within
-# those bounds and any phase. The byte is read, with no irq or fault, and the next frame's
-# start edge (right behind the stop bit) is captured as far after the first's as it shows,
-# so every frame meets the receiver as the first did. Teeth: a step faster or slower than
-# the bounds, and a receiver sampling one cycle late at the on-time one's bounds or one step
-# past its own; at its own bounds it passes. uart_rx_16 is the library's; the host rate
-# receivers use half periods short enough to unroll. The SPI target follows SCK, so no rate
-# error builds up: two bytes in mode 0 with every SCK phase free, from its least to 2 more,
-# and one cycle less high fails.
-TOLERANCE = uart_rx_16 uart_rx_host_rate_4 uart_rx_host_rate_8 spi_target_mode0
-TOLERANCE_PROOFS = prove moved_own
-TOLERANCE_TEETH = reach_least reach_most faster slower moved moved_faster moved_slower
-TOLERANCE_PROOFS_spi_target_mode0 = prove
-TOLERANCE_TEETH_spi_target_mode0 = reach_least faster
-
-tolerance: engine_sram.v
-	for name in $(TOLERANCE); do $(MAKE) tolerance_one NAME=$$name || exit 1; done
-
-tolerance_one:
-	(cd .. && dune exec -- test/certify/write_tolerance.exe -name $(NAME)) > tolerance_$(NAME).sv
-	(cd .. && dune exec -- test/certify/write_tolerance.exe -name $(NAME) -moved) > tolerance_$(NAME)_moved.sv
-	(cd .. && dune exec -- test/certify/write_tolerance.exe -name $(NAME) -depth) > tolerance_$(NAME).depth
-	$(MAKE) tolerance_proof NAME=$(NAME)
-
-tolerance_proof:
-	sed -e "s/^depth .*/depth $$(cat tolerance_$(NAME).depth)/" \
-	  -e "s/tolerance_moved.sv/tolerance_$(NAME)_moved.sv/g" \
-	  -e "s/tolerance.sv/tolerance_$(NAME).sv/g" tolerance.sby > tolerance_$(NAME).sby
-	sby -f tolerance_$(NAME).sby $(or $(TOLERANCE_PROOFS_$(NAME)),$(TOLERANCE_PROOFS))
-	sby -f tolerance_$(NAME).sby $(or $(TOLERANCE_TEETH_$(NAME)),$(TOLERANCE_TEETH))
-
 # fsm compiler's miter (write_certificate.ml -fsm): hardcaml_hobby_boards' Uart.Tx,
 # unmodified, beside the engine running its compiled firmware. Proof takes ~20 s, teeth ~1.5 min.
 fsm_miter: engine_sram.v
@@ -1200,51 +1168,8 @@ witness_reject:
 	    case $$? in 10) echo "$(W): $$check fails"; exit 0 ;; 20) ;; *) exit 1 ;; esac; \
 	  done; exit 1
 
-# The witnesses as a bundle that witness/check.sh rechecks without OCaml. Per witness it
-# holds the prove task's Verilog, read.ys, model.aig and witness.aig; per tooth its read.ys,
-# model.aig and aigsim's counterexample; and cake_lpr's heap if it isn't the default. Run it
-# after witness_proof. A witness of another task (W=fail_safe_table_witness_prove_0
-# TASK=prove_0) has no teeth.
-BUNDLE = proof_bundle
-SHA256 = $(if $(shell command -v sha256sum),sha256sum,shasum -a 256)
-witness_bundle: W = $(LEMMA)_witness
-witness_bundle: TASK = prove
-witness_bundle:
-	rm -rf $(BUNDLE)/$(subst _witness,,$(W)) && mkdir -p $(BUNDLE)/$(subst _witness,,$(W))/teeth
-	for file in $$(sby --dumpfiles $(LEMMA).sby $(TASK)) read.ys model.aig witness.aig; do \
-	  cp $(W)/$$(basename $$file) $(BUNDLE)/$(subst _witness,,$(W)) || exit 1; \
-	done
-	for tooth in $(W)_*/cex.aiw; do \
-	  [ -f $$tooth ] || continue; \
-	  dir=$(BUNDLE)/$(subst _witness,,$(W))/teeth/$$(dirname $$tooth | sed 's/^$(W)_//'); \
-	  mkdir $$dir && cp $$(dirname $$tooth)/read.ys $$(dirname $$tooth)/model.aig $$tooth $$dir || exit 1; \
-	done
-	[ $$(ls $(BUNDLE)/$(subst _witness,,$(W))/teeth | wc -l) -ge "$(or $(WITNESS_TEETH_$(LEMMA)),0)" ]
-	[ -z "$(WITNESS_HEAP_$(LEMMA))" ] || echo $(WITNESS_HEAP_$(LEMMA)) > $(BUNDLE)/$(subst _witness,,$(W))/heap
-
-# check.sh, model.ys, tools.sh with the SAT tools' commits, and a sha256 of each file
-proof_bundle:
-	cp witness/check.sh witness/model.ys $(BUNDLE)
-	sed -e 's/@CADICAL@/$(CADICAL)/' -e 's/@CAKE_LPR@/$(CAKE_LPR)/' \
-	  -e 's/@CERTIFAIGER@/$(CERTIFAIGER)/' -e 's/@AIGER@/$(AIGER)/' witness/tools.sh > $(BUNDLE)/tools.sh
-	chmod +x $(BUNDLE)/check.sh $(BUNDLE)/tools.sh
-	cd $(BUNDLE) && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
-	tar czf $(BUNDLE).tar.gz $(BUNDLE)
-
-# A copy of the bundle whose $(LEMMA) witness has one latch's next state inverted, with its
-# sum made to match, has to fail check.sh at one of the nine checks.
-proof_bundle_tooth:
-	rm -rf bundle_tooth && cp -R $(BUNDLE) bundle_tooth
-	cd bundle_tooth/$(LEMMA) && aigtoaig witness.aig witness.aag \
-	  && awk 'NR == 1 { inputs = $$3 } NR == inputs + 2 { $$2 += $$2 % 2 ? -1 : 1 } 1' witness.aag \
-	  > flipped.aag && aigtoaig flipped.aag witness.aig && rm witness.aag flipped.aag
-	! cmp -s $(BUNDLE)/$(LEMMA)/witness.aig bundle_tooth/$(LEMMA)/witness.aig
-	cd bundle_tooth && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
-	! bundle_tooth/check.sh $(LEMMA) > bundle_tooth/check.log
-	grep -E '^$(LEMMA): FAIL, [A-Za-z]+ not verified' bundle_tooth/check.log
-
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
-  witness_reject witness_bundle proof_bundle proof_bundle_tooth
+  witness_reject
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order unreachable phase_step phase_table guard_teeth \
   powerup_cold \

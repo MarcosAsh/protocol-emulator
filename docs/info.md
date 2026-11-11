@@ -71,8 +71,8 @@ words in one frame repeat the access, which streams the fifos and the program wi
 
 | Register | Name | Notes |
 |---|---|---|
-| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted; a start reaches only a halted core, and a stopped core runs again only from a start, at address 0 |
-| 1 | status | bit 0 halted, 1 irq, 2-5 underflow, overflow, missed deadline and decode faults, 6-9 tx level, 10-13 rx level, 15 the other core's irq |
+| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos, bit 4 check the program against its certificate, bit 5 start both cores on one cycle; the program and the config are only written, and the fifos only flushed, while the core is halted; a start reaches only a halted core whose program the check accepted, and a stopped core runs again only from a start, at address 0 |
+| 1 | status | bit 0 halted, 1 irq, 2-5 underflow, overflow, missed deadline and decode faults, 6-9 tx level, 10-13 rx level, 14 broken assumption fault, 15 the other core's irq |
 | 2 | pc | the core's program counter |
 | 3, 4 | now | low and high words of the counter |
 | 5, 6 | capture | low and high words of the last captured time |
@@ -80,11 +80,25 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 8 | rx fifo | read pops a word from the core |
 | 9 | program address | |
 | 10 | program word | write increments the address |
-| 11 | select | 0 or 1, the core every register but the program and data addresses reaches; status bit 15 says the other core has its irq up |
+| 11 | select | 0 or 1, the core every register but the program and data addresses, 64 to 66, 70 and 72 to 81 reaches; status bit 15 says the other core has its irq up |
 | 12 | data address | |
-| 13 | data word | write increments the address; only while the core is halted |
+| 13 | data word | write increments the address; only while both cores are halted |
 | 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction, autopull from data (45), Manchester (46) |
-| 43, 44, 64 to 71 | reserved | read as zero and take no write |
+| 43, 44 | reserved | read as zero and take no write |
+| 64 | check base | where the certificate starts in the data memory |
+| 65 | check loaded | the period every run-time load of `p` carries, or with flag bit 2 the least |
+| 66 | check flags | bit 0 a loaded period is set, 1 single capture edge, 2 the loaded period is a floor |
+| 67 | check status | bit 0 busy, 1 the last check accepted, 2 certified, 3 a start was refused; a program, config or line table write ends the certification |
+| 68, 69 | reject pc, reason | where the last check refused, and why, as `REASONS` in `python/protocol_emulator.py` names it |
+| 70 | line address | |
+| 71 | line word | the line code table; write increments the address; only while the core is halted |
+| 72 | frame control | bit 0 arm, bit 1 sample for 50 MHz (else 40 MHz), or for USB rearm after each packet, bits 2-6 the pin (USB D+), bit 7 USB full speed, bit 8 the core whose data turns take the words |
+| 73 | frame base | where the 10BASE-T frame or USB packet lands in the data memory |
+| 74 | frame status | bit 15 armed, 14 receiving, 13 dropped, 12 half, 11 FCS (USB CRC-16) good, 10 finished, 9-0 words |
+| 75 | USB status | bit 0 CRC-5 good, 1 CRC-16 good, 2 stuff error, 3 aligned |
+| 76, 77 | stamp mask, control | pins 0-15, then 16-19 in bits 0-3 and in bit 4 the core whose `now` times them; a write empties the queue |
+| 78, 79 | stamp time | the oldest edge's time, low then high: bits 0-7 the top of the time, 8-10 the queue level, 15 an edge lost to a full queue |
+| 80, 81 | stamp pins | every pad's level at that edge; reading 81 pops it |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable
 specification, the reference the hardware runs against in lockstep, and the input to a
@@ -95,9 +109,10 @@ static timing analyser that bounds every pin edge of a program before it runs.
 `python/protocol_emulator.py` runs on CPython and MicroPython and needs only a function
 that exchanges one SPI frame. `python/demo_board.py` does that on the Tiny Tapeout demo
 board. To see the UART transmitter above: assemble it with
-`dune exec -- bin/generate.exe assemble -period 417 uart.asm`, then `configure`, `load`,
-`start`, `push` 417 and then two bytes. The frames appear on `uo[1]` (`OUT0`) at 115200
-baud.
+`dune exec -- bin/generate.exe assemble -period 417 uart.asm`, and its certificate with
+`-certificate` added, then `configure`, `load`, `certify` with `loaded=417`, `start`,
+`push` 417 and then two bytes. The frames appear on `uo[1]` (`OUT0`) at 115200 baud.
+Without the certify step the chip refuses the start and the core stays halted.
 
 `test/test.py` is the same sequence under cocotb against the Verilog, and the OCaml
 tests under `test/` run UART, SPI and I2C masters and slaves, a low speed USB keyboard

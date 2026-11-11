@@ -26,6 +26,7 @@
       "parameter": "clock high",
       "limit": ">= 5556 ns",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 52-54, 90 kHz",
+      "source": "spec",
       "spans": 92,
       "measured": "5583 ns to 5709 ns",
       "verdict": "proved"
@@ -34,6 +35,7 @@
       "parameter": "clock low",
       "limit": ">= 5556 ns",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 52-54, 90 kHz",
+      "source": "spec",
       "spans": 96,
       "measured": "5583 ns to 5667 ns",
       "verdict": "proved"
@@ -42,6 +44,7 @@
       "parameter": "first pause",
       "limit": ">= 55.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 55-57",
+      "source": "spec",
       "spans": 2,
       "measured": "20390.21 us to 21059.11 us",
       "verdict": "proved"
@@ -50,6 +53,7 @@
       "parameter": "pause between the words",
       "limit": ">= 110.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 58-60",
+      "source": "spec",
       "spans": 2,
       "measured": "112.45 us to 112.55 us",
       "verdict": "proved"
@@ -58,11 +62,19 @@
       "parameter": "last pause",
       "limit": ">= 55.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 61-63",
+      "source": "spec",
       "spans": 1,
       "measured": "21054.81 us to 21059.11 us",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 5,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "DATA inverted over the first bit",
     "the first clock low 1 us short"

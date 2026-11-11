@@ -25,6 +25,7 @@
       "parameter": "1 half bit",
       "limit": ">= 395.83 us",
       "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 40,
       "measured": "416.58 us to 416.79 us",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "1 half bit",
       "limit": "<= 437.50 us",
       "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 40,
       "measured": "416.58 us to 416.79 us",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "2 half bits",
       "limit": ">= 791.67 us",
       "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 6,
       "measured": "833.25 us to 833.50 us",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "2 half bits",
       "limit": "<= 875.00 us",
       "sheet": "1200 bit/s, Wikipedia's DALI page (oldid 1363488623, line 157), to Dali.read's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 6,
       "measured": "833.25 us to 833.50 us",
       "verdict": "proved"
@@ -57,11 +61,19 @@
       "parameter": "idle after a frame",
       "limit": ">= 2450.00 us",
       "sheet": "DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 178",
+      "source": "spec",
       "spans": 2,
       "measured": "12909.92 us to open",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 1,
+    "own": 4,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "the forward frame's opcode MSB inverted",
     "the forward frame's start bit edge 50 us late"

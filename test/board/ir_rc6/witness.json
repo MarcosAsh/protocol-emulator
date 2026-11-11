@@ -25,6 +25,7 @@
       "parameter": "mark 1t",
       "limit": ">= 421.80 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 27,
       "measured": "444.25 us to 444.67 us",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "mark 1t",
       "limit": "<= 466.20 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 27,
       "measured": "444.25 us to 444.67 us",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "mark 2t",
       "limit": ">= 843.60 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 7,
       "measured": "888.79 us to 889.21 us",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "mark 2t",
       "limit": "<= 932.40 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 7,
       "measured": "888.79 us to 889.21 us",
       "verdict": "proved"
@@ -57,6 +61,7 @@
       "parameter": "mark 3t",
       "limit": ">= 1265.40 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 1,
       "measured": "1333.20 us to 1333.55 us",
       "verdict": "proved"
@@ -65,6 +70,7 @@
       "parameter": "mark 3t",
       "limit": "<= 1398.60 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 1,
       "measured": "1333.20 us to 1333.55 us",
       "verdict": "proved"
@@ -73,6 +79,7 @@
       "parameter": "mark 6t",
       "limit": ">= 2530.80 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 2,
       "measured": "2666.44 us to 2667.10 us",
       "verdict": "proved"
@@ -81,6 +88,7 @@
       "parameter": "mark 6t",
       "limit": "<= 2797.20 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 2,
       "measured": "2666.44 us to 2667.10 us",
       "verdict": "proved"
@@ -89,6 +97,7 @@
       "parameter": "space 1t",
       "limit": ">= 421.80 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 25,
       "measured": "444.25 us to 444.67 us",
       "verdict": "proved"
@@ -97,6 +106,7 @@
       "parameter": "space 1t",
       "limit": "<= 466.20 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 25,
       "measured": "444.25 us to 444.67 us",
       "verdict": "proved"
@@ -105,6 +115,7 @@
       "parameter": "space 2t",
       "limit": ">= 843.60 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 9,
       "measured": "888.70 us to 889.05 us",
       "verdict": "proved"
@@ -113,6 +124,7 @@
       "parameter": "space 2t",
       "limit": "<= 932.40 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 9,
       "measured": "888.70 us to 889.05 us",
       "verdict": "proved"
@@ -121,6 +133,7 @@
       "parameter": "space 3t",
       "limit": ">= 1265.40 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 1,
       "measured": "1333.20 us to 1333.55 us",
       "verdict": "proved"
@@ -129,6 +142,7 @@
       "parameter": "space 3t",
       "limit": "<= 1398.60 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 1,
       "measured": "1333.20 us to 1333.55 us",
       "verdict": "proved"
@@ -137,11 +151,19 @@
       "parameter": "signal free time",
       "limit": ">= 2530.80 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "source": "own",
       "spans": 1,
       "measured": "12034.88 us to 12037.37 us",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 0,
+    "own": 15,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "the first address bit's halves swapped",
     "the first leader mark a unit short"

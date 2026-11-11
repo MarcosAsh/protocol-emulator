@@ -13,15 +13,19 @@ esac
 case $1 in
 pio)
     echo "Pico B: start_hold_pio.uf2, pio_i2c as shipped"
-    echo "static, pio_check on pico-examples' i2c.pio, 125 MHz over 39.0625:"
-    dune build --root . pio/bin/pio_check.exe
-    _build/default/pio/bin/pio_check.exe pio/test/pico_examples/i2c.pio -program i2c \
-        -pin sda=set0:dir,out0:dir,in0,jmp -pin scl=side0:dir,in1 -init sda=1 -init scl=1 \
-        -autopull -autopush -irq-wait-halts -entry entry_point -no-stretch sda \
-        -exec "x=2,scl=1,sda=1: set pindirs, 0 side 1 [7] | set pindirs, 0 side 0 [7] | mov isr, null" \
-        -exec "x=2,scl=0: set pindirs, 0 side 0 [7] | set pindirs, 0 side 1 [7] | set pindirs, 1 side 1 [7]" \
-        -exec "x=4,scl=0: set pindirs, 1 side 0 [7] | set pindirs, 1 side 1 [7] | set pindirs, 0 side 1 [7] | set pindirs, 0 side 0 [7] | mov isr, null" \
-        -sys-hz 125e6 -clkdiv 39.0625 -rule "t_hd_sta: sda- -> scl- >= 4.0us" | grep "^t_hd_sta"
+    if command -v dune > /dev/null; then
+        echo "static, pio_check on pico-examples' i2c.pio, 125 MHz over 39.0625:"
+        dune build --root . pio/bin/pio_check.exe
+        _build/default/pio/bin/pio_check.exe pio/test/pico_examples/i2c.pio -program i2c \
+            -pin sda=set0:dir,out0:dir,in0,jmp -pin scl=side0:dir,in1 -init sda=1 -init scl=1 \
+            -autopull -autopush -irq-wait-halts -entry entry_point -no-stretch sda \
+            -exec "x=2,scl=1,sda=1: set pindirs, 0 side 1 [7] | set pindirs, 0 side 0 [7] | mov isr, null" \
+            -exec "x=2,scl=0: set pindirs, 0 side 0 [7] | set pindirs, 0 side 1 [7] | set pindirs, 1 side 1 [7]" \
+            -exec "x=4,scl=0: set pindirs, 1 side 0 [7] | set pindirs, 1 side 1 [7] | set pindirs, 0 side 1 [7] | set pindirs, 0 side 0 [7] | mov isr, null" \
+            -sys-hz 125e6 -clkdiv 39.0625 -rule "t_hd_sta: sda- -> scl- >= 4.0us" | grep "^t_hd_sta"
+    else
+        echo "static: no dune here to build pio_check"
+    fi
     ;;
 hw)
     echo "Pico B: start_hold_hw.uf2, the RP2040's I2C block"

@@ -1,7 +1,7 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-// The chip with the outside parts BRINGUP.md wires to it. An SPI flash takes MOSI from
+// The chip with the outside parts the bench carrier wires to it. An SPI flash takes MOSI from
 // OUT4, SCK from OUT5 and CS from OUT6, and answers on IN0: models/spiflash.v is picosoc's
 // model from YosysHQ/picorv32 at commit ef203c2, unchanged. Unless a test sets flash_wired,
 // the flash is deselected and a cocotb slave on the spi_* lines may answer instead.

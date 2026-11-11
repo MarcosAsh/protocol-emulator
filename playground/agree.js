@@ -26,7 +26,8 @@ fs.rmSync(sources, { recursive: true });
 const browser = firmware.map((f) => {
   const r = pe.checkConfigured(f.source, f.config, f.period, f.periodFloor, f.singleCaptureEdge);
   const out =
-    r.verdict === "accepted"
+    // where only the chip refuses, the cli still prints the words and warns
+    r.verdict.startsWith("accepted")
       ? `${r.listing}\n${r.rows}\n${r.detail}\nexit 0\n`
       : `${r.verdict}\n${r.detail}\nexit 1\n`;
   return `== firmware ${f.name}\n${out}`;

@@ -3,10 +3,10 @@
 AI was used extensively. Agents wrote much of this: firmware, models, checkers, proof
 harnesses and reviews. I stayed in the loop for the times an agent made a mistake, or had
 little confidence it could do a task itself. Nothing an agent wrote counts until it passes
-a gate, and a finding counts only with a reproducer that fails on the code. Not every gate is independent of the agents. One agent wrote the
-DShot600, SENT and CEC firmware and their decoders, and an agent wrote the self-check's
-contract (4ea99d7), which is trusted. Counts are per finding as filed, so one bug can count
-twice.
+a gate, and a finding counts only with a reproducer that fails on the code. Not every gate
+is independent of the agents. One agent wrote the DShot600, SENT and CEC firmware and their
+decoders, and an agent wrote the self-check's contract (4ea99d7), which is trusted. Counts
+are per finding as filed, so one bug can count twice.
 
 | AI does | Gate | Result | Against it |
 |---|---|---|---|

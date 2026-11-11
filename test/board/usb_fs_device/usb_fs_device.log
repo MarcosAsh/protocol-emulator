@@ -1,0 +1,17 @@
+engine 0 is serving, 301 data memory words
+bus reset
+request 80 06 0100 0000 64
+bus reset
+request 00 05 000a 0000 0
+address 10
+request 80 06 0100 0000 18
+request 80 06 0200 0000 9
+request 80 06 0200 0000 34
+request 80 06 0300 0000 255
+request 80 06 0301 0409 255
+request 00 09 0001 0000 0
+configured
+request 21 0a 0000 0000 0
+request 81 06 2200 0000 21
+detached
+PASS

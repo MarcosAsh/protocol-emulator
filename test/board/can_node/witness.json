@@ -25,6 +25,7 @@
       "parameter": "bit time, a frame",
       "limit": ">= 1968 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "source": "spec",
       "spans": 8,
       "measured": "1999 ns to 2003 ns",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "bit time, a frame",
       "limit": "<= 2032 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "source": "spec",
       "spans": 8,
       "measured": "1999 ns to 2003 ns",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "bit time, a run",
       "limit": ">= 1968 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "source": "spec",
       "spans": 238,
       "measured": "1916 ns to 2084 ns",
       "verdict": "unresolved"
@@ -49,6 +52,7 @@
       "parameter": "bit time, a run",
       "limit": "<= 2032 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "source": "spec",
       "spans": 238,
       "measured": "1916 ns to 2084 ns",
       "verdict": "unresolved"
@@ -57,6 +61,7 @@
       "parameter": "bit",
       "limit": ">= 1000 ns",
       "sheet": "SN65HVD230, TI SLOS346O p.1, up to 1 Mbps",
+      "source": "spec",
       "spans": 254,
       "measured": "1916 ns to 10084 ns",
       "verdict": "proved"
@@ -65,6 +70,7 @@
       "parameter": "equal bits",
       "limit": "<= 5 bits",
       "sheet": "Bosch CAN 2.0 Part A, a stuff bit after five",
+      "source": "spec",
       "spans": 238,
       "measured": "1 to 5 bits",
       "verdict": "proved"
@@ -73,11 +79,19 @@
       "parameter": "idle to SOF",
       "limit": ">= 22.00 us",
       "sheet": "CAN 2.0A, Bosch CAN 2.0, BCANPSV2.0 Rev. 3 s.2.15 p.2-6, eleven recessive bits",
+      "source": "spec",
       "spans": 8,
       "measured": "3939.52 us to open",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 5,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "CAN R inverted over the first data byte's fourth bit",
     "an edge of the first frame a quarter bit late"

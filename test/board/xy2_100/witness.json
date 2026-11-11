@@ -27,6 +27,7 @@
       "parameter": "tDS",
       "limit": ">= 50 ns",
       "sheet": "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2",
+      "source": "spec",
       "spans": 450,
       "measured": "167 ns to 292 ns",
       "verdict": "proved"
@@ -35,11 +36,19 @@
       "parameter": "tDH",
       "limit": ">= 100 ns",
       "sheet": "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2",
+      "source": "spec",
       "spans": 450,
       "measured": "208 ns to 333 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 2,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "DATA inverted over the first D15",
     "a DATA move put on the SENDCK fall after it"

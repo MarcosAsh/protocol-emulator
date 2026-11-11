@@ -26,6 +26,7 @@
       "parameter": "pulse",
       "limit": ">= 25.00 us",
       "sheet": "2400 cycles at 48 MHz, the firmware's pulse, to half of it (the page gives no timing)",
+      "source": "own",
       "spans": 26,
       "measured": "49.95 us to 50.09 us",
       "verdict": "proved"
@@ -34,6 +35,7 @@
       "parameter": "pulse",
       "limit": "<= 75.00 us",
       "sheet": "2400 cycles at 48 MHz, the firmware's pulse, to half of it (the page gives no timing)",
+      "source": "own",
       "spans": 26,
       "measured": "49.95 us to 50.09 us",
       "verdict": "proved"
@@ -42,6 +44,7 @@
       "parameter": "pulse to pulse",
       "limit": ">= 475.00 us",
       "sheet": "10 pulses, the firmware's interval, to half a pulse (the page gives no timing)",
+      "source": "own",
       "spans": 25,
       "measured": "499.74 us to 500.30 us",
       "verdict": "proved"
@@ -50,6 +53,7 @@
       "parameter": "pulse to pulse",
       "limit": "<= 525.00 us",
       "sheet": "10 pulses, the firmware's interval, to half a pulse (the page gives no timing)",
+      "source": "own",
       "spans": 25,
       "measured": "499.74 us to 500.30 us",
       "verdict": "proved"
@@ -58,6 +62,7 @@
       "parameter": "pulse to pulse",
       "limit": "<= 1000.00 us",
       "sheet": "sigrok's wiegand, bitwidth_ms=1: past it the read ends",
+      "source": "decoder",
       "spans": 25,
       "measured": "499.74 us to 500.30 us",
       "verdict": "proved"
@@ -66,11 +71,19 @@
       "parameter": "lines low at once",
       "limit": "<= 1 lines",
       "sheet": "Wikipedia, Wiegand interface, oldid 1374164469, page 1, lines 91 and 94",
+      "source": "spec",
       "spans": 26,
       "measured": "1 to 1 lines",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 1,
+    "own": 4,
+    "decoder": 1,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "the first pulse moved from DATA0 to DATA1",
     "the first pulse 30 us long"

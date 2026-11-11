@@ -28,6 +28,7 @@
       "parameter": "tCLH",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "source": "spec",
       "spans": 9392,
       "measured": "125 ns to 250 ns",
       "verdict": "proved"
@@ -36,6 +37,7 @@
       "parameter": "tCLL",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "source": "spec",
       "spans": 9322,
       "measured": "83 ns to 5885422 ns",
       "verdict": "proved"
@@ -44,6 +46,7 @@
       "parameter": "tSLCH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "source": "spec",
       "spans": 70,
       "measured": "0 ns to 125 ns",
       "verdict": "unresolved"
@@ -52,6 +55,7 @@
       "parameter": "tCHSH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "source": "spec",
       "spans": 70,
       "measured": "292 ns to 417 ns",
       "verdict": "proved"
@@ -60,6 +64,7 @@
       "parameter": "tSHSL2",
       "limit": ">= 50 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "source": "spec",
       "spans": 69,
       "measured": "1385361 ns to 4291804 ns",
       "verdict": "proved"
@@ -68,11 +73,19 @@
       "parameter": "tRES1",
       "limit": ">= 3000 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.65",
+      "source": "spec",
       "spans": 1,
       "measured": "2578200 ns to 2578800 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 5,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "MISO inverted over the first bit of the JEDEC ID's manufacturer byte",
     "the JEDEC frame's CS fall 2 us after ABh"

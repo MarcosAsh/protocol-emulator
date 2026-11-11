@@ -26,6 +26,7 @@
       "parameter": "1/fSCL",
       "limit": ">= 2500 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 1435,
       "measured": "2583 ns to 1369262 ns",
       "verdict": "unresolved"
@@ -34,6 +35,7 @@
       "parameter": "THIGH",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 1435,
       "measured": "1167 ns to 2625 ns",
       "verdict": "proved"
@@ -42,6 +44,7 @@
       "parameter": "TLOW",
       "limit": ">= 1300 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 1447,
       "measured": "1375 ns to 1368012 ns",
       "verdict": "unresolved"
@@ -50,6 +53,7 @@
       "parameter": "THD:STA",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 16,
       "measured": "1292 ns to 1375 ns",
       "verdict": "proved"
@@ -58,6 +62,7 @@
       "parameter": "TSU:STA",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 15,
       "measured": "1167 ns to 3439969 ns",
       "verdict": "proved"
@@ -66,6 +71,7 @@
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 811,
       "measured": "583 ns to 1304255 ns",
       "verdict": "proved"
@@ -74,6 +80,7 @@
       "parameter": "TSU:STO",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 12,
       "measured": "1250 ns to 1375 ns",
       "verdict": "proved"
@@ -82,11 +89,19 @@
       "parameter": "TBUF",
       "limit": ">= 1300 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 11,
       "measured": "401710 ns to 3438677 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 6,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
     "SCL's tenth pulse cut to 6 samples"

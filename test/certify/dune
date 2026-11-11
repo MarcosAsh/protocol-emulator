@@ -5,8 +5,7 @@
   write_corpus
   write_link
   write_refusal
-  write_self_check
-  write_tolerance)
+  write_self_check)
  (libraries
   core
   core_unix

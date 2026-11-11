@@ -3,7 +3,7 @@
 # under _mutation/. A survivor that isn't in test/mutation_allow.txt exits 1 (at --report
 # with --json). --prove sends each survivor of the trusted checker to the proofs (see
 # prove() below), and --prove-only does that for every mutant without running the tests.
-# Usage: python3 test/mutate.py [--scope engine|wide|kernel] [--file F ...] [--operator NAME ...]
+# Usage: python3 test/mutate.py [--scope engine|wide|kernel|onchip] [--file F ...] [--operator NAME ...]
 #        [--id ID ...] [--shard I/N] [--seed S] [--jobs N] [--timeout S] [--json OUT] [--list]
 #        [--prove | --prove-only] [--proof-timeout S] [--proofs NAME ...]
 #        python3 test/mutate.py --report OUT ...
@@ -114,6 +114,11 @@ RTL = [
     "src/program_memory.ml", "src/sram_macro.ml", "src/engines.ml", "src/top.ml",
     "src/isa.ml", "src/program_config.ml",
 ]
+# chip files RTL leaves out
+ONCHIP = [
+    "src/load_checker.ml", "src/frame_rx.ml", "src/manchester_rx.ml", "src/usb_frame_rx.ml",
+    "src/usb_rx.ml", "src/edge_stamps.ml", "src/line_stuff.ml", "src/both_edges.ml",
+]
 # files the chip doesn't instantiate, each with the generators that elaborate it alone.
 # The kernel's step is in both of its circuits and its table is in neither
 KERNEL = [["kernel"], ["kernel-accepts"]]
@@ -124,14 +129,15 @@ APART = {
     "src/kernel_accepts.ml": [["kernel-accepts"]],
     "src/kernel_table.ml": [],
     "src/osr_kernel.ml": [["osr"]],
+    # and in the chip, where Frame_rx runs it at two rates
     "src/manchester_rx.ml": [
         ["manchester-rx"],
         ["manchester-rx", "-samples-per-bit", "8", "-samples-per-cycle", "2", "-gain-shift", "3"],
-    ],
+    ] + CHIP,
 }
-ELABORATE = {f: CHIP for f in RTL} | APART
+ELABORATE = {f: CHIP for f in RTL + ONCHIP} | APART
 # engine is the published score's four files, with five mutants per operator. wide is
-# every file that makes RTL, plus the kernel and the analyser, with every match
+# the RTL list above, plus the kernel and the analyser, with every match
 SCOPES = {
     "engine": {
         "files": ["src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/host_port.ml"],
@@ -150,6 +156,12 @@ SCOPES = {
             "src/kernel.ml", "src/kernel_types.ml", "src/kernel_step.ml", "src/kernel_accepts.ml",
             "src/kernel_table.ml", "src/osr_kernel.ml"],
         "operators": lambda file: HARDWARE + MORE_HARDWARE + SOFTWARE,
+        "max_per_operator": None,
+    },
+    # with MORE_HARDWARE, as their registers have other enables and their counters subtract
+    "onchip": {
+        "files": ONCHIP,
+        "operators": lambda file: HARDWARE + MORE_HARDWARE,
         "max_per_operator": None,
     },
 }

@@ -28,6 +28,7 @@
       "parameter": "SK period",
       "limit": ">= 5000 ns",
       "sheet": "National AN-452 (1992), COP430, Table I p.5",
+      "source": "spec",
       "spans": 80,
       "measured": "6416 ns to 6542 ns",
       "verdict": "proved"
@@ -36,6 +37,7 @@
       "parameter": "SK period",
       "limit": "<= 10.00 us",
       "sheet": "National AN-452 (1992), COP420, p.6 note 1",
+      "source": "spec",
       "spans": 80,
       "measured": "6.42 us to 6.54 us",
       "verdict": "proved"
@@ -44,6 +46,7 @@
       "parameter": "SK high",
       "limit": ">= 1000 ns",
       "sheet": "National AN-452 (1992), NM93C06A, p.6 note 1",
+      "source": "spec",
       "spans": 84,
       "measured": "3166 ns to 3292 ns",
       "verdict": "proved"
@@ -52,6 +55,7 @@
       "parameter": "DI setup",
       "limit": ">= 1000 ns",
       "sheet": "National AN-452 (1992), COP472-3, Table I p.5",
+      "source": "spec",
       "spans": 28,
       "measured": "2291 ns to 3292 ns",
       "verdict": "proved"
@@ -60,6 +64,7 @@
       "parameter": "DI hold",
       "limit": ">= 800 ns",
       "sheet": "National AN-452 (1992), DS8908, Table I p.5",
+      "source": "spec",
       "spans": 26,
       "measured": "4041 ns to 4167 ns",
       "verdict": "proved"
@@ -68,6 +73,7 @@
       "parameter": "CS setup",
       "limit": ">= 1000 ns",
       "sheet": "National AN-452 (1992), COP472-3, Table I p.5",
+      "source": "spec",
       "spans": 4,
       "measured": "6458 ns to 6542 ns",
       "verdict": "proved"
@@ -76,6 +82,7 @@
       "parameter": "CS hold",
       "limit": ">= 1000 ns",
       "sheet": "National AN-452 (1992), COP472-3, Table I p.5",
+      "source": "spec",
       "spans": 4,
       "measured": "3166 ns to 3292 ns",
       "verdict": "proved"
@@ -84,6 +91,7 @@
       "parameter": "CS low after an erase/write",
       "limit": ">= 20000.00 us",
       "sheet": "National AN-452 (1992), COP494 TWE, p.10",
+      "source": "spec",
       "spans": 1,
       "measured": "25940.66 us to 25945.93 us",
       "verdict": "proved"
@@ -92,11 +100,19 @@
       "parameter": "CS low after an erase/write",
       "limit": "<= 30000.00 us",
       "sheet": "National AN-452 (1992), NM93C06A, p.6 note 2",
+      "source": "spec",
       "spans": 1,
       "measured": "25940.66 us to 25945.93 us",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 9,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "DI inverted over EWEN's first opcode bit",
     "EWEN's CS rise 0.5 us before SK's first rise"

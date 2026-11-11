@@ -12,6 +12,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import ffmpeg_referee
 import sigrok
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
@@ -31,6 +32,7 @@ import demo_nec  # noqa: E402
 import demo_neopixel  # noqa: E402
 import demo_referee  # noqa: E402
 import demo_spdif  # noqa: E402
+import demo_spdif_ac3  # noqa: E402
 import demo_swd  # noqa: E402
 import demo_swd_blind  # noqa: E402
 import demo_tdm_audio  # noqa: E402
@@ -389,6 +391,24 @@ def spdif(_levels):
     return lambda decoded, _log: run_of(decoded, expected, "the samples sent")
 
 
+def spdif_ac3(_levels):
+    """The words of OWN's reader hold the burst, and FFmpeg finds the frame sent in them."""
+    expected = ffmpeg_referee.lines(demo_spdif_ac3.BURST)
+
+    def judge(decoded, _log):
+        return (run_of(decoded, expected, "the burst sent")
+                or ffmpeg_referee.problems([int(word, 16) for word in decoded]))
+
+    return judge
+
+
+def spdif_codecs(_levels):
+    """The words of OWN's reader hold every burst sent, on its codec's period, and FFmpeg
+    names each codec and finds its frames in them."""
+    return lambda decoded, _log: ffmpeg_referee.codecs_problems(
+        [int(word, 16) for word in decoded])
+
+
 def usb_power_delivery(_levels):
     m = demo_usb_power_delivery
     expected = m.lines(m.HEADER, m.PDOS)
@@ -465,6 +485,8 @@ CHECKS = {
     "dali": (OUT0, dali),
     "dmx512": (OUT0, dmx512),
     "spdif": (OUT0, spdif),
+    "spdif_ac3": (OUT0, spdif_ac3),
+    "spdif_codecs": (OUT0, spdif_codecs),
     "usb_power_delivery": (OUT0, usb_power_delivery),
     "wiegand": ({4: "DATA0", 5: "DATA1, CAN board A's R"}, wiegand),
     "ir_nec": (OUT0, ir_nec),
@@ -508,6 +530,15 @@ def joined_decode(name, d, rate, samples):
     return out.splitlines()
 
 
+# sigrok's spdif misreads an IEC 61937 burst, so demo/ffmpeg_referee.py reads these by run
+# length, one word a line. Saved as DEMO.words.
+OWN = {"spdif_ac3": ffmpeg_referee.captured, "spdif_codecs": ffmpeg_referee.captured}
+
+
+def own(name, rate, samples):
+    return ffmpeg_referee.lines(OWN[name](samples, rate))
+
+
 def stem(demo):
     """Returns the name of a demo's files (both start hold demos write start_hold.*)."""
     return "start_hold" if demo.startswith("start_hold") else demo
@@ -531,6 +562,9 @@ def check(demo, directory):
     decoded = decode.read_text(errors="replace").splitlines() if decode.exists() else []
     if name in JOINED:
         decoded = joined_decode(name, d, rate, samples)
+    if name in OWN:
+        decoded = own(name, rate, samples)
+        (d / (name + ".words")).write_text("".join(line + "\n" for line in decoded))
     del samples
     return judge(name, levels, decoded, log.read_text(errors="replace") if log.exists() else "")
 

@@ -4,7 +4,7 @@
 # host adds them up, next to the die, and fails if that strays from the path. Ctrl-C
 # releases the button.
 # Usage: python3 demo/draw.py --dry-run [--out DIR]        render and check only
-#        python3 demo/draw.py --pico id:<serial of Pico A>  the bench, after BRINGUP's draw demo
+#        python3 demo/draw.py --pico id:<serial of Pico A>  the bench
 import argparse
 import math
 import os

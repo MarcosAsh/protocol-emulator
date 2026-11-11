@@ -2,10 +2,9 @@
 # The tolerance sweep (test/tolerance.ml): engine 1 sends BYTES back to back from one
 # anchor at m 2^-16 cycles a bit, the whole cycles as its first host word and the rest
 # as its period fraction, to engine 0's uart_rx_host_rate on a wire, at 9600 baud from
-# 48 MHz. LEAST and MOST are the bounds the receiver's certificate gives, which
-# formal/tolerance.sby proves on the RTL at short half periods; STEPS pairs each m
-# with what the model predicts, and FAULTS are the steps it predicts fault the
-# receiver, with FAULT its status bits. Both firmwares pass the kernel at
+# 48 MHz. LEAST and MOST are the bounds the receiver's certificate gives. STEPS
+# pairs each m with what the model predicts, and FAULTS are the steps it predicts
+# fault the receiver, with FAULT its status bits. Both firmwares pass the kernel at
 # every step, and the sender's one certificate, under the floor of the steps' periods,
 # the chip's walk.
 

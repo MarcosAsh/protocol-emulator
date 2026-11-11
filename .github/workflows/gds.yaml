@@ -180,7 +180,7 @@ jobs:
             sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v \
             sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v; do
             mkdir -p "$(dirname "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model")"
-            curl -sfL "$url/$model" -o "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model"
+            curl -fsSL --retry 5 --retry-all-errors "$url/$model" -o "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model"
           done
           echo "PDK_ROOT=$HOME/pdk" >> "$GITHUB_ENV"
 
@@ -268,7 +268,7 @@ jobs:
             sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v \
             sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v; do
             mkdir -p "$(dirname "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model")"
-            curl -sfL "$url/$model" -o "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model"
+            curl -fsSL --retry 5 --retry-all-errors "$url/$model" -o "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model"
           done
           echo "PDK_ROOT=$HOME/pdk" >> "$GITHUB_ENV"
 
@@ -318,7 +318,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       # the cell models and Liberty of the PDK revision the netlist was hardened with
@@ -328,8 +330,8 @@ jobs:
           cells=ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
           url=https://raw.githubusercontent.com/IHP-GmbH/IHP-Open-PDK/$rev/$cells
           mkdir -p "$HOME/pdk/$cells/verilog" "$HOME/pdk/$cells/lib"
-          curl -sfL "$url/verilog/sg13cmos5l_stdcell.v" -o "$HOME/pdk/$cells/verilog/sg13cmos5l_stdcell.v"
-          curl -sfL "$url/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib" \
+          curl -fsSL --retry 5 --retry-all-errors "$url/verilog/sg13cmos5l_stdcell.v" -o "$HOME/pdk/$cells/verilog/sg13cmos5l_stdcell.v"
+          curl -fsSL --retry 5 --retry-all-errors "$url/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib" \
             -o "$HOME/pdk/$cells/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib"
           echo "PDK_ROOT=$HOME/pdk" >> "$GITHUB_ENV"
 

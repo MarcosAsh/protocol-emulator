@@ -46,7 +46,8 @@ DETACH = "from machine import Pin; Pin(8, Pin.OUT, value=1)"
 class Demo:
     name: str
     # outside: the demo's name in demo/outside.sh. start_hold: its name in
-    # demo/start_hold.sh. pico: the ledger runs RUN (a script) or EXEC (a statement) on Pico A
+    # demo/start_hold.sh. usb_fs: demo/usb_fs_device.sh. pico: the ledger runs RUN (a
+    # script) or EXEC (a statement) on Pico A
     kind: str
     expect: str = "PASS"
     # what Pico B must run, or None if it isn't part of the demo
@@ -56,7 +57,7 @@ class Demo:
     exec: str | None = None
     # baud rate at which pico_listener reads OUT0 on Pico B
     listen: int | None = None
-    # capture analyser A on D4 (OUT0) for this long, at RATE (or the environment's), plus the decode
+    # capture analyser A for this long, at RATE (or the environment's), plus the decode
     capture_ms: int | None = None
     rate: str | None = None
     decode: str | None = None
@@ -125,12 +126,18 @@ DEMOS = [
     outside("dali", pico_b="micropython"),
     outside("dmx512", pico_b="micropython"),
     outside("spdif", pico_b="micropython"),
+    # ours, where FFmpeg reads an AC-3 frame back from the S/PDIF line
+    outside("spdif_ac3", pico_b="micropython"),
+    # and names AC-3, MP3, AAC and DTS, each from its bursts on the same line
+    outside("spdif_codecs", pico_b="micropython"),
     outside("usb_power_delivery", pico_b="micropython"),
     # CAN board B recessive, so CAN board A's R follows OUT1 (DATA1) onto D5
     outside("wiegand", pico_b="can_node"),
     outside("ir_nec", pico_b="micropython"),
     outside("lin"),
     outside("swd_blind"),
+    # engine 0 holds SWDIO low until it underflows, where the pull-up shows the chip let go
+    outside("fault_release", pico_b="micropython"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
     # 10BASE-T needs the 40 MHz build. The chip hears its own frames on TD+, then frames
@@ -144,6 +151,9 @@ DEMOS = [
          files=("python/bench.py", "python/ethernet.py", "python/demo_ethernet_rx.py",
                 "test/ethernet_rx.hex", "test/ethernet_rx.cert.hex"),
          run="python/demo_ethernet_rx.py", timeout_s=300, mhz=40),
+    # needs the FS=1 build and the Icepi's first USB-C port on this machine. Pico B idle,
+    # as a PROBE=1 build puts D+ on OUT0's header pin
+    Demo("usb_fs_device", "usb_fs", pico_b="micropython"),
     Demo("start_hold_pio", "start_hold", expect="FAIL",
          why="pico-examples' pio_i2c holds a START 3.125 us, under 4.0 (#796)"),
     Demo("start_hold_hw", "start_hold"),
@@ -204,8 +214,12 @@ def keep_bitstream(bitstream, runs, bit_hash):
 
 
 def commit():
+    """Returns HEAD, +dirty if tracked files changed. A copy of the tree without .git, as
+    demo/video.sh sends, is named by LEDGER_COMMIT, which the sender works out the same way."""
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
-                          text=True).stdout.strip() or "unknown"
+                          text=True).stdout.strip()
+    if not head:
+        return os.environ.get("LEDGER_COMMIT", "unknown")
     # don't count the ledger's own lines or the bench times that demo/outside.sh marks
     dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--", ".",
                             ":!demo/ledger.tsv", ":!demo/speed.tsv"], cwd=ROOT,
@@ -420,6 +434,11 @@ class Ledger:
         self.pico_b = "start_hold_" + how if status == 0 else None
         return "start_hold.log", status == 0
 
+    def run_usb_fs(self, demo):
+        env = {"CAPTURES": str(self.bench.dir), "PICO": self.pico}
+        status = self.bench.run(["demo/usb_fs_device.sh"], env=env, out="outside.txt")
+        return demo.name + ".log", status == 0
+
     def demo(self, demo, day, head, bit_hash):
         b = self.bench
         b.open(fresh(self.args.runs, demo.name) if not b.dry_run
@@ -432,7 +451,7 @@ class Ledger:
             b.note("Pico B did not take %s: not run" % demo.pico_b)
         else:
             run = {"pico": self.run_pico, "outside": self.run_outside,
-                   "start_hold": self.run_start_hold}[demo.kind]
+                   "start_hold": self.run_start_hold, "usb_fs": self.run_usb_fs}[demo.kind]
             log, ok = run(demo)
             if not b.dry_run:
                 text = (b.dir / log).read_text(errors="replace") if (b.dir / log).exists() else ""

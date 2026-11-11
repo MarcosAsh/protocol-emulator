@@ -1,8 +1,8 @@
 name: pages
 
 # Deploys the site, and is the only workflow that does. The docs/ pages are the root, with
-# the playground from main, the results page, the live die, the 3D viewer of main's last
-# green gds run beside them. Runs after gds and results.
+# the playground from main, the results page, the live die, the 3D viewer of the gds run
+# the README cites beside them. Runs after gds and results.
 # js_of_ocaml is never locked.
 on:
   push:
@@ -14,7 +14,10 @@ on:
       - playground/**
       - pages/**
       - docs/**
+      - README.md
       - info.yaml
+      - test/evidence.py
+      - test/evidence.sha256
       - test/*.asm
       - test/*.ml
       - test/diagrams/**
@@ -212,13 +215,19 @@ jobs:
           name: playground
           path: site/playground
 
-      # used as committed: demo/live_die.py builds the die's data by hand from one gds run
+      # used as committed: demo/live_die.py builds the die's data by hand from one gds run.
+      # test/evidence.py fetches the chip
       - name: Checkout the pages
         uses: actions/checkout@v6
         with:
           sparse-checkout: |
-            pages
-            docs
+            /pages/
+            /docs/
+            /README.md
+            /info.yaml
+            /test/evidence.py
+            /test/evidence.sha256
+          sparse-checkout-cone-mode: false
           path: repo
 
       # docs/ built with Sphinx is the site's root, and the pages below go up next to it
@@ -264,20 +273,20 @@ jobs:
             echo "::warning::no results page in results run $run"
           fi
 
-      # what TinyTapeout/tt-gds-action/viewer publishes, from the last passing run
+      # what TinyTapeout/tt-gds-action/viewer publishes, from the gds run the README cites,
+      # or the release that keeps it once its artifacts expire
       - name: Download the chip
         id: chip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run=$(gh run list -R "${{ github.repository }}" --workflow gds.yaml --branch main \
-            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-          gh run download "$run" -R "${{ github.repository }}" -n tt_submission -n gds_render -D chip
+          python3 repo/test/evidence.py chip chip > chip.env
+          . ./chip.env
           cp chip/tt_submission/tt_submission/*.gds site/tinytapeout.gds
           cp chip/tt_submission/tt_submission/*.oas site/tinytapeout.oas
           cp chip/gds_render/gds_render.png site/
           echo "pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)" >> "$GITHUB_OUTPUT"
-          echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
+          echo "chip from gds run $run, from $source" >> "$GITHUB_STEP_SUMMARY"
 
       # the viewer's pdk as the gds run has it, and the results and corpus links only if
       # their pages went up

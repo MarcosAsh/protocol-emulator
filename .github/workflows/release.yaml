@@ -73,7 +73,9 @@ jobs:
 
       - name: Install OSS CAD Suite
         run: |
-          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/oss-cad-suite.tgz" \
+            https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz
+          tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       # the build whose netlist the ocaml workflow's fpga job simulates
@@ -82,24 +84,22 @@ jobs:
           make -C icepi
           cp icepi/build/v1.4.bit release/icepi-zero-v1.4.bit
 
+      # the gds run the README cites, or the release that keeps it once its artifacts expire
       - name: Download the chip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run=$(gh run list -R "${{ github.repository }}" --workflow gds.yaml --branch main \
-            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-          gh run download "$run" -R "${{ github.repository }}" -n tt_submission -n gds_render -D chip
+          python3 test/evidence.py chip chip > chip.env
+          . ./chip.env
           cp chip/tt_submission/tt_submission/*.{gds,oas,lef,v} chip/gds_render/gds_render.png release/
           commit=$(jq -r .commit chip/tt_submission/tt_submission/commit_id.json)
           echo "run=$run" >> "$GITHUB_ENV"
+          echo "kept=$kept" >> "$GITHUB_ENV"
           echo "commit=$commit" >> "$GITHUB_ENV"
-          # the bitstream is built from this checkout, so it is the chip only if the files
-          # a gds run hardens (gds.yaml's paths filter) match the ones at its commit
-          # info.yaml's comments and language don't reach the harden
-          info() { sed -E 's/[[:space:]]+#[^"]*$//; /^[[:space:]]*(#|language:|$)/d'; }
-          if ! git diff --quiet "$commit" HEAD -- src macro librelane_plugin_sram_pdn.py \
-            odb_sram_stripes.py librelane_plugin_die_art.py die_art.py ':!*.ml' ':!*.mli' ':!**/dune' \
-            || ! cmp -s <(git show "$commit:info.yaml" | info) <(info < info.yaml); then
+          # the bitstream is built from this checkout, so it is the chip only if what a gds
+          # run hardens matches its commit, as test/check_docs.py's same_chip decides
+          same='import sys; sys.path.insert(0, "test"); import check_docs; sys.exit(not check_docs.same_chip(sys.argv[1]))'
+          if ! python3 -c "$same" "$commit"; then
             echo "::$LEVEL::the chip's sources here differ from $commit, which gds run $run hardened"
             [ "$LEVEL" = warning ]
           fi
@@ -126,6 +126,7 @@ jobs:
       - name: Write the notes
         run: |
           echo "The chip is from gds run $run at $commit." > notes.md
+          [ -z "$kept" ] || echo "Release $kept keeps that run's artifacts past GitHub's 90 days." >> notes.md
           cat >> notes.md <<'EOF'
           Assemble and check firmware with no OCaml: `chmod +x generate-linux-x86_64 && ./generate-linux-x86_64 assemble uart_tx.asm`
 

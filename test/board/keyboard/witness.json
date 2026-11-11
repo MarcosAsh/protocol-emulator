@@ -25,6 +25,7 @@
       "parameter": "bit",
       "limit": ">= 8507 ns",
       "sheet": "UART at 115200 baud, Maxim AN2141 p.4, 2%",
+      "source": "spec",
       "spans": 94,
       "measured": "7999 ns to 9501 ns",
       "verdict": "unresolved"
@@ -33,11 +34,19 @@
       "parameter": "bit",
       "limit": "<= 8854 ns",
       "sheet": "UART at 115200 baud, Maxim AN2141 p.4, 2%",
+      "source": "spec",
       "spans": 94,
       "measured": "7999 ns to 9501 ns",
       "verdict": "unresolved"
     }
   ],
+  "proved": {
+    "spec": 0,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "half of the first byte's bit 0 inverted",
     "the first frame's second edge 12 samples late",

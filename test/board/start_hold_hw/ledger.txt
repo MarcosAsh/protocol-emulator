@@ -1,0 +1,13 @@
+demo: start_hold_hw
+result: PASS
+pico_a_says: PASS
+traffic: held to the capture
+expected: PASS
+time: 2026-11-11T13:22:47
+commit: 77f3c19441f9e2ae2c7269da10c107a8dac61de5
+bitstream: /home/marcos/pe-bench/runs/2026-11-10-2319-32267ee8/v1.3.bit
+bitstream_sha256: 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009
+netlist_sha256: 0b4fe7d34201a4260512298c968f4f50e4bd4bbbb252e91c9485b2ed2e467ad7
+pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 start_hold_hw
+rate: 24M

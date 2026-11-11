@@ -25,6 +25,7 @@
       "parameter": "1-bit level",
       "limit": ">= 104 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 28,
       "measured": "167 ns to 250 ns",
       "verdict": "proved"
@@ -33,6 +34,7 @@
       "parameter": "2-bit level",
       "limit": ">= 312 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 8,
       "measured": "375 ns to 458 ns",
       "verdict": "proved"
@@ -41,6 +43,7 @@
       "parameter": "3-bit level",
       "limit": ">= 521 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 2,
       "measured": "583 ns to 667 ns",
       "verdict": "proved"
@@ -49,6 +52,7 @@
       "parameter": "4-bit level",
       "limit": ">= 729 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 4,
       "measured": "792 ns to 875 ns",
       "verdict": "proved"
@@ -57,6 +61,7 @@
       "parameter": "1-bit level",
       "limit": "<= 312 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 28,
       "measured": "167 ns to 250 ns",
       "verdict": "proved"
@@ -65,6 +70,7 @@
       "parameter": "2-bit level",
       "limit": "<= 521 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 8,
       "measured": "375 ns to 458 ns",
       "verdict": "proved"
@@ -73,6 +79,7 @@
       "parameter": "3-bit level",
       "limit": "<= 729 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 2,
       "measured": "583 ns to 667 ns",
       "verdict": "proved"
@@ -81,6 +88,7 @@
       "parameter": "4-bit level",
       "limit": "<= 938 ns",
       "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "source": "own",
       "spans": 4,
       "measured": "792 ns to 875 ns",
       "verdict": "proved"
@@ -89,11 +97,19 @@
       "parameter": "a level",
       "limit": ">= 3 ns",
       "sheet": "NXP AN5134 Rev. 0, p.3: rates up to 320 Mb/s",
+      "source": "spec",
       "spans": 42,
       "measured": "167 ns to 875 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 1,
+    "own": 8,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "the first payload's first bit inverted",
     "the first sync bit 1.8 bits long"

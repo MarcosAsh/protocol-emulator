@@ -1,0 +1,141 @@
+{
+  "demo": "spdif_codecs",
+  "time": "2026-11-11T12:48:51",
+  "result": "PASS",
+  "commit": "53b620ec62dd99d4819a963c107ee5fe59643894",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "0b4fe7d34201a4260512298c968f4f50e4bd4bbbb252e91c9485b2ed2e467ad7",
+  "sums_sha256": "bf9a7dad4048e291c0913315f7ddce187db147eaaa1c85c816fc8dfc60bbe4d8",
+  "capture": {
+    "file": "spdif_codecs.sr",
+    "sha256": "6c783461cde015688f137b45d1aaed4f097365c768e268fcebefcb4850c33370",
+    "rate_hz": 24000000,
+    "seconds": 3.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0"
+    }
+  },
+  "decode": {
+    "arguments": "-P spdif:data=D4 -A spdif=samples",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "timing": [
+    {
+      "parameter": "1 half slot",
+      "limit": ">= 89 ns",
+      "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
+      "source": "own",
+      "spans": 121432,
+      "measured": "83 ns to 250 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "1 half slot",
+      "limit": "<= 266 ns",
+      "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
+      "source": "own",
+      "spans": 121432,
+      "measured": "83 ns to 250 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "2 half slots",
+      "limit": ">= 266 ns",
+      "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
+      "source": "own",
+      "spans": 1511888,
+      "measured": "292 ns to 458 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "2 half slots",
+      "limit": "<= 443 ns",
+      "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
+      "source": "own",
+      "spans": 1511888,
+      "measured": "292 ns to 458 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "3 half slots",
+      "limit": ">= 443 ns",
+      "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
+      "source": "own",
+      "spans": 79292,
+      "measured": "458 ns to 625 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "3 half slots",
+      "limit": "<= 620 ns",
+      "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
+      "source": "own",
+      "spans": 79292,
+      "measured": "458 ns to 625 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "a block of 192 frames, 44.1 kHz and 1100 ppm",
+      "limit": ">= 4348.95 us",
+      "sheet": "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, S/PDIF control word components, byte 3, spec.txt l.222-224",
+      "source": "derived",
+      "spans": 1,
+      "measured": "4353.53 us to 4354.40 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "a block of 192 frames, 44.1 kHz less 1100 ppm",
+      "limit": "<= 4358.53 us",
+      "sheet": "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, S/PDIF control word components, byte 3, spec.txt l.222-224",
+      "source": "derived",
+      "spans": 1,
+      "measured": "4353.53 us to 4354.40 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "a frame, Mode 0's 192 kHz at most",
+      "limit": ">= 5208 ns",
+      "sheet": "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, text, spec.txt l.180",
+      "source": "spec",
+      "spans": 26430,
+      "measured": "22623 ns to 22752 ns",
+      "verdict": "proved"
+    }
+  ],
+  "proved": {
+    "spec": 1,
+    "own": 3,
+    "decoder": 0,
+    "derived": 2
+  },
+  "partial": null,
+  "teeth": [
+    "the burst's first word's bits 4 and 5 cleared",
+    "the first half slot cut to a sample"
+  ],
+  "bitstream_source": "main 32267ee8 by the bench's nightly job (icepi/build/v1.3.bit)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "SPDIF": "ffa2efe05d8c9ac52bd881492e9a64f05a4b365b97f6ab85c0138495f388868d"
+  },
+  "host_scripts": {
+    "python/demo_spdif_codecs.py": "bd80e45b0d951a20d072a107c0c7d3bbf288fef43af0938cfc6d419183aa33c0",
+    "python/spdif_bursts.py": "df5160c052eed883afb57ab62c5cbf5431e6c445cc7b727a8e7567e82f4773ba"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of spdif_codecs, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main 32267ee8 by the bench's nightly job (icepi/build/v1.3.bit) by the bench's notes, which CI does not rebuild",
+    "our own demo on the held-out S/PDIF firmware, not a drawn or sealed protocol, sending a chirp that FFmpeg encoded as AC-3, MP3, AAC and DTS and muxed to IEC 61937 bursts",
+    "sigrok's spdif misreads the bursts, so its decode is not judged",
+    "demo/ffmpeg_referee.py reads the words by run length, and FFmpeg's spdif demuxer must name each codec and find the frames sent in its bursts",
+    "FFmpeg holds the frames' bytes, not the line code",
+    "the Pico pushes each burst at its place and the firmware starts it on a frame, so a burst is held to its period within 8 words, not to IEC 61937's exact repetition",
+    "the line runs at 44.1 kHz for every codec, which no receiver was asked to lock to",
+    "a half slot is about four samples, so its windows can stay unresolved"
+  ]
+}

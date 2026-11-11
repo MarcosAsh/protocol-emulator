@@ -435,6 +435,14 @@ let load_check_step_rtl_command =
           C.create_exn ~name (Load_check.Step.hierarchical scope))]
 ;;
 
+(* a missing file ends the command with the system's message, not a backtrace *)
+let read_source file =
+  try In_channel.read_all file with
+  | Sys_error message ->
+    eprintf "%s\n" message;
+    exit 1
+;;
+
 (* Parses [FIELD=VALUE], going through the record's sexp so fields keep their names. *)
 let config_field =
   Command.Arg_type.create (fun text ->
@@ -535,17 +543,30 @@ let timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
     fun ?(verdicts = Out_channel.stderr) ~config ~source (program : Asm.Program.t) ->
+      let print_chip chip = fprintf verdicts "%s\n" (Chip_verdict.to_string chip) in
       if Option.is_some period && Option.is_some period_floor
       then Or_error.error_s [%message "-period or -period-floor, not both"]
       else if no_timing_check
-      then
-        Ok
-          (Analyser.analyse
-             ?period
-             ?period_floor
-             ~single_capture_edge
-             ~config:(Asm.Program.configure program config)
-             program.instructions)
+      then (
+        let config = Asm.Program.configure program config in
+        let rows =
+          Analyser.analyse
+            ?period
+            ?period_floor
+            ~single_capture_edge
+            ~config
+            program.instructions
+        in
+        Result.iter (Asm.Program.words program) ~f:(fun words ->
+          print_chip
+            (Chip_verdict.check
+               ?period
+               ?period_floor
+               ~single_capture_edge
+               ~config
+               ~words
+               rows));
+        Ok rows)
       else (
         let print_verdict verdict =
           fprintf verdicts "%s\n" (Analyser.Verdict.to_string verdict)
@@ -558,6 +579,7 @@ let timing_check =
           fprintf
             verdicts
             "kernel: accepted, so no deadline is missed by the step lemma\n";
+          print_chip (Chip_verdict.of_timed timed);
           Ok (Timed_program.rows timed)
         | Error { faults = _; verdict; error } ->
           Option.iter verdict ~f:print_verdict;
@@ -571,7 +593,12 @@ let assemble_command =
       "Firmware that can reach a deadline wait late is refused, with the waits at fault. \
        Firmware the analyser passes is assembled only if the kernel accepts the \
        analyser's rows for it; otherwise it is refused with each pc and the conjuncts \
-       that fail there. -no-timing-check turns off both.")
+       that fail there. -no-timing-check turns off both. A refusal prints no words and \
+       exits 1.\n\n\
+       Then the chip's load check walks the program against its certificate, as the chip \
+       does before a start. The host kernel accepts rows a certificate can't carry, so \
+       the chip can refuse what the kernel accepts. That line is a warning. The words \
+       still print and the exit code is 0, as a refusal demo needs them.")
     [%map_open.Command
       let file = anon ("FILE" %: string)
       and config = program_config
@@ -597,7 +624,7 @@ let assemble_command =
       fun () ->
         let assembled =
           let open Or_error.Let_syntax in
-          let source = In_channel.read_all file in
+          let source = read_source file in
           let%bind program = Asm.assemble source in
           let%bind rows = timing_check ~config ~source program in
           let%map words = Asm.Program.words program in
@@ -673,7 +700,7 @@ let run_command =
           ~doc:"WORD,... the data memory from address 0"
       and vcd = flag "-vcd" (optional string) ~doc:"FILE write the pins there as a VCD" in
       fun () ->
-        let source = In_channel.read_all file in
+        let source = read_source file in
         let machine =
           let open Or_error.Let_syntax in
           let%bind program = Asm.assemble source in
@@ -732,7 +759,7 @@ let self_check_command =
       fun () ->
         let rows =
           let open Or_error.Let_syntax in
-          let%bind program = In_channel.read_all file |> Asm.assemble in
+          let%bind program = read_source file |> Asm.assemble in
           let%bind edges =
             Self_check.edges ?period ~config:Program_config.default program ~first ~last
           in
@@ -853,8 +880,10 @@ let predicate_command =
     ~summary:"Compile a predicate over pin events to firmware and print its source"
     ~readme:(fun () ->
       "As in \"pin 0 falls while pin 1 is high\" or \"pin 2 stops moving\". The \
-       certificate goes to stderr, with the config and host budget it depends on. A \
-       latency the code cannot meet is refused with the cycles it is short by.")
+       certificate goes to stderr, with the config and host budget it depends on, and \
+       whether the chip's load check would start the firmware, as for assemble. A \
+       latency the code cannot meet is refused with the cycles it is short by, and exits \
+       1.")
     [%map_open.Command
       let text = anon ("PREDICATE" %: string)
       and latency =
@@ -882,7 +911,18 @@ let predicate_command =
               ""
                 ~certificate:(firmware.certificate : Predicate.Certificate.t)
                 ~budget_from_host:(firmware.budget_from_host : int option)
-                ~config:(firmware.config : Program_config.t)]
+                ~config:(firmware.config : Program_config.t)];
+          (match
+             Timed_program.check
+               ?period:firmware.budget_from_host
+               ~config:firmware.config
+               firmware.source
+           with
+           | Ok timed ->
+             eprintf "%s\n" (Chip_verdict.to_string (Chip_verdict.of_timed timed))
+           | Error { error; _ } ->
+             raise_s
+               [%message "BUG: the kernel refuses compiled firmware" (error : Error.t)])
         | Error e ->
           eprintf "%s\n" (Error.to_string_hum e);
           exit 1]
@@ -890,6 +930,8 @@ let predicate_command =
 
 let () =
   Command_unix.run
+    ~version:Version.t
+    ~build_info:("OCaml " ^ Stdlib.Sys.ocaml_version)
     (Command.group
        ~summary:""
        [ "engine", engine_rtl_command

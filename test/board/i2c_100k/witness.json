@@ -26,6 +26,7 @@
       "parameter": "1/fSCL",
       "limit": ">= 10.00 us",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 1435,
       "measured": "10.00 us to 1461.23 us",
       "verdict": "unresolved"
@@ -34,6 +35,7 @@
       "parameter": "THIGH",
       "limit": ">= 4000 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 1435,
       "measured": "4875 ns to 15085 ns",
       "verdict": "unresolved"
@@ -42,6 +44,7 @@
       "parameter": "TLOW",
       "limit": ">= 4700 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 1447,
       "measured": "5083 ns to 1456312 ns",
       "verdict": "unresolved"
@@ -50,6 +53,7 @@
       "parameter": "THD:STA",
       "limit": ">= 4000 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 16,
       "measured": "7499 ns to 7626 ns",
       "verdict": "proved"
@@ -58,6 +62,7 @@
       "parameter": "TSU:STA",
       "limit": ">= 4700 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 15,
       "measured": "7416 ns to 3942353 ns",
       "verdict": "proved"
@@ -66,6 +71,7 @@
       "parameter": "TSU:DAT",
       "limit": ">= 250 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 810,
       "measured": "2458 ns to 1364136 ns",
       "verdict": "proved"
@@ -74,6 +80,7 @@
       "parameter": "TSU:STO",
       "limit": ">= 4000 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 12,
       "measured": "7499 ns to 7626 ns",
       "verdict": "proved"
@@ -82,11 +89,19 @@
       "parameter": "TBUF",
       "limit": ">= 4700 ns",
       "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
       "spans": 11,
       "measured": "388544 ns to 3934810 ns",
       "verdict": "proved"
     }
   ],
+  "proved": {
+    "spec": 5,
+    "own": 0,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
   "teeth": [
     "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
     "SCL's tenth pulse cut to 6 samples"

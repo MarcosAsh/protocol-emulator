@@ -1,5 +1,6 @@
 15 words, 3 deadline waits, worst slack 12
 kernel: accepted, so no deadline is missed by the step lemma
+chip: its load check accepts the 15-word certificate
 
 cycles 0 to 199, 4 a column: _ low, - high, | both
 OUT0  ||_______|---|___|-------|___|---|___|------------

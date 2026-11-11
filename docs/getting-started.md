@@ -15,6 +15,7 @@ $ dune exec -- bin/generate.exe assemble -listing test/uart_tx.asm
 ...
 15 words, 3 deadline waits, worst slack 12
 kernel: accepted, so no deadline is missed by the step lemma
+chip: its load check accepts the 15-word certificate
 $ sed 's/out pins, 1/out pins, 1 [13]/' test/uart_tx.asm > late.asm
 $ dune exec -- bin/generate.exe assemble late.asm
 late.asm: 3 of 3 deadline waits may be missed
@@ -22,12 +23,18 @@ late.asm: 3 of 3 deadline waits may be missed
 ...
 ```
 
-The host loads the words, `test/uart_tx.hex`, over SPI with `python/protocol_emulator.py`:
+The host loads the words, `test/uart_tx.hex`, and the certificate the chip checks them
+against before a start, `test/uart_tx.cert.hex`, over SPI with
+`python/protocol_emulator.py`:
 
 ```python
+import demo_board
+from protocol_emulator import DEFAULT_CONFIG, hex_words
+
 host = demo_board.host()
 host.configure(DEFAULT_CONFIG)  # set and out base at pin 5, which is uo[1]
 host.load(hex_words(open("uart_tx.hex").read()))
+host.certify(hex_words(open("uart_tx.cert.hex").read()))  # raises Refused if the chip says no
 host.push([0x55, 0xA3])
 host.start()
 ```
@@ -42,7 +49,13 @@ Needs the OxCaml switch, and OSS CAD Suite and cocotb for `formal/` and `test/`.
 OCaml, the [latest release](https://github.com/MarcosAsh/protocol-emulator/releases/latest)
 has `generate-linux-x86_64` (Ubuntu 24.04 or newer).
 
+On Ubuntu 24.04 with opam 2.3, CI makes the switch with the OxCaml repository pinned:
+
 ```
+sudo apt-get install git curl ca-certificates build-essential unzip bubblewrap rsync m4 \
+  pkg-config libgmp-dev libffi-dev zlib1g-dev autoconf cmake python3
+opam switch create . ocaml-variants.5.2.0+ox --no-install --repos \
+  ox=git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05,default
 opam install . --deps-only --with-test --locked
 make -C formal sat_tools   # cadical and cake_lpr; put formal/sat_tools/bin on PATH
 dune build @runtest
