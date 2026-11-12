@@ -34,11 +34,13 @@
 
 ; Hardcaml's cyclesim coverage of src/ over every test above, checked against
 ; coverage_triage.txt: dune build @test/coverage. It reruns the tests, so it is apart from
-; runtest; the reports are left in coverage/ beside the runner.
+; runtest; the reports are left in coverage/ beside the runner. CI builds
+; @test/coverage_reports in shards and checks them together.
 
 (rule
- (alias coverage)
+ (alias coverage_reports)
  (deps
+  (env_var COVERAGE_SHARD)
   (glob_files *.asm)
   (glob_files assemble/*.asm)
   (glob_files *.hex)
@@ -49,9 +51,15 @@
   ../python/demo_board.py
   ../icepi/Makefile)
  (action
-  (progn
-   (run
-    sh
-    %{dep:coverage.sh}
-    %{dep:.protocol_emulator_test.inline-tests/inline-test-runner.exe})
-   (run python3 %{dep:check_coverage.py} %{dep:coverage_triage.txt} coverage))))
+  (run
+   sh
+   %{dep:coverage.sh}
+   %{dep:.protocol_emulator_test.inline-tests/inline-test-runner.exe})))
+
+(rule
+ (alias coverage)
+ (deps
+  (alias coverage_reports)
+  (glob_files ../src/*.ml))
+ (action
+  (run python3 %{dep:check_coverage.py} %{dep:coverage_triage.txt} coverage)))

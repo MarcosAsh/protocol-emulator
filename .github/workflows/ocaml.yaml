@@ -304,12 +304,15 @@ jobs:
           make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv sync_rtl sync_rtl_teeth powerup offset_axioms gate certify usb_roundtrip_proof line_stuff_proof frame_roundtrip_proof
 
   # Hardcaml's cyclesim coverage of src/ over every test. It reruns them, so it runs
-  # beside the test job. Every point the tests leave open is listed with a reason in
-  # test/coverage_triage.txt, and a new one fails (test/check_coverage.py).
+  # beside the test job, in four shards as one runner comes near its six hours.
   coverage:
     needs: changes
     if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -353,10 +356,36 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
+      - name: Run the shard's tests
+        run: COVERAGE_SHARD=${{ matrix.shard }}/4 opam exec -- dune build @test/coverage_reports
+
+      - name: Upload the shard's reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: _build/default/test/coverage/
+
+  # Every point the tests leave open is listed with a reason in test/coverage_triage.txt,
+  # and a new one fails (test/check_coverage.py).
+  coverage_check:
+    needs: coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the shards' reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage
+          merge-multiple: true
+
       - name: Check coverage
         run: |
           status=0
-          opam exec -- dune build @test/coverage > coverage_check.txt 2>&1 || status=$?
+          python3 test/check_coverage.py test/coverage_triage.txt coverage > coverage_check.txt 2>&1 || status=$?
           cat coverage_check.txt
           { echo '```'; cat coverage_check.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit $status
@@ -367,7 +396,7 @@ jobs:
         with:
           name: coverage
           path: |
-            _build/default/test/coverage/
+            coverage/
             coverage_check.txt
 
   # judges the pin traces with sigrok's protocol decoders, which we didn't write. Each
@@ -428,8 +457,8 @@ jobs:
         run: python3 test/test_carrier_check.py
 
   # simulates the netlists of both boards. The firmware words they load are the committed
-  # ones, and the test job checks those are current. On the 8x4 chip the replays alone
-  # come near a runner's six hours, so they run in two halves
+  # ones, and the test job checks those are current. On the 8x4 chip the tests and the
+  # replays each come near a runner's six hours, so each runs in two halves
   fpga:
     needs: changes
     if: needs.changes.outputs.fpga == 'true'
@@ -439,6 +468,9 @@ jobs:
       matrix:
         include:
           - part: tests
+            half: slow
+          - part: tests
+            half: rest
           - part: replay
             traces: traces/[a-o]*.trace
           - part: replay
@@ -488,7 +520,7 @@ jobs:
           cd test
           make icepi_netlist.v
           if [ "${{ matrix.part }}" = tests ]; then
-            make ICEPI=yes
+            make ICEPI=yes HALF=${{ matrix.half }}
             ! grep failure results.xml
           else
             REPLAY_TRACES='${{ matrix.traces }}' make replay ICEPI=yes

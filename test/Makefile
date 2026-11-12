@@ -78,6 +78,15 @@ endif
 COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame,test_ethernet_rx
 GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
+# on the Icepi's netlist they come near a runner's six hours, so CI runs them as
+# HALF=slow and HALF=rest
+comma := ,
+SLOW_TEST_MODULES = test_two_engines,test_board_blame
+ifeq ($(HALF),slow)
+COCOTB_TEST_MODULES := $(SLOW_TEST_MODULES)
+else ifeq ($(HALF),rest)
+COCOTB_TEST_MODULES := $(subst $(comma)$(SLOW_TEST_MODULES),,$(COCOTB_TEST_MODULES))
+endif
 # the bench demo rehearsals simulate milliseconds, so they only run on the RTL
 ifeq ($(GATES)$(ICEPI),)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board,test_pyocd,test_usb_fs
@@ -165,7 +174,6 @@ replay:
 # so no group should take much more than two on a fast runner.
 SDF_DIR ?= ../runs/wokwi/final/sdf
 GROUP ?= all
-comma := ,
 space := $(subst ,, )
 SDF_MODULES_all = $(GATE_TEST_MODULES),test_replay
 # the replays sorted by their slow-corner time (dmx512 alone takes over two hours).
