@@ -1,0 +1,14 @@
+rows: writes at 434 868 1302 1736 2170 2604 3038 3472 3906, the next frame from 4346
+
+quiet: 2560 frames at 434 cycles a bit, 366 restarts: no alarm
+
+glitch: the same restart at 435: 0xff's start bit ends at cycle 435, not 434
+alarm: engine 1 raised its irq and halted, the rows put the catch at cycle 868
+
+glitch: the same restart at 433: 0xff's start bit ends at cycle 433, not 434
+alarm: engine 1 raised its irq and halted, the rows put the catch at cycle 434
+
+re-armed: 256 frames at 434 cycles a bit, 37 restarts: no alarm
+
+faults [0, 0]
+PASS
