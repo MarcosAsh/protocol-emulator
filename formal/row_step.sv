@@ -147,8 +147,7 @@ module row_step (
   assign axioms =
     axioms_of(next[217:194], next_offset) && axioms_of(target[217:194], target_offset);
 
-  wire hypothesis = within && (!x_dec || x != 0 || offset == phase) && side_set_count <= 2
-    && !halts && lands;
+  wire hypothesis = within && (!x_dec || x != 0 || offset == phase) && !halts && lands;
   wire arrives = !is_jmp ? into_next
     : taken_known ? (taken ? into_target : into_next)
     : into_target && into_next;
