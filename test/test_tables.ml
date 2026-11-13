@@ -1220,6 +1220,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "third 422, a 38 kHz carrier at duty 1/3"
       , "written for the core, not tried" )
+    ; ( "tlc5620"
+      , "untried"
+      , "-"
+      , "CLK 60 cycles; CLK, LOAD, LDAC and DATA four outputs"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1305,5 +1310,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library SWCLK half 12 and up, 24 at 1 MHz; SWDIO turns around, its direction from the host word; not tried against the class
     ir_nec     untried  -
       library third 422, a 38 kHz carrier at duty 1/3; written for the core, not tried
+    tlc5620    untried  -
+      library CLK 60 cycles; CLK, LOAD, LDAC and DATA four outputs; written for the core, not tried
     |}]
 ;;

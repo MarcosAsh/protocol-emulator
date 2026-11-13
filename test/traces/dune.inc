@@ -202,6 +202,16 @@
 
 (rule
  (with-stdout-to
+  tlc5620.trace.gen
+  (run ./write_trace.exe tlc5620)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff tlc5620.trace tlc5620.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

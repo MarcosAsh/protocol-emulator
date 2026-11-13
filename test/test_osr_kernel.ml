@@ -331,6 +331,7 @@ let%expect_test "what each out sends, in the firmware library" =
     (wiegand (verdict (Ok ())) (sends ()))
     (swd_blind (verdict (Ok ())) (sends ((8 "bit 0 to 32"))))
     (ir_nec (verdict (Ok ())) (sends ()))
+    (tlc5620 (verdict (Ok ())) (sends ((11 "bit 5 to 32"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

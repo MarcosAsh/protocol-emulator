@@ -39,6 +39,7 @@ let protocols =
   ; Wiegand.protocol
   ; Swd_blind.protocol
   ; Ir_nec.protocol
+  ; Tlc5620.protocol
   ]
 ;;
 

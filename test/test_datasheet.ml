@@ -240,6 +240,13 @@ let%expect_test "the bench firmware against its datasheet limits" =
     ir_nec             Burst, repeat code >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
     ir_nec             Repeat code space >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
     ir_nec             Repeat code burst >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    tlc5620            CLK frequency, at most 1 MHz >=     1000 ns  run    60 (1250.0 ns)    needs   49       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, data input, tsu(DATA-CLK) >=       50 ns  kernel 40 (833.3 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Valid time, data input valid after CLK falls, tv(DATA-CLK) >=       50 ns  kernel 20 (416.7 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, CLK eleventh falling edge to LOAD, tsu(CLK-LOAD) >=       50 ns  kernel 20 (416.7 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >=       50 ns  kernel 69 (1437.5 ns)    needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Pulse duration, LOAD, tw(LOAD) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Pulse duration, LDAC, tw(LDAC) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]
@@ -346,6 +353,7 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
     wiegand            none   the spec, Wikipedia's Wiegand interface page, gives no pulse width, interval or any other timing
     swd_blind          slower unbounded
     ir_nec             slower unbounded
+    tlc5620            slower unbounded
     |}]
 ;;
 

@@ -851,6 +851,26 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/ir_nec.trace, by sigrok's ir_nec:ir=OUT0:polarity=active-high:cd_freq=38000
       ir_nec=bit:agc-pulse:longpause:shortpause:stop-bit:leader-code:addr:addr-inv:cmd:cmd-inv:repeat-code:remote: ir_nec-1: AGC pulse, ir_nec-1: Long pause, ir_nec-1: Leader code, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: Address: 0x59, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: Address#: 0xA6, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: Command: 0x16, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: Command#: 0xE9, ir_nec-1: Stop bit, ir_nec-1: Unknown device: Unknown, ir_nec-1: AGC pulse, ir_nec-1: Short pause, ir_nec-1: Stop bit, ir_nec-1: Repeat code
+
+    === tlc5620
+
+    certificates
+    tlc5620: 27 words, 7 deadline waits, worst slack 16, the kernel accepts it, assuming no wrap
+
+    limits
+    tlc5620            CLK frequency, at most 1 MHz >=     1000 ns  run    60 (1250.0 ns)    needs   49       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, data input, tsu(DATA-CLK) >=       50 ns  kernel 40 (833.3 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Valid time, data input valid after CLK falls, tv(DATA-CLK) >=       50 ns  kernel 20 (416.7 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, CLK eleventh falling edge to LOAD, tsu(CLK-LOAD) >=       50 ns  kernel 20 (416.7 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >=       50 ns  kernel 69 (1437.5 ns)    needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Pulse duration, LOAD, tw(LOAD) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Pulse duration, LDAC, tw(LDAC) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+
+    lockstep: tlc5620, tlc5620
+    ("lockstep held" (cycles 4000))
+    (received ())
+    decode: test/traces/tlc5620.trace, by sigrok's tlc5620:clk=OUT0:data=OUT3:load=OUT1:ldac=OUT2
+      tlc5620=dac-select:gain:value:bit:data-latch:reg-write:voltage-update-all: tlc5620-1: DAC select: DACA, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 128, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACA register value to 1.65V, tlc5620-1: DAC select: DACB, tlc5620-1: Gain: x2, tlc5620-1: DAC value: 64, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACB register value to 1.65V, tlc5620-1: DAC select: DACC, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 255, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACC register value to 3.29V, tlc5620-1: DAC select: DACD, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACD register value to 0.01V, tlc5620-1: Updating voltages: DACA=1.65V DACB=1.65V DACC=3.29V DACD=0.01V
     |}]
 ;;
 
