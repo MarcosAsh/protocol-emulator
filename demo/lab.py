@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The remote lab's worker. A job is a WaveDrom diagram and its frames, never firmware.
-# generate.exe lab compiles it for the certified table interpreter, and reports a refusal
-# before anything reaches the chip. A job the bench can take runs on the chosen backend
+# The remote lab's worker. A job is a WaveDrom diagram and its frames, which generate.exe
+# lab compiles for the certified table interpreter, or firmware with its certificate, which
+# it runs only past the kernel and the chip's load check. Either way a refusal comes before
+# anything reaches the chip. A job the bench can take runs on the chosen backend
 # (bench: Pico A and one pass for each analyser that sees a pin it drives, with the Icepi
 # reset before and after each; rtl: the same script on the RTL in cocotb; model: none). Any
 # other job gets the model's trace, labelled simulated. Results go to RESULTS/<id>/, and
@@ -43,6 +44,8 @@ TIMEOUT = {"check": 30, "health": 20, "load": 120, "copy": 60, "capture": 120, "
            "decode": 60, "rtl": 900}
 # limits per submitter, except all_bench_hour: bench runs per hour and per day, jobs per hour
 LIMITS = {"bench_hour": 3, "bench_day": 10, "jobs_hour": 30, "all_bench_hour": 30}
+# Remote_lab.Job.max_bytes, so a bigger job never reaches the checker
+MAX_JOB = 16_384
 # jobs taken per poll, oldest first; the rest wait
 QUEUE_TAKE = 50
 # how many bench errors in a row before the bench counts as down, and for how long
@@ -419,9 +422,11 @@ class Worker:
         why = self.limits.jobs(who, now)
         work = Path(tempfile.mkdtemp(prefix=".work-", dir=self.results))
         job_text = envelope.get("job")
-        if why or not isinstance(job_text, str):
+        if why or not isinstance(job_text, str) or len(job_text) > MAX_JOB:
             result.update(verdict="rate limited" if why else "malformed",
-                          why=why or "no job in the submission")
+                          why=why or ("a job is at most %d bytes" % MAX_JOB
+                                      if isinstance(job_text, str)
+                                      else "no job in the submission"))
             status, check = None, None
         else:
             status, check = self.check(job_text, work)

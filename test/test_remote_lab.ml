@@ -15,7 +15,7 @@ let corpus =
 
 (* Goes through the job file's text, as the worker reads it. *)
 let check ?(decode = Remote_lab.Decode.Off) ~frames diagram =
-  Remote_lab.Job.to_string { diagram; frames; decode }
+  Remote_lab.Job.to_string { program = Diagram { diagram; frames }; decode }
   |> Remote_lab.Job.of_string
   |> Or_error.bind ~f:Remote_lab.check
 ;;
@@ -197,7 +197,7 @@ let%expect_test "malformed jobs" =
     {|
     ("not an object" (malformed "a job is an object"))
     ("another version" (malformed "a job says \"lab\": 1"))
-    (firmware (malformed ("a job has no such key" firmware)))
+    (firmware (malformed ("a job has no such key" diagram)))
     ("no such decoder"
      (malformed
       ("no such decoder" (decode jtag)
@@ -444,7 +444,8 @@ let%expect_test "decoders: the allowlist, each option's values, and the pins the
     ~f:(fun decode ->
       let checked =
         Or_error.bind (Remote_lab.Decode.of_string decode) ~f:(fun decode ->
-          Remote_lab.Job.to_string { diagram = four; frames = "11000101"; decode }
+          Remote_lab.Job.to_string
+            { program = Diagram { diagram = four; frames = "11000101" }; decode }
           |> Remote_lab.Job.of_string
           |> Or_error.bind ~f:Remote_lab.check)
       in
@@ -496,5 +497,264 @@ let%expect_test "decoders: the allowlist, each option's values, and the pins the
      (Error ("a decoder option is KEY=VALUE" baudrate)))
     (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
      (Error ("a decode is at most" (max_length 256) bytes)))
+    |}]
+;;
+
+let blink = In_channel.read_all "blink.asm"
+
+(* the certificate the chip's load check accepts for [source] under [config] *)
+let certificate_for ?period ?(config = []) source =
+  let config =
+    List.fold config ~init:Program_config.default ~f:(fun c (key, v) ->
+      (List.Assoc.find_exn Remote_lab.Firmware.config_fields key ~equal:String.equal) c v)
+  in
+  match Timed_program.check ?period ~config source with
+  | Error _ -> []
+  | Ok timed ->
+    (match Chip_verdict.of_timed timed with
+     | Accepted { certificate } -> certificate
+     | Refused _ | No_certificate _ -> [])
+;;
+
+let firmware
+  ?(config = [])
+  ?certificate
+  ?(tx = [])
+  ?(cycles = 2000)
+  ?period
+  ?(decode = Remote_lab.Decode.Off)
+  source
+  =
+  let certificate =
+    Option.value_or_thunk certificate ~default:(fun () ->
+      certificate_for ?period ~config source)
+  in
+  Remote_lab.Job.to_string
+    { program =
+        Firmware
+          { source
+          ; config
+          ; certificate
+          ; tx
+          ; cycles
+          ; period
+          ; period_floor = None
+          ; single_capture_edge = false
+          }
+    ; decode
+    }
+;;
+
+let firmware_summary text =
+  match Remote_lab.Job.of_string text |> Or_error.bind ~f:Remote_lab.check with
+  | Ok (Certified { certificate; bench = b; _ }) ->
+    let drives =
+      List.find (String.split_lines certificate) ~f:(String.is_prefix ~prefix:"pins it")
+    in
+    [%message "certified" (drives : string option) ~bench:(bench b : string)]
+  | checked -> summary checked
+;;
+
+let%expect_test "firmware jobs: the pins each can drive, and what the bench makes of them"
+  =
+  let uart =
+    {|
+    wait tx
+    pull
+    mov p, osr
+    set pins, 1
+idle:
+    wait tx
+    pull
+    set x, 7
+    mov t, now
+    set pins, 0
+    add t, p
+bit:
+    wait t+
+    out pins, 1
+    jmp x--, bit
+    wait t+
+    set pins, 1
+    wait t
+    jmp idle
+|}
+  in
+  List.iter
+    [ "blink on OUT0", firmware blink
+    ; "blink on OUT3", firmware ~config:[ "set_base", 8 ] blink
+    ; ( "uart on OUT0 with a decode"
+      , firmware
+          ~period:417
+          ~tx:[ 417; 0xc5; 0x3a ]
+          ~cycles:20_000
+          ~decode:(Remote_lab.Decode.of_string "uart:115200" |> ok_exn)
+          uart )
+    ; "blink on OUT4, the flash's DI", firmware ~config:[ "set_base", 9 ] blink
+    ; "set pindirs on IO0", firmware ~config:[ "set_base", 12 ] blink
+    ; ( "side-set turning IO5 out"
+      , firmware
+          ~config:[ "side_set_base", 17; "side_set_pindirs", 1 ]
+          ".side_set 1\nloop:\n    nop side 1\n    jmp loop" )
+    ; ( "out pins, 16 from OUT0"
+      , firmware ~config:[ "out_base", 5 ] "loop:\n    out pins, 16\n    jmp loop" )
+    ; "reads a pin", firmware "loop:\n    wait 1 pin 0\n    jmp loop"
+    ; ( "Manchester from OUT3, whose pair is OUT4"
+      , firmware
+          ~config:[ "out_base", 8; "manchester", 1 ]
+          "loop:\n    out pins, 1\n    jmp loop" )
+    ; ( "OUT6, and a level on IO0 it never turns out"
+      , firmware
+          ~config:[ "set_count", 2; "set_base", 11 ]
+          "loop:\n    set pins, 3\n    jmp loop" )
+    ]
+    ~f:(fun (what, text) -> print_s [%message what ~_:(firmware_summary text : Sexp.t)]);
+  [%expect
+    {|
+    ("blink on OUT0"
+     (certified (drives ("pins it can drive: OUT0"))
+      (bench "takes it on OUT0, 2 ms")))
+    ("blink on OUT3"
+     (certified (drives ("pins it can drive: OUT3"))
+      (bench "takes it on OUT3, 2 ms")))
+    ("uart on OUT0 with a decode"
+     (certified (drives ("pins it can drive: OUT0"))
+      (bench "takes it on OUT0, 2 ms")))
+    ("blink on OUT4, the flash's DI"
+     (certified (drives ("pins it can drive: OUT4"))
+      (bench
+       "declines it: lane OUT4 lands on OUT4, FLASH_DI, which the flash drives in dual and quad reads")))
+    ("set pindirs on IO0"
+     (certified (drives ("pins it can drive: IO0"))
+      (bench
+       "declines it: it can drive IO0, USB_MIR0, Pico A GP6 with no series resistor")))
+    ("side-set turning IO5 out"
+     (certified (drives ("pins it can drive: IO5"))
+      (bench
+       "declines it: it can drive IO5, SWDIO, which with SWCLK reaches Pico B's debug port")))
+    ("out pins, 16 from OUT0"
+     (certified
+      (drives ("pins it can drive: OUT0 OUT1 OUT2 OUT3 OUT4 OUT5 OUT6"))
+      (bench
+       "declines it: lane OUT4 lands on OUT4, FLASH_DI, which the flash drives in dual and quad reads")))
+    ("reads a pin"
+     (certified (drives ("pins it can drive: none"))
+      (bench "declines it: it reads pins, which no peer drives on the bench")))
+    ("Manchester from OUT3, whose pair is OUT4"
+     (certified (drives ("pins it can drive: OUT3 OUT4"))
+      (bench
+       "declines it: lane OUT4 lands on OUT4, FLASH_DI, which the flash drives in dual and quad reads")))
+    ("OUT6, and a level on IO0 it never turns out"
+     (certified (drives ("pins it can drive: OUT6"))
+      (bench
+       "declines it: lane OUT6 lands on OUT6, FLASH_CS_N, which selects the flash")))
+    |}]
+;;
+
+let%expect_test "hostile firmware jobs" =
+  let ours = certificate_for blink in
+  let tampered = List.mapi ours ~f:(fun i w -> if i = 2 then w lxor 1 else w) in
+  let raw extra = [%string {|{"lab": 1, "firmware": %{json_string blink}%{extra}}|}] in
+  List.iter
+    [ "a certificate that does not match", firmware ~certificate:tampered blink
+    ; "no certificate", raw ""
+    ; "an empty certificate", firmware ~certificate:[] blink
+    ; ( "a certificate past the data memory"
+      , firmware ~certificate:(List.init 513 ~f:(Fn.const 0)) blink )
+    ; "a word past 16 bits", raw {|, "certificate": [65536]|}
+    ; "a negative word", raw {|, "certificate": [-1]|}
+    ; "a fraction", raw {|, "certificate": [1.5]|}
+    ; "a firmware past its limit", firmware (blink ^ String.make 8_200 ';')
+    ; "a job past its limit", raw (String.make 17_000 ' ')
+    ; ( "route, which needs the other engine"
+      , raw {|, "certificate": [], "config": {"route": 1}|} )
+    ; ( "line_code, which needs a table"
+      , raw {|, "certificate": [], "config": {"line_code": 1}|} )
+    ; ( "a config key twice"
+      , raw {|, "certificate": [], "config": {"set_base": 5, "set_base": 9}|} )
+    ; "a key twice", raw {|, "certificate": [], "certificate": [1]|}
+    ; "a diagram too", raw {|, "certificate": [], "diagram": "x"|}
+    ; "too many tx words", firmware ~tx:(List.init 65 ~f:Fn.id) blink
+    ; "a run past the cap", firmware ~cycles:400_001 blink
+    ; "shell in the source", firmware "$(reboot)\n`id`; rm -rf ~"
+    ; ( "a deadline it can miss"
+      , firmware "    mov t, now\nloop:\n    wait t+\n    jmp loop" )
+    ; ( "a path for a decode"
+      , raw {|, "certificate": [], "decode": "../../../../etc/passwd"|} )
+    ]
+    ~f:(fun (what, text) -> print_s [%message what ~_:(firmware_summary text : Sexp.t)]);
+  [%expect
+    {|
+    ("a certificate that does not match"
+     (refused
+      ("kernel: accepted"
+       "chip: its load check refuses the job's certificate at pc 0 (next phase), so the chip won't start it"
+       "a certificate the chip accepts: 1,0,128,0,0")))
+    ("no certificate" (malformed "a firmware job carries its certificate"))
+    ("an empty certificate"
+     (refused
+      ("kernel: accepted"
+       "chip: its load check refuses the job's certificate at pc 3 (target phase), so the chip won't start it"
+       "a certificate the chip accepts: 1,0,128,0,0")))
+    ("a certificate past the data memory"
+     (malformed ("a job's list is at most" certificate (longest 512) long)))
+    ("a word past 16 bits"
+     (malformed
+      ("a job's number is a whole number in range" certificate (most 65535))))
+    ("a negative word"
+     (malformed
+      ("a job's number is a whole number in range" certificate (most 65535))))
+    ("a fraction"
+     (malformed
+      ("a job's number is a whole number in range" certificate (most 65535))))
+    ("a firmware past its limit"
+     (malformed ("a firmware is at most" (Firmware.max_source 8192) bytes)))
+    ("a job past its limit"
+     (malformed ("a job is at most" (max_bytes 16384) bytes)))
+    ("route, which needs the other engine"
+     (malformed
+      ("a firmware's config has no such key" route
+       (keys
+        (side_set_base side_set_pindirs in_base in_count out_base out_count
+         set_base set_count jmp_pin capture_pin capture_rising in_shift_right
+         out_shift_right autopush push_threshold autopull pull_threshold
+         crc_width crc_poly crc_init crc_reflect crc_complement stuff_threshold
+         stuff_level period_fraction autopull_data manchester)))))
+    ("line_code, which needs a table"
+     (malformed
+      ("a firmware's config has no such key" line_code
+       (keys
+        (side_set_base side_set_pindirs in_base in_count out_base out_count
+         set_base set_count jmp_pin capture_pin capture_rising in_shift_right
+         out_shift_right autopush push_threshold autopull pull_threshold
+         crc_width crc_poly crc_init crc_reflect crc_complement stuff_threshold
+         stuff_level period_fraction autopull_data manchester)))))
+    ("a config key twice" (malformed "a firmware's config gives a key twice"))
+    ("a key twice" (malformed "a job gives a key twice"))
+    ("a diagram too" (malformed ("a job has no such key" diagram)))
+    ("too many tx words"
+     (malformed ("a job's list is at most" tx (longest 64) long)))
+    ("a run past the cap"
+     (malformed
+      ("a job's number is a whole number in range" cycles (most 400000))))
+    ("shell in the source"
+     (refused
+      ("refused by the analyser"
+       "(((line 1 \"$(reboot)\") (\"cannot parse\" \"$(reboot)\" (args ())))"
+       " ((line 2 \"`id`; rm -rf ~\") (\"cannot parse\" `id` (args ()))))"
+       "line 1: cannot parse \"$(reboot)\" (args ())"
+       "line 2: cannot parse `id` (args ())")))
+    ("a deadline it can miss"
+     (refused
+      ("refused by the analyser" "1 of 1 deadline waits may be missed"
+       "  1  wait t+                      phase -65532..?  slack ?..65532  MAY MISS"
+       "a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"
+       "line 3: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait")))
+    ("a path for a decode"
+     (malformed
+      ("no such decoder" (decode ../../../../etc/passwd)
+       (decoders
+        (uart spi i2c rgb_led_ws281x ir_nec ir_rc5 onewire_link can pwm dcf77 ps2
+         dali caliper lfast snorble plinkoo i2c_timing)))))
     |}]
 ;;

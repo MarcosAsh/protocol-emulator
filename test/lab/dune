@@ -8,6 +8,8 @@
   (source_tree uart_tx)
   (source_tree uart_rx)
   (source_tree ws2812_slow)
-  (source_tree four_lanes))
+  (source_tree four_lanes)
+  (source_tree blink_out3)
+  (source_tree blink_tampered))
  (action
   (run sh %{dep:check.sh} %{dep:../../bin/generate.exe} .)))

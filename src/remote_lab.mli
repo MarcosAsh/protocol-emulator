@@ -1,11 +1,12 @@
-(** A remote lab job: a WaveDrom diagram and its frames, never firmware. The diagram is
-    compiled at the rated clock to a table for the certified interpreter. The only program
-    the chip runs is the one the kernel certified once, and a job brings data words and
-    nothing else. A refusal names the limit before anything reaches the bench.
+(** A remote lab job: a WaveDrom diagram and its frames, or firmware with its certificate.
+    A diagram is compiled at the rated clock to a table for the interpreter the kernel
+    certified once, so it brings data words alone. Firmware runs only if the kernel
+    accepts it and the chip's load check accepts the job's certificate for it. A refusal
+    names the limit before anything reaches the bench.
 
-    The bench takes a certified job only when every pin it drives is one [Pads] lets a job
-    drive, an analyser sees at least one of them, nothing is read, and everything the host
-    sends fits the tx fifo before the start, so the host's own timing can't shape the
+    The bench takes a certified job only when every pin it can drive is one [Pads] lets a
+    job drive, an analyser sees at least one of them, nothing is read, and everything the
+    host sends fits the tx fifo before the start, so the host's own timing can't shape the
     waveform. Any other job runs on the model alone and is labelled simulated. *)
 
 open! Core
@@ -55,10 +56,37 @@ module Decode : sig
   val ids : string list
 end
 
-module Job : sig
+module Firmware : sig
   type t =
-    { diagram : string (** WaveJSON, as typed *)
-    ; frames : string (** a line of 0s and 1s a frame, as the playground takes them *)
+    { source : string (** in [Asm]'s syntax *)
+    ; config : (string * int) list (** firmware.json's names, over the default *)
+    ; certificate : int list (** the data memory words the chip's load check reads *)
+    ; tx : int list
+    ; cycles : int (** the model's run, at most the playground's *)
+    ; period : int option
+    ; period_floor : int option
+    ; single_capture_edge : bool
+    }
+  [@@deriving sexp_of]
+
+  val max_source : int
+  val max_tx : int
+
+  (** The config keys a job may set, with [Program_config]'s fields they set. *)
+  val config_fields : (string * (Program_config.t -> int -> Program_config.t)) list
+end
+
+module Job : sig
+  type program =
+    | Diagram of
+        { diagram : string (** WaveJSON, as typed *)
+        ; frames : string (** a line of 0s and 1s a frame, as the playground takes them *)
+        }
+    | Firmware of Firmware.t
+  [@@deriving sexp_of]
+
+  type t =
+    { program : program
     ; decode : Decode.t
     }
   [@@deriving sexp_of]
@@ -66,8 +94,10 @@ module Job : sig
   val max_bytes : int
   val max_frames : int
 
-  (** A job file: [{lab: 1, diagram: ..., frames: ..., decode: ...}], where [decode] is
-      optional and other keys are refused. Printable ASCII only, at most [max_bytes]. *)
+  (** A job file: [{lab: 1, diagram: ..., frames: ..., decode: ...}], or
+      [{lab: 1, firmware: ..., certificate: [...], config: {...}, tx: [...], cycles: ..., period: ..., period_floor: ..., single_capture_edge: ..., decode: ...}]
+      where only [firmware] and [certificate] are needed. Other keys, or a key given
+      twice, are refused. Printable ASCII only, at most [max_bytes]. *)
   val of_string : string -> t Or_error.t
 
   (** The job file with its frames tidied, giving the same text for the same job. The

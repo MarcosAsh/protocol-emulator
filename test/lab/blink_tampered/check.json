@@ -1,0 +1,1 @@
+{"verdict":"refused","clock_hz":48000000,"certificate":"kernel: accepted\nchip: its load check refuses the job's certificate at pc 0 (next phase), so the chip won't start it\na certificate the chip accepts: 1,0,128,0,0"}
