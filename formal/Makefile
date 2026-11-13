@@ -834,6 +834,8 @@ EXPECT = 1
 WRITTEN = ../src/protocol_emulator.v
 # what runs on the miter once scorr has merged everything it can
 ENGINE = dprove
+# scorr's default of 100 conflicts leaves the ttihp27a flow's netlist unmatched
+SCORR = scorr -C 10000
 # the cell models at zero delay (netlist_equiv/primitives.v)
 CELL_MODELS = sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
   -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
@@ -857,7 +859,7 @@ netlist_equiv:
 	cd $(EQUIV) && yosys -q -l miter.log ../netlist_equiv/miter.ys
 	cd $(EQUIV) && timeout 120 yosys-abc -c 'read_aiger miter.aig; bmc3 -F 1; print_status' > proof.log
 	cd $(EQUIV) && ! grep -q 'No output asserted in 1 frames' proof.log || timeout 1200 yosys-abc \
-	  -c 'read_aiger miter.aig; print_stats; tempor -F 1; print_stats; scorr; print_stats; $(ENGINE); print_status' \
+	  -c 'read_aiger miter.aig; print_stats; tempor -F 1; print_stats; $(SCORR); print_stats; $(ENGINE); print_status' \
 	  >> proof.log
 	@cd $(EQUIV) && echo "netlist: $$(cut -d' ' -f1 logic.count) logic cells, $$(cut -d' ' -f1 covered.count)" \
 	  "in the fan-in of a compared bit and the rest driving no net;" \
