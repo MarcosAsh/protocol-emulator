@@ -3,10 +3,10 @@
     the chip runs is the one the kernel certified once, and a job brings data words and
     nothing else. A refusal names the limit before anything reaches the bench.
 
-    The bench takes a certified job only when every output lane lands on OUT0 (the one pin
-    analyser A captures), nothing is read, and everything the host sends fits the tx fifo
-    before the start, so the host's own timing can't shape the waveform. Any other job
-    runs on the model alone and is labelled simulated. *)
+    The bench takes a certified job only when every pin it drives is one [Pads] lets a job
+    drive, an analyser sees at least one of them, nothing is read, and everything the host
+    sends fits the tx fifo before the start, so the host's own timing can't shape the
+    waveform. Any other job runs on the model alone and is labelled simulated. *)
 
 open! Core
 
@@ -50,6 +50,16 @@ module Job : sig
   val to_string : t -> string
 end
 
+(** The bench's output and bidirectional pads, by what else the carrier wires to them. *)
+module Pads : sig
+  (** [Ok net] if a job may drive [pin]: nothing else on the net can drive it, or only
+      through a series resistor, and nothing on it keeps state. [Error why] otherwise. *)
+  val safety : int -> (string, string) Result.t
+
+  val all : int list
+  val drivable : int list
+end
+
 module Lane : sig
   type t =
     { name : string
@@ -58,13 +68,35 @@ module Lane : sig
     }
 end
 
+(** A lane an analyser sees. *)
+module Probe : sig
+  type t =
+    { lane : string
+    ; wiring : Bench_wiring.t
+    }
+end
+
 module Bench : sig
   type t =
     | Takes of
-        { probe : Bench_wiring.t
+        { probes : Probe.t list (** one pass a bench run for each analyser they use *)
         ; run_ms : int (** how long the host lets the engine run before it stops it *)
         }
     | Declines of string (** why, which the result page shows beside the model's trace *)
+end
+
+(** What the host loads: the program, the certificate the chip's load check accepted and
+    the assumptions it was walked under, and the data memory. *)
+module Image : sig
+  type t =
+    { config : Program_config.t
+    ; words : int list
+    ; certificate : int list
+    ; loaded : int option
+    ; floor : bool
+    ; single_edge : bool
+    ; data : int list
+    }
 end
 
 type t =
@@ -74,15 +106,14 @@ type t =
       }
   | Certified of
       { job : Job.t
-      ; diagram : Wavedrom.t
       ; certificate : string
       ; lanes : Lane.t list (** the output lanes, out_base first *)
+      ; input : (string * int array) option (** a peer's line each cycle, by its lane *)
       ; host_words : int list
       ; cycles : int (** the model's run, as the playground's *)
       ; levels : int array (** the output lanes each cycle, the first lowest *)
       ; faults : Machine.Fault.t (** the model's at the end of its run *)
-      ; chip : Chip_verdict.t (** the chip's own load check on the interpreter *)
-      ; interpreter : Timed_program.t
+      ; image : Image.t option (** none if the chip's load check refuses *)
       ; bench : Bench.t
       }
 
@@ -94,8 +125,8 @@ val check : Job.t -> t Or_error.t
     [certificate.txt] and [check.json]. A certified job also gets [simulated.json] (each
     lane's edges, by cycle). If the bench takes it, there is also [firmware.json] (the
     config, the interpreter's words, the certificate the chip checks them against and its
-    assumptions, the table, the tx words, [run_ms] and the expected faults, for
-    python/demo_lab.py). *)
+    assumptions, the table, the tx words, [run_ms], the expected faults and the probes,
+    for python/demo_lab.py and test/test_lab_rtl.py). *)
 val files : t -> (string * string) list
 
 (** [check.json] for a job that never reached [check], saying why. *)

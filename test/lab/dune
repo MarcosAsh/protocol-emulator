@@ -7,6 +7,7 @@
   (glob_files *.job.json)
   (source_tree uart_tx)
   (source_tree uart_rx)
-  (source_tree ws2812_slow))
+  (source_tree ws2812_slow)
+  (source_tree four_lanes))
  (action
   (run sh %{dep:check.sh} %{dep:../../bin/generate.exe} .)))

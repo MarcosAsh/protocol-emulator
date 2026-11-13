@@ -22,7 +22,11 @@ let check ?(decode = Remote_lab.Decode.Off) ~frames diagram =
 
 let bench (b : Remote_lab.Bench.t) =
   match b with
-  | Takes { probe; run_ms } -> [%string "takes it on %{probe.name}, %{run_ms#Int} ms"]
+  | Takes { probes; run_ms } ->
+    let seen =
+      List.map probes ~f:(fun p -> p.wiring.name) |> String.concat ~sep:" and "
+    in
+    [%string "takes it on %{seen}, %{run_ms#Int} ms"]
   | Declines why -> "declines it: " ^ why
 ;;
 
@@ -293,6 +297,100 @@ let%test_unit "the model's trace of any uart_tx job decodes to its bytes" =
       | Ok (Certified { levels; bench = Takes _; _ }) ->
         [%test_result: int list] (uart_bytes levels) ~expect:bytes
       | checked -> raise_s (summary checked))
+;;
+
+let%expect_test "the pads a job may drive, and why the rest are refused" =
+  List.iter Remote_lab.Pads.all ~f:(fun pin ->
+    print_s
+      [%message
+        ""
+          ~_:(Machine_trace.pin_name pin : string)
+          ~_:(Remote_lab.Pads.safety pin : (string, string) Result.t)]);
+  [%expect
+    {|
+    (OUT0 (Ok "UART_B, Pico B GP1 through R8 (1k)"))
+    (OUT1 (Ok "CAN_TX, CAN board A's CTX input through R9"))
+    (OUT2 (Ok "SWCLK, Pico B's SWCLK input through R11 (220R)"))
+    (OUT3 (Ok "NEO_3V3, the 74AHCT125's input, R3 (10k) to GND"))
+    (OUT4 (Error "FLASH_DI, which the flash drives in dual and quad reads"))
+    (OUT5
+     (Error "FLASH_CLK, which clocks commands into the flash, and it keeps them"))
+    (OUT6 (Error "FLASH_CS_N, which selects the flash"))
+    (IO0 (Error "USB_MIR0, Pico A GP6 with no series resistor"))
+    (IO1 (Error "USB_MIR1, Pico A GP7 with no series resistor"))
+    (IO2 (Error "I2C_SCL, Pico B GP3 and the EEPROM with no series resistor"))
+    (IO3 (Error "I2C_SDA, Pico B GP2 and the EEPROM with no series resistor"))
+    (IO4 (Error "DQ, which the DS18B20 pulls low with no series resistor"))
+    (IO5 (Error "SWDIO, which with SWCLK reaches Pico B's debug port"))
+    (IO6 (Error "ETH_TXP, the Ethernet jack"))
+    (IO7 (Error "ETH_TXN, the Ethernet jack"))
+    |}]
+;;
+
+(* [lanes] are (name, wave) pairs from OUT0 up, the first carrying the host's bits. *)
+let lanes_diagram lanes =
+  let lane (name, wave) =
+    if String.mem wave '='
+    then
+      [%string
+        {|{ "name": "%{name}", "wave": "%{wave}", "data": ["b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7"] }|}]
+    else [%string {|{ "name": "%{name}", "wave": "%{wave}" }|}]
+  in
+  [%string
+    {|{ "signal": [ %{String.concat ~sep:", " (List.map lanes ~f:lane)} ], "table": { "cycles": 52 } }|}]
+;;
+
+let%expect_test "the bench takes lanes on OUT0 to OUT3 and captures them on either \
+                 analyser"
+  =
+  let data = "0========" in
+  let low = "0........" in
+  let clock = "0nnnnnnnn" in
+  List.iter
+    [ "OUT0 and OUT2", [ "tx", data; "hold", low; "sck", clock ]
+    ; "OUT3 alone on B", [ "a", low; "b", low; "c", low; "pixel", data ]
+    ; "A and B", [ "tx", data; "hold", low; "sck", clock; "strobe", clock ]
+    ; "OUT1, which no analyser sees, beside OUT0", [ "a", low; "can", data ]
+    ; "a lane on OUT4", [ "tx", data; "b", low; "c", low; "d", low; "flash", clock ]
+    ]
+    ~f:(fun (what, lanes) ->
+      print_s
+        [%message
+          what ~_:(summary (check ~frames:"11000101" (lanes_diagram lanes)) : Sexp.t)]);
+  [%expect
+    {|
+    ("OUT0 and OUT2"
+     (certified (host_words 1) (cycles 2424)
+      (faults
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench "takes it on OUT0 and OUT2, 2 ms")))
+    ("OUT3 alone on B"
+     (certified (host_words 1) (cycles 1968)
+      (faults
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench "takes it on OUT0 and OUT2 and OUT3, 2 ms")))
+    ("A and B"
+     (certified (host_words 1) (cycles 2424)
+      (faults
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench "takes it on OUT0 and OUT2 and OUT3, 2 ms")))
+    ("OUT1, which no analyser sees, beside OUT0"
+     (certified (host_words 1) (cycles 1968)
+      (faults
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench "takes it on OUT0, 2 ms")))
+    ("a lane on OUT4"
+     (certified (host_words 1) (cycles 2424)
+      (faults
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench
+       "declines it: lane flash lands on OUT4, FLASH_DI, which the flash drives in dual and quad reads")))
+    |}]
 ;;
 
 let%expect_test "decoders" =

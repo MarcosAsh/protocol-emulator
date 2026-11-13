@@ -49,7 +49,7 @@ esac
     "sigrok-cli": """while [ $# -gt 0 ]; do
     case $1 in
     --scan) [ -n "$NO_ANALYSER" ] || echo "fx2lafw:conn=3.4 - Saleae Logic"; exit 0 ;;
-    -o) cp "$RAW" "$2"; exit 0 ;;
+    -o) case $ANALYSER in B) cp "$RAW_B" "$2" ;; *) cp "$RAW" "$2" ;; esac; exit 0 ;;
     -i) echo "uart-1: A3"; echo "uart-1: 5C"; exit 0 ;;
     esac
     shift
@@ -58,19 +58,26 @@ done
 }
 
 
-def raw(stretch=0):
-    """Analyser A's samples of OUT0 at 24 MS/s for the uart_tx example: idle, two glitches,
-    then the model's changes, with the fifth interval stretch samples longer."""
-    simulated = json.loads((EXAMPLES / "uart_tx/simulated.json").read_text())
-    edges = simulated["lanes"][0]["edges"]
-    lead = 5000
-    changes = [(1000, 1), (1003, 0)] + [
-        (lead + c // 2 + (stretch if i >= 5 else 0), level) for i, (c, level) in enumerate(edges[1:])]
-    samples, level, at = bytearray(), 0, 0
-    for t, new in changes:
-        samples += bytes([level << 4]) * (t - at)
-        level, at = new, t
-    samples += bytes([level << 4]) * 4000
+def raw(example="uart_tx", analyser="A", stretch=0):
+    """An analyser's samples at 24 MS/s of the example's lanes it probes: idle, two glitches
+    on the first, then the model's changes, with the fifth interval stretch samples longer."""
+    simulated = json.loads((EXAMPLES / example / "simulated.json").read_text())
+    probes = json.loads((EXAMPLES / example / "check.json").read_text())["bench"]["probes"]
+    lanes = {lane["pin"]: lane["edges"] for lane in simulated["lanes"]}
+    lead, length = 5000, 5000 + simulated["cycles"] // 2 + 4000
+    samples = bytearray(length)
+    for n, probe in enumerate(p for p in probes if p["analyser"] == analyser):
+        bit = 1 << int(probe["channel"][1:])
+        edges = lanes[probe["pin"]]
+        changes = ([(1000, 1), (1003, 0)] if n == 0 else []) + [
+            (lead + c // 2 + (stretch if i >= 5 else 0), level)
+            for i, (c, level) in enumerate(edges[1:])] + [(length, 0)]
+        level, at = edges[0][1], 0
+        for t, new in changes:
+            if level:
+                for i in range(at, t):
+                    samples[i] |= bit
+            level, at = new, t
     return bytes(samples)
 
 
@@ -94,8 +101,10 @@ class Worker(unittest.TestCase):
         self.generate.chmod(0o755)
         (self.tmp / "raw.bin").write_bytes(raw())
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("ANALYSER")}
+        # DEVICE keeps capture.sh off /sys
         self.env.update(PATH="%s:%s" % (bin, os.environ["PATH"]), PICO="id:a",
-                        TMP=str(self.tmp), RAW=str(self.tmp / "raw.bin"), TRIES="1")
+                        TMP=str(self.tmp), RAW=str(self.tmp / "raw.bin"),
+                        RAW_B=str(self.tmp / "raw_b.bin"), TRIES="1", DEVICE="fx2lafw")
         self.queue = lab.Spool(self.tmp / "queue")
         self.results = self.tmp / "results"
 
@@ -134,8 +143,32 @@ class Worker(unittest.TestCase):
         folder = self.results / r["id"]
         subprocess.run(["sha256sum", "--quiet", "-c", "SHA256SUMS"], cwd=folder, check=True)
         self.assertNotIn("run.txt", r["public"])
-        self.assertTrue(list((self.tmp / "evidence").glob("*/lab/" + r["id"] + "/lab.sr")))
+        self.assertTrue(list((self.tmp / "evidence").glob("*/lab/" + r["id"] + "/lab_a.sr")))
         self.assertEqual(list((self.tmp / "queue/inbox").iterdir()), [])
+        self.assertEqual(r["captures"]["lab_a.sr"], r["files"]["lab_a.sr"])
+
+    def test_lanes_on_both_analysers_take_a_pass_each(self):
+        (self.tmp / "raw.bin").write_bytes(raw("four_lanes", "A"))
+        (self.tmp / "raw_b.bin").write_bytes(raw("four_lanes", "B"))
+        self.queue.submit(job("four_lanes"), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual(r["run"], "bench", r.get("why"))
+        self.assertEqual(r["match"]["verdict"], "matches the model", r["match"])
+        self.assertEqual([(c["pin"], c["analyser"], c["channel"]) for c in r["captured"]],
+                         [("OUT0", "A", "D4"), ("OUT2", "A", "D6"), ("OUT3", "B", "D4")])
+        self.assertEqual(sorted(r["captures"]), ["lab_a.sr", "lab_b.sr"])
+        # a reset before each pass and one after
+        self.assertEqual(len(self.lines("loads")), 3)
+
+    def test_a_pass_that_strays_on_b_differs(self):
+        (self.tmp / "raw.bin").write_bytes(raw("four_lanes", "A"))
+        (self.tmp / "raw_b.bin").write_bytes(raw("four_lanes", "B", stretch=4))
+        self.queue.submit(job("four_lanes"), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual(r["match"]["verdict"], "differs")
+        self.assertTrue(r["match"]["why"].startswith("OUT3: "), r["match"])
 
     def test_a_refusal_never_reaches_the_bench(self):
         self.queue.submit(job("ws2812_slow"), "judge")

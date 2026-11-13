@@ -2,9 +2,10 @@
 # The remote lab's worker. A job is a WaveDrom diagram and its frames, never firmware.
 # generate.exe lab compiles it for the certified table interpreter, and reports a refusal
 # before anything reaches the chip. A job the bench can take runs on the chosen backend
-# (bench: Pico A and analyser A, with the Icepi reset before and after; rtl: the same script
-# on the RTL in cocotb; model: none). Any other job gets the model's trace, labelled
-# simulated. Results go to RESULTS/<id>/, and bench runs also to EVIDENCE/<date>/lab/.
+# (bench: Pico A and one pass for each analyser that sees a pin it drives, with the Icepi
+# reset before and after each; rtl: the same script on the RTL in cocotb; model: none). Any
+# other job gets the model's trace, labelled simulated. Results go to RESULTS/<id>/, and
+# bench runs also to EVIDENCE/<date>/lab/.
 # Queues are polled files.
 # Usage: python3 demo/lab.py submit JOB --queue DIR [--as NAME]
 #        python3 demo/lab.py fake --queue DIR
@@ -53,8 +54,9 @@ DECODE_ARG = re.compile(r"-P|-A|uart:rx=D[0-7]:baudrate=\d{3,7}|uart=rx-data"
                         r"|rgb_led_ws281x:din=D[0-7]|rgb_led_ws281x=rgb:reset")
 # stripped from a published result: local paths, Pico A's serial, the USB tree
 PRIVATE = {"run.txt", "make.txt", "scan.txt"}
+ANALYSERS = ("A", "B")
 LABELS = {
-    "bench": "captured on the bench, analyser A on OUT0",
+    "bench": "captured on the bench by the analysers on the pins it drives",
     "rtl": "rehearsed on the RTL in cocotb, not the bench",
     "model": "simulated: the model of the core, not the bench",
 }
@@ -67,6 +69,16 @@ def iso(t):
 
 def sha256_text(text):
     return hashlib.sha256(text.encode()).hexdigest()
+
+
+def capture_name(analyser):
+    return "lab_%s.sr" % analyser.lower()
+
+
+def analysers_of(check):
+    """The analysers check.json captures with, or None unless they are A or B."""
+    found = set(check["bench"].get("analysers") or ())
+    return sorted(found) if found and found <= set(ANALYSERS) else None
 
 
 class Spool:
@@ -226,26 +238,31 @@ class Bench:
         finally:
             r.close()
 
-    def run(self, folder, firmware):
-        """Returns whether every stage ran. The capture is folder/lab.sr and Pico A's log is lab.log."""
+    def run(self, folder, firmware, analysers):
+        """Returns whether every stage ran. Each analyser's pass is a fresh run of the same
+        job: its capture is folder/lab_a.sr or lab_b.sr, and Pico A's log lab_a.log or
+        lab_b.log."""
         r = self.runner
         r.open(folder)
+        ok = True
         try:
-            ok = self.reset()
-            stages = [
-                ("copy", self.mpremote("cp", *PICO_FILES, ":"), {}),
-                ("copy", self.mpremote("cp", str(firmware), ":lab.json"), {}),
-                ("copy", self.mpremote("exec", "import os\ntry:\n    os.remove('outside.log')"
-                                       "\nexcept OSError:\n    pass"), {}),
-                ("capture", ["demo/capture.sh", str(folder / "lab.sr"), str(CAPTURE_MS),
-                             *self.mpremote("run", "--no-follow", "python/demo_lab.py")],
-                 {"env": {"ANALYSER": "A"}}),
-            ]
-            for name, argv, kw in stages:
-                ok = ok and r.run(name, argv, TIMEOUT[name], **kw).status == 0
-            r.sleep(1)
-            ok = ok and r.run("log", self.mpremote("cat", ":outside.log"), TIMEOUT["log"],
-                              out=folder / "lab.log").status == 0
+            for analyser in analysers:
+                ok = ok and self.reset()
+                capture = folder / capture_name(analyser)
+                stages = [
+                    ("copy", self.mpremote("cp", *PICO_FILES, ":"), {}),
+                    ("copy", self.mpremote("cp", str(firmware), ":lab.json"), {}),
+                    ("copy", self.mpremote("exec", "import os\ntry:\n    os.remove('outside.log')"
+                                           "\nexcept OSError:\n    pass"), {}),
+                    ("capture", ["demo/capture.sh", str(capture), str(CAPTURE_MS),
+                                 *self.mpremote("run", "--no-follow", "python/demo_lab.py")],
+                     {"env": {"ANALYSER": analyser}}),
+                ]
+                for name, argv, kw in stages:
+                    ok = ok and r.run(name, argv, TIMEOUT[name], **kw).status == 0
+                r.sleep(1)
+                ok = ok and r.run("log", self.mpremote("cat", ":outside.log"), TIMEOUT["log"],
+                                  out=capture.with_suffix(".log")).status == 0
             return ok
         finally:
             # put the pins back to idle whatever happened
@@ -265,10 +282,11 @@ class Rtl:
     def healthy(self, folder):
         return None
 
-    def run(self, folder, firmware):
+    def run(self, folder, firmware, analysers):
         r = self.runner
         r.open(folder)
         try:
+            # one run writes every analyser's capture, from the probes in firmware.json
             env = {"LAB_FIRMWARE": str(firmware), "LAB_OUT": str(folder)}
             return r.run("rtl", ["make", "-C", "test", "lab"], TIMEOUT["rtl"], env=env,
                          out=folder / "make.txt").status == 0
@@ -359,6 +377,8 @@ class Worker:
         bench = check["bench"]
         if not bench["takes"]:
             return "model", "the bench declines it: " + bench["why"]
+        if not analysers_of(check):
+            return "model", "the check names no analyser the bench has"
         if self.backend is None:
             return "model", "this worker runs the model alone"
         why = self.limits.bench(who, now)
@@ -412,8 +432,10 @@ class Worker:
         if result["verdict"] == "certified":
             run, why = self.choose(check, who, now, folder)
             if run != "model":
-                ok = (self.backend.run(folder, folder / "firmware.json")
-                      and (self.backend.runner.dry_run or (folder / "lab.sr").exists()))
+                analysers = analysers_of(check)
+                ok = (self.backend.run(folder, folder / "firmware.json", analysers)
+                      and (self.backend.runner.dry_run
+                           or all((folder / capture_name(a)).exists() for a in analysers)))
                 self.errors = 0 if ok else self.errors + 1
                 if self.errors >= DOWN_AFTER:
                     self.down_until = now + DOWN_S
@@ -448,30 +470,45 @@ class Worker:
         if run == "model":
             return
         result["bitstream_sha256"] = self.backend.bitstream_sha256
-        sr, log = folder / "lab.sr", folder / "lab.log"
-        result["pico_log"] = log.read_text() if log.exists() else None
-        if not sr.exists():
-            result["match"] = {"verdict": "differs", "why": "no capture"}
-            return
+        logs = sorted(folder.glob("lab*.log"))
+        result["pico_log"] = "".join(log.read_text() for log in logs) if logs else None
         bench = result["check"]["bench"]
-        rate, first, capture = captured(sr, bench["channel"])
-        lane = simulated["lanes"][0]
-        model = changes(lane["edges"], 1e9 / simulated["clock_hz"])
-        result["match"] = compare(model, capture, rate)
-        start = result["match"].get("start") or 0
-        result["captured"] = {
-            "rate": rate, "channel": bench["channel"], "pin": bench["pin"],
-            "first": first, "capture_sha256": ledger.sha256(sr),
-            # start at the change that lines up with the model; at most the model's count plus a few
-            "changes": [[round(t, 1), level] for t, level in
-                        capture[start:start + len(model) + 64]],
-        }
-        args = bench.get("decode") or []
-        if args and all(DECODE_ARG.fullmatch(w) for w in args):
+        lanes = {lane["pin"]: lane for lane in simulated["lanes"]}
+        result["captures"] = {}
+        result["captured"], matches = [], []
+        for probe in bench["probes"]:
+            sr = folder / capture_name(probe["analyser"])
+            if not sr.exists():
+                matches.append({"verdict": "differs", "why": "no capture", "pin": probe["pin"]})
+                continue
+            result["captures"][sr.name] = ledger.sha256(sr)
+            rate, first, capture = captured(sr, probe["channel"])
+            model = changes(lanes[probe["pin"]]["edges"], 1e9 / simulated["clock_hz"])
+            match = dict(compare(model, capture, rate), pin=probe["pin"])
+            matches.append(match)
+            start = match.get("start") or 0
+            result["captured"].append({
+                "rate": rate, "pin": probe["pin"], "analyser": probe["analyser"],
+                "channel": probe["channel"], "first": first, "capture": sr.name,
+                "capture_sha256": result["captures"][sr.name],
+                # from the change that lines up with the model, at most its count plus a few
+                "changes": [[round(t, 1), level] for t, level in
+                            capture[start:start + len(model) + 64]],
+            })
+        differs = [m for m in matches if m["verdict"] != "matches the model"]
+        result["match"] = {
+            "verdict": "differs" if differs or not matches else "matches the model",
+            "lanes": matches}
+        if differs:
+            result["match"]["why"] = "%s: %s" % (differs[0]["pin"], differs[0].get("why"))
+        decode = bench.get("decode")
+        sr = decode and folder / capture_name(decode["analyser"])
+        if sr and sr.exists() and decode["args"] and all(DECODE_ARG.fullmatch(w)
+                                                          for w in decode["args"]):
             out = folder / "decode.txt"
             self.runner.open(folder)
-            self.runner.run("decode", ["sigrok-cli", "-i", str(sr), *args], TIMEOUT["decode"],
-                            out=out)
+            self.runner.run("decode", ["sigrok-cli", "-i", str(sr), *decode["args"]],
+                            TIMEOUT["decode"], out=out)
             self.runner.close()
             result["decode"] = out.read_text() if out.exists() else None
 

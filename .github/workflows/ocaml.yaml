@@ -456,6 +456,12 @@ jobs:
       - name: Carrier self-test, on a model of the board
         run: python3 test/test_carrier_check.py
 
+      - name: Lab pins, from the carrier netlist
+        run: python3 test/test_lab_pins.py
+
+      - name: Lab worker, against stand-ins for the bench's tools
+        run: python3 test/test_lab_worker.py
+
   # simulates the netlists of both boards. The firmware words they load are the committed
   # ones, and the test job checks those are current. On the 8x4 chip the tests and the
   # replays each come near a runner's six hours, so each runs in two halves

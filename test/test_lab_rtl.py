@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Runs a remote lab job on the RTL at 48 MHz, the way Pico A runs python/demo_lab.py.
-LAB_FIRMWARE is generate.exe lab's firmware.json. LAB_OUT receives lab.sr (OUT0 on D4, as
-analyser A samples it) and lab.log (the script's log). demo/lab.py reads both back from a
-bench run. Same reset and sampling as test_outside, without its part models."""
+LAB_FIRMWARE is generate.exe lab's firmware.json. LAB_OUT receives lab_a.sr and lab_b.sr,
+each probe's pin on the channel its analyser samples it on, and lab.log (the script's log).
+demo/lab.py reads them back as it does a bench run's. Same reset and sampling as
+test_outside, without its part models."""
 
 import json
 import math
@@ -25,8 +26,8 @@ import sigrok  # noqa: E402
 CLOCK_PS = 20834
 RATE = int(float(os.environ.get("LAB_RATE", 24e6)))
 MS = 48_000
-# OUT0 is uo_out[1]; analyser A has it on D4
-CHANNEL = 4
+# OUTn is uo_out[n + 1]
+FIRST_OUTPUT = 5
 
 
 @cocotb.test()
@@ -42,17 +43,22 @@ async def test_lab(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 5)
 
-    def out0():
-        text = str(dut.uo_out.value)
-        return 0 if text[len(text) - 2] == "0" else 1
+    # (pin, analyser, channel), OUT0 on A's D4 when firmware.json has no probes
+    probes = [(p["pin"], p["analyser"], p["channel"])
+              for p in firmware.get("probes", [{"pin": 5, "analyser": "A", "channel": 4}])]
 
-    edges = [(0, out0())]
+    def level(pin):
+        text = str(dut.uo_out.value)
+        return 0 if text[len(text) - 2 - (pin - FIRST_OUTPUT)] == "0" else 1
+
+    edges = {pin: [(0, level(pin))] for pin, _, _ in probes}
 
     async def watch():
         while True:
             await dut.uo_out.value_change
-            if out0() != edges[-1][1]:
-                edges.append((get_sim_time("ps"), out0()))
+            for pin, changes in edges.items():
+                if level(pin) != changes[-1][1]:
+                    changes.append((get_sim_time("ps"), level(pin)))
 
     cocotb.start_soon(watch())
     pins, lines = Pins(dut), []
@@ -79,12 +85,19 @@ async def test_lab(dut):
     os.makedirs(out, exist_ok=True)
     period = 10**12 / RATE
     count = int(get_sim_time("ps") // period)
-    ends = [at for at, _ in edges[1:]] + [count * period]
-    samples = b"".join(
-        bytes([level << CHANNEL]) * (min(count, math.ceil(end / period)) - min(count, math.ceil(at / period)))
-        for (at, level), end in zip(edges, ends)
-    )
-    sigrok.write(os.path.join(out, "lab.sr"), RATE, samples)
+    for analyser in sorted({a for _, a, _ in probes}):
+        samples = bytearray(count)
+        for pin, a, channel in probes:
+            if a != analyser:
+                continue
+            changes = edges[pin]
+            ends = [at for at, _ in changes[1:]] + [count * period]
+            for (at, value), end in zip(changes, ends):
+                if value:
+                    first, last = (min(count, math.ceil(t / period)) for t in (at, end))
+                    for i in range(first, last):
+                        samples[i] |= 1 << channel
+        sigrok.write(os.path.join(out, "lab_%s.sr" % analyser.lower()), RATE, bytes(samples))
     with open(os.path.join(out, "lab.log"), "w") as f:
         f.write("\n".join(lines) + "\n")
     assert ok

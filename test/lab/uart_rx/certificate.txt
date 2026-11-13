@@ -5,4 +5,4 @@ chip: its load check accepts the 87-word certificate
 host words: 
 model: 1516 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_deadline false)(decode false)(assumption false))
 the table holds OUT0 to OUT5 low
-bench: declines it, it reads IN0, which no peer drives on the bench; the trace is the model's
+bench: declines it, it reads IN0, which no peer drives on the bench, the trace is the model's
