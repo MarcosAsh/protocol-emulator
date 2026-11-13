@@ -212,6 +212,16 @@
 
 (rule
  (with-stdout-to
+  modbus_rtu.trace.gen
+  (run ./write_trace.exe modbus_rtu)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff modbus_rtu.trace modbus_rtu.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

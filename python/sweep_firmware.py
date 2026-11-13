@@ -422,6 +422,7 @@ NOT_SWEPT = [
     ("swd_blind", "SWDIO turns around, which a wire does not show, and a target answers"),
     ("ir_nec", "the 4.5 ms space after the AGC burst is 216000 cycles, past the 65536 a stamp tells apart"),
     ("tlc5620", "a word waits on the host, so there is no fixed edge to stamp"),
+    ("modbus_rtu", "a frame is 127 bits of 2500 cycles, past the 65536 a stamp tells apart"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

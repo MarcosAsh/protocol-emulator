@@ -239,6 +239,8 @@ LIMITS = [
     {"firmware": "tlc5620", "limit": "Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >= 50 ns", "bound": "kernel", "cycles": 69, "lowest_hz": None, "highest_hz": 1360000000},
     {"firmware": "tlc5620", "limit": "Pulse duration, LOAD, tw(LOAD) >= 250 ns", "bound": "kernel", "cycles": 20, "lowest_hz": None, "highest_hz": 76000000},
     {"firmware": "tlc5620", "limit": "Pulse duration, LDAC, tw(LDAC) >= 250 ns", "bound": "kernel", "cycles": 20, "lowest_hz": None, "highest_hz": 76000000},
+    {"firmware": "modbus_rtu", "limit": "silent interval between frames, t3,5 >= 2.00521e+06 ns", "bound": "run", "cycles": 97511, "lowest_hz": None, "highest_hz": 48628363},
+    {"firmware": "modbus_rtu", "limit": "silent interval between characters of a frame, t1,5 <= 859375 ns", "bound": "run", "cycles": 5, "lowest_hz": 6982, "highest_hz": None},
     {"firmware": "uart_log", "limit": "bit >= 8506.94 ns", "bound": "kernel", "cycles": 417, "lowest_hz": None, "highest_hz": 48901227},
     {"firmware": "uart_log", "limit": "bit <= 8854.17 ns", "bound": "run", "cycles": 417, "lowest_hz": 47209410, "highest_hz": None},
 ]
@@ -355,6 +357,9 @@ WINDOWS = [
     {"firmware": "tlc5620", "words_md5": "b16ee436421f9482e0b4d87ea1835001", "shipped_hz": 48000000,
      "lowest_hz": None, "lowest_limit": None,
      "highest_hz": 59000000, "highest_limit": "CLK frequency, at most 1 MHz >= 1000 ns"},
+    {"firmware": "modbus_rtu", "words_md5": "e84eb543953166e6b10a1306159f2443", "shipped_hz": 48000000,
+     "lowest_hz": 6982, "lowest_limit": "silent interval between characters of a frame, t1,5 <= 859375 ns",
+     "highest_hz": 48628363, "highest_limit": "silent interval between frames, t3,5 >= 2.00521e+06 ns"},
     {"firmware": "uart_log", "words_md5": "7a19bf9b29d4f7e1b618fbb399263d28", "shipped_hz": 48000000,
      "lowest_hz": 47209410, "lowest_limit": "bit <= 8854.17 ns",
      "highest_hz": 48901227, "highest_limit": "bit >= 8506.94 ns"},

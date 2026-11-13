@@ -44,6 +44,7 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     swd_blind                -                              48.000  49.000 Trn >= 1000 ns
     ir_nec                   -                              48.000  48.070 Carrier frequency, as its period >= 26315.8 ns
     tlc5620                  -                              48.000  59.000 CLK frequency, at most 1 MHz >= 1000 ns
+    modbus_rtu           0.007 silent interval between characters of a frame, t1,5 <= 859375 ns 48.000  48.628 silent interval between frames, t3,5 >= 2.00521e+06 ns
     uart_log            47.209 bit <= 8854.17 ns            48.000  48.901 bit >= 8506.94 ns
     |}]
 ;;

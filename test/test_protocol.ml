@@ -871,6 +871,22 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/tlc5620.trace, by sigrok's tlc5620:clk=OUT0:data=OUT3:load=OUT1:ldac=OUT2
       tlc5620=dac-select:gain:value:bit:data-latch:reg-write:voltage-update-all: tlc5620-1: DAC select: DACA, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 128, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACA register value to 1.65V, tlc5620-1: DAC select: DACB, tlc5620-1: Gain: x2, tlc5620-1: DAC value: 64, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACB register value to 1.65V, tlc5620-1: DAC select: DACC, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 255, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACC register value to 3.29V, tlc5620-1: DAC select: DACD, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACD register value to 0.01V, tlc5620-1: Updating voltages: DACA=1.65V DACB=1.65V DACC=3.29V DACD=0.01V
+
+    === modbus_rtu
+
+    certificates
+    modbus_rtu: 28 words, 6 deadline waits, worst slack 2496, the kernel accepts it, assuming period 2500, no wrap
+
+    limits
+    modbus_rtu         silent interval between frames, t3,5 >= 2.00521e+06 ns  run    97511 (2031479.2 ns) needs 96251       MODBUS RTU, Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006 2.5.1.1, p.13; margin a cycle
+    modbus_rtu         silent interval between characters of a frame, t1,5 <=   859375 ns  run    5 (104.2 ns)      needs 41249       MODBUS RTU, Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006 2.5.1.1, p.13; margin a cycle
+
+    lockstep: modbus_rtu, modbus_rtu
+    ("lockstep held" (cycles 660000))
+    (received ())
+    decode: test/traces/modbus_rtu.trace, by sigrok's uart:tx=OUT0:baudrate=19200:parity=even,modbus
+      uart=tx-data: uart-1: 01, uart-1: 03, uart-1: 00, uart-1: 00, uart-1: 00, uart-1: 0A, uart-1: C5, uart-1: CD, uart-1: 11, uart-1: 06, uart-1: 00, uart-1: 01, uart-1: 00, uart-1: 03, uart-1: 9A, uart-1: 9B
+      modbus=cs-server-id:cs-function:cs-crc:cs-address:cs-data:cs-length: modbus-1: Slave ID: 1, modbus-1: Function 3: Read Holding Registers, modbus-1: Start at address 0x0 / 30001, modbus-1: Read 10 units of data, modbus-1: CRC correct, modbus-1: Slave ID: 17, modbus-1: Function 6: Write Single Register, modbus-1: Address 0x1 / 30001, modbus-1: Register Value 0x3 / 3, modbus-1: CRC correct
     |}]
 ;;
 

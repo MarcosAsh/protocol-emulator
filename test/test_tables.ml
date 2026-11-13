@@ -1225,6 +1225,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "CLK 60 cycles; CLK, LOAD, LDAC and DATA four outputs"
       , "written for the core, not tried" )
+    ; ( "modbus_rtu"
+      , "untried"
+      , "-"
+      , "bits of 2500 cycles, 39 bits of silence before a frame"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1312,5 +1317,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library third 422, a 38 kHz carrier at duty 1/3; written for the core, not tried
     tlc5620    untried  -
       library CLK 60 cycles; CLK, LOAD, LDAC and DATA four outputs; written for the core, not tried
+    modbus_rtu untried  -
+      library bits of 2500 cycles, 39 bits of silence before a frame; written for the core, not tried
     |}]
 ;;

@@ -247,6 +247,8 @@ let%expect_test "the bench firmware against its datasheet limits" =
     tlc5620            Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >=       50 ns  kernel 69 (1437.5 ns)    needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
     tlc5620            Pulse duration, LOAD, tw(LOAD) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
     tlc5620            Pulse duration, LDAC, tw(LDAC) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    modbus_rtu         silent interval between frames, t3,5 >= 2.00521e+06 ns  run    97511 (2031479.2 ns) needs 96251       MODBUS RTU, Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006 2.5.1.1, p.13; margin a cycle
+    modbus_rtu         silent interval between characters of a frame, t1,5 <=   859375 ns  run    5 (104.2 ns)      needs 41249       MODBUS RTU, Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006 2.5.1.1, p.13; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]
@@ -354,6 +356,7 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
     swd_blind          slower unbounded
     ir_nec             slower unbounded
     tlc5620            slower unbounded
+    modbus_rtu         slower loose  silent interval between characters of a frame, t1,5 needs 41249 of 5 cycles (0%)
     |}]
 ;;
 

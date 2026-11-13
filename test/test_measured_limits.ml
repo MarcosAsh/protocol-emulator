@@ -242,6 +242,8 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 69  tlc5620            Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >=       50 ns  measured 34 (1416.7 ns)       Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
     kernel 20  tlc5620            Pulse duration, LOAD, tw(LOAD) >=      250 ns  measured 10 (416.7 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
     kernel 20  tlc5620            Pulse duration, LDAC, tw(LDAC) >=      250 ns  measured 10 (416.7 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    run    97511  modbus_rtu         silent interval between frames, t3,5 >= 2.00521e+06 ns  measured 48756 (2031500.0 ns) Pass            Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006, 2.5.1.1, p.13
+    run    5  modbus_rtu         silent interval between characters of a frame, t1,5 <=   859375 ns  measured 3 (125.0 ns)         Pass            Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006, 2.5.1.1, p.13
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -473,5 +475,7 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     tlc5620        Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK)  33 pairs, as measured
     tlc5620        Pulse duration, LOAD, tw(LOAD)   4 pairs, as measured
     tlc5620        Pulse duration, LDAC, tw(LDAC)   1 pairs, as measured
+    modbus_rtu     silent interval between frames, t3,5   0 pairs, as measured
+    modbus_rtu     silent interval between characters of a frame, t1,5   0 pairs, as measured
     |}]
 ;;

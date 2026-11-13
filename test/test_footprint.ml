@@ -288,6 +288,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     swd_blind          7 17         17         7 17-27        17-19
     ir_nec             5            -          5-20           12-19
     tlc5620            5-8          -          5-23           12-19
+    modbus_rtu         5            -          5-20           12-19
     |}]
 ;;
 
@@ -411,6 +412,7 @@ let%expect_test "each firmware stays inside its footprint" =
     swd_blind          17           17
     ir_nec             -            -
     tlc5620            5-8          -
+    modbus_rtu         5            -
     |}]
 ;;
 

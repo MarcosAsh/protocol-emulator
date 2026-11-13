@@ -108,6 +108,7 @@ let%expect_test "the firmware library and its certificates" =
     swd_blind             22         2     13  period 24
     ir_nec               107        34    409  period 422
     tlc5620               27         7     16  no wrap
+    modbus_rtu            28         6   2496  period 2500, no wrap
     |}]
 ;;
 
