@@ -25,6 +25,9 @@ val check
   -> string
   -> Report.t
 
+(** [check]'s report on what the kernel accepted, with the chip's verdict on it. *)
+val accepted : Timed_program.t -> Chip_verdict.t -> Report.t
+
 module Pio_report : sig
   type t =
     { verdict : string
