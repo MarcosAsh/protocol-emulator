@@ -252,6 +252,8 @@ let%expect_test "the bench firmware against its datasheet limits" =
     avr_isp            SCK high, more than 2 CPU clock cycles >=     2000 ns  kernel 149 (3104.2 ns)   needs   97       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8, p.378; margin a cycle
     avr_isp            SCK low, more than 2 CPU clock cycles >=     2000 ns  kernel 151 (3145.8 ns)   needs   97       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8, p.378; margin a cycle
     avr_isp            wait after power-up, RESET and SCK low, before programming enable >=    2e+07 ns  run    983230 (20483958.3 ns) needs 960001       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8.2 step 2, p.379; margin a cycle
+    midi               bit at 31.25 kbaud +1% >=  31683.2 ns  kernel 1536 (32000.0 ns) needs 1522       MIDI 1.0, MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014 page 2, Hardware; margin a cycle
+    midi               bit at 31.25 kbaud -1% <=  32323.2 ns  run    1536 (32000.0 ns) needs 1550       MIDI 1.0, MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014 page 2, Hardware; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

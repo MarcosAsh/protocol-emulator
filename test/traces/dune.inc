@@ -232,6 +232,16 @@
 
 (rule
  (with-stdout-to
+  midi.trace.gen
+  (run ./write_trace.exe midi)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff midi.trace midi.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

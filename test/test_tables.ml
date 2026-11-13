@@ -1235,6 +1235,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "SCK half 200 cycles; SCK, RESET and MOSI three outputs, MISO an input"
       , "written for the core, not tried" )
+    ; ( "midi"
+      , "untried"
+      , "-"
+      , "bits of 1536 cycles, 31.25 kbaud"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1326,5 +1331,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library bits of 2500 cycles, 39 bits of silence before a frame; written for the core, not tried
     avr_isp    untried  -
       library SCK half 200 cycles; SCK, RESET and MOSI three outputs, MISO an input; written for the core, not tried
+    midi       untried  -
+      library bits of 1536 cycles, 31.25 kbaud; written for the core, not tried
     |}]
 ;;

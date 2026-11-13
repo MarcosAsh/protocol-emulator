@@ -247,6 +247,8 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 149  avr_isp            SCK high, more than 2 CPU clock cycles >=     2000 ns  measured 75 (3125.0 ns)       Pass            Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016, section 32.8, p.378
     kernel 151  avr_isp            SCK low, more than 2 CPU clock cycles >=     2000 ns  measured 75 (3125.0 ns)       Pass            Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016, section 32.8, p.378
     run    983230  avr_isp            wait after power-up, RESET and SCK low, before programming enable >=    2e+07 ns  measured 491615 (20483958.3 ns) Pass            Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016, section 32.8.2 step 2, p.379
+    kernel 1536  midi               bit at 31.25 kbaud +1% >=  31683.2 ns  measured 768 (32000.0 ns)     Pass            MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014, page 2, Hardware
+    run    1536  midi               bit at 31.25 kbaud -1% <=  32323.2 ns  measured 768 (32000.0 ns)     Pass            MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014, page 2, Hardware
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -483,5 +485,7 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     avr_isp        SCK high, more than 2 CPU clock cycles 160 pairs, as measured
     avr_isp        SCK low, more than 2 CPU clock cycles 159 pairs, as measured
     avr_isp        wait after power-up, RESET and SCK low, before programming enable   0 pairs, none, measured 983230
+    midi           bit at 31.25 kbaud +1%  10 pairs, as measured
+    midi           bit at 31.25 kbaud -1%  10 pairs, as measured
     |}]
 ;;

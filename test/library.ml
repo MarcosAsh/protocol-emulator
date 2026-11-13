@@ -42,6 +42,7 @@ let protocols =
   ; Tlc5620.protocol
   ; Modbus_rtu.protocol
   ; Avr_isp.protocol
+  ; Midi.protocol
   ]
 ;;
 

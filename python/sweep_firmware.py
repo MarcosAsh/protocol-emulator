@@ -424,6 +424,7 @@ NOT_SWEPT = [
     ("tlc5620", "a word waits on the host, so there is no fixed edge to stamp"),
     ("modbus_rtu", "a frame is 127 bits of 2500 cycles, past the 65536 a stamp tells apart"),
     ("avr_isp", "RESET is held low 983070 cycles, past the 65536 a stamp tells apart"),
+    ("midi", "a byte waits on the host, so there is no fixed edge to stamp"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

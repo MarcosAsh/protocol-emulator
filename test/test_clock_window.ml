@@ -46,6 +46,7 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     tlc5620                  -                              48.000  59.000 CLK frequency, at most 1 MHz >= 1000 ns
     modbus_rtu           0.007 silent interval between characters of a frame, t1,5 <= 859375 ns 48.000  48.628 silent interval between frames, t3,5 >= 2.00521e+06 ns
     avr_isp                  -                              48.000  49.161 wait after power-up, RESET and SCK low, before programming enable >= 2e+07 ns
+    midi                47.551 bit at 31.25 kbaud -1% <= 32323.2 ns 48.000  48.448 bit at 31.25 kbaud +1% >= 31683.2 ns
     uart_log            47.209 bit <= 8854.17 ns            48.000  48.901 bit >= 8506.94 ns
     |}]
 ;;

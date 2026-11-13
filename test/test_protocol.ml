@@ -905,6 +905,22 @@ let%expect_test "every protocol from its file to the decoded trace" =
       spi=mosi-data: spi-1: AC, spi-1: 53, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 01, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 02, spi-1: 00, spi-1: 50, spi-1: 00, spi-1: 00, spi-1: 00
       spi=miso-data: spi-1: 00, spi-1: AC, spi-1: 53, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 1E, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 93, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 0A, spi-1: 00, spi-1: 50, spi-1: 00, spi-1: 62
       avr_isp=pe:rsb0:rsb1:rsb2:rfb:dev: avr_isp-1: Programming enable, avr_isp-1: Vendor code: 0x1e (Atmel), avr_isp-1: Part family / memory size: 0x93, avr_isp-1: Part number: 0x0a, avr_isp-1: Device: Atmel ATmega88, avr_isp-1: Read fuse bits: 0x62
+
+    === midi
+
+    certificates
+    midi: 17 words, 3 deadline waits, worst slack 1532, the kernel accepts it, assuming period 1536, no wrap
+
+    limits
+    midi               bit at 31.25 kbaud +1% >=  31683.2 ns  kernel 1536 (32000.0 ns) needs 1522       MIDI 1.0, MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014 page 2, Hardware; margin a cycle
+    midi               bit at 31.25 kbaud -1% <=  32323.2 ns  run    1536 (32000.0 ns) needs 1550       MIDI 1.0, MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014 page 2, Hardware; margin a cycle
+
+    lockstep: midi, midi
+    ("lockstep held" (cycles 215040))
+    (received ())
+    decode: test/traces/midi.trace, by sigrok's uart:tx=OUT0:baudrate=31250,midi
+      uart=tx-data: uart-1: 90, uart-1: 3C, uart-1: 40, uart-1: 3E, uart-1: 40, uart-1: 80, uart-1: 3C, uart-1: 00, uart-1: C0, uart-1: 05, uart-1: B0, uart-1: 07, uart-1: 64
+      midi=text-verbose: midi-1: Channel 1: note on (note = 60 'C4', velocity = 64), midi-1: Channel 1: note on (note = 62 'D4', velocity = 64), midi-1: Channel 1: note off (note = 60 'C4', velocity = 0), midi-1: Channel 1: program change to instrument 6 (assuming Electric Piano 2), midi-1: Channel 1: control change 'channel volume MSB (formerly main volume)' (param = 0x64)
     |}]
 ;;
 

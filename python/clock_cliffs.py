@@ -244,6 +244,8 @@ LIMITS = [
     {"firmware": "avr_isp", "limit": "SCK high, more than 2 CPU clock cycles >= 2000 ns", "bound": "kernel", "cycles": 149, "lowest_hz": None, "highest_hz": 74000000},
     {"firmware": "avr_isp", "limit": "SCK low, more than 2 CPU clock cycles >= 2000 ns", "bound": "kernel", "cycles": 151, "lowest_hz": None, "highest_hz": 75000000},
     {"firmware": "avr_isp", "limit": "wait after power-up, RESET and SCK low, before programming enable >= 2e+07 ns", "bound": "run", "cycles": 983230, "lowest_hz": None, "highest_hz": 49161450},
+    {"firmware": "midi", "limit": "bit at 31.25 kbaud +1% >= 31683.2 ns", "bound": "kernel", "cycles": 1536, "lowest_hz": None, "highest_hz": 48448437},
+    {"firmware": "midi", "limit": "bit at 31.25 kbaud -1% <= 32323.2 ns", "bound": "run", "cycles": 1536, "lowest_hz": 47550938, "highest_hz": None},
     {"firmware": "uart_log", "limit": "bit >= 8506.94 ns", "bound": "kernel", "cycles": 417, "lowest_hz": None, "highest_hz": 48901227},
     {"firmware": "uart_log", "limit": "bit <= 8854.17 ns", "bound": "run", "cycles": 417, "lowest_hz": 47209410, "highest_hz": None},
 ]
@@ -366,6 +368,9 @@ WINDOWS = [
     {"firmware": "avr_isp", "words_md5": "e164c10ee5f205c31b48957955999487", "shipped_hz": 48000000,
      "lowest_hz": None, "lowest_limit": None,
      "highest_hz": 49161450, "highest_limit": "wait after power-up, RESET and SCK low, before programming enable >= 2e+07 ns"},
+    {"firmware": "midi", "words_md5": "5f7a0d2f1338c9af20cbf9c85bf2127c", "shipped_hz": 48000000,
+     "lowest_hz": 47550938, "lowest_limit": "bit at 31.25 kbaud -1% <= 32323.2 ns",
+     "highest_hz": 48448437, "highest_limit": "bit at 31.25 kbaud +1% >= 31683.2 ns"},
     {"firmware": "uart_log", "words_md5": "7a19bf9b29d4f7e1b618fbb399263d28", "shipped_hz": 48000000,
      "lowest_hz": 47209410, "lowest_limit": "bit <= 8854.17 ns",
      "highest_hz": 48901227, "highest_limit": "bit >= 8506.94 ns"},
