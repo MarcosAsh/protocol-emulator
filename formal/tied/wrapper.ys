@@ -1,0 +1,16 @@
+# The copy's engines_top (wrapper.v) only wires each port to the same port of its engines,
+# as direct.v does. With engines cut out of both, SAT finds every output and cut input
+# equal. Trusted: yosys's frontend, flatten, miter and sat.
+read_verilog wrapper.v
+blackbox engines
+hierarchy -check -top engines_top
+read_verilog direct.v
+proc
+select -assert-count 1 engines_top/t:engines
+select -assert-count 1 direct/t:engines
+expose -evert engines_top/t:engines direct/t:engines
+delete =A:blackbox
+check -assert
+miter -equiv -flatten -make_outputs direct engines_top miter
+hierarchy -top miter
+sat -verify -prove trigger 0

@@ -1,7 +1,7 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
   sram_equiv kernel_equiv translation frontend_equiv link bridge self_check self_check_clean powerup \
-  offset_axioms gate certify complete usb_roundtrip line_stuff frame_roundtrip
+  offset_axioms gate certify complete usb_roundtrip line_stuff frame_roundtrip tied
 
 # run dune from this checkout's root, not an enclosing worktree's
 export DUNE_ROOT = .
@@ -799,6 +799,71 @@ frontend_equiv_step:
 	if [ -z "$(FAILS)" ]; then grep -qx 0 $(STEP)/status; \
 	else grep -q "unproven \$$equiv cells in 'equiv_status -assert'" $(STEP)/equiv.log; fi
 
+# The copies the proofs read, held to that Verilog. Their modules are the chip's word for
+# word but for the flop program memory (sram_equiv), solo's one-engine data memory and the
+# ungated engines. engines_top only wires its ports through (tied/wrapper.ys), and the
+# ungated engines, each start taken only once certified, step as the chip's from any state
+# (tied/equiv.ys). Takes about 5 min. Teeth: pc stepping back in engine.v, two starts
+# swapped in engines_top, the ungated engines as written.
+TIED = tied_run
+TIED_FLOPS = s/^\(\s*\)program_memory$$/\1sram_macro/
+TIED_GATED = /^module engines (/,/^endmodule/{s/^\(\s*assign signal_wire_[0-9]* = hosts\$$start_\([01]\)\);/\1 \& certified$$\2;/;s/^\(\s*assign signal_wire_[0-9]* = start_all\);/\1 \& certified$$0 \& certified$$1;/}
+TIED_SWAP = /^module engines_top (/,/^endmodule/{s/\.hosts\$$start_0(/.swap(/;s/\.hosts\$$start_1(/.hosts$$start_0(/;s/\.swap(/.hosts$$start_1(/}
+TIED_ENGINES = data_memory edge_stamps engine frame_rx host_fifo line_stuff load_checker \
+  manchester_rx usb_frame_rx usb_rx
+tied: engine.v engine_sram.v engines.v engines_sram.v engines_gated.v top.v memory_flops.v \
+  memory_sram.v
+	$(MAKE) tied_proof
+
+tied_proof:
+	rm -rf $(TIED) && mkdir $(TIED)
+	$(MAKE) tied_text COPY=engine.v SAME='engine host_fifo line_stuff' DIFFERS=data_memory
+	$(MAKE) tied_text COPY=engine_sram.v SAME='engine host_fifo line_stuff sram_macro' \
+	  DIFFERS=data_memory
+	$(MAKE) tied_text COPY=engines_gated.v SAME='$(TIED_ENGINES) engines sram_macro'
+	$(MAKE) tied_text COPY=top.v \
+	  SAME='$(TIED_ENGINES) engines both_edges host_port host_spi protocol_emulator top'
+	$(MAKE) tied_text COPY=engines_sram.v AGAINST=engines_gated.v \
+	  SAME='$(TIED_ENGINES) engines_top sram_macro' DIFFERS=engines
+	$(MAKE) tied_text COPY=engines.v AGAINST=engines_sram.v SAME='$(TIED_ENGINES) engines engines_top'
+	$(MAKE) tied_text COPY=memory_flops.v AGAINST=engine.v SAME=program_memory
+	$(MAKE) tied_text COPY=memory_sram.v SAME=sram_macro
+	sed '$(EDIT_pc_back)' engine.v > $(TIED)/pc_back.v
+	! $(MAKE) tied_text COPY=$(TIED)/pc_back.v SAME='engine host_fifo line_stuff' DIFFERS=data_memory
+	grep -qx 'differs engine' $(TIED)/modules.txt
+	$(MAKE) tied_wrapper WRAPPER=engines_gated.v W=$(TIED)_wrapper
+	sed '$(TIED_SWAP)' engines_gated.v > $(TIED)/swapped.v
+	[ $$(diff engines_gated.v $(TIED)/swapped.v | grep -c '^>') = 2 ]
+	$(MAKE) tied_wrapper WRAPPER=$(TIED)/swapped.v W=$(TIED)_swapped FAILS=1
+	$(MAKE) tied_equiv EDIT=TIED_GATED EDITS=3 EQ=$(TIED)_equiv
+	$(MAKE) tied_equiv EDIT= EDITS=0 EQ=$(TIED)_ungated FAILS=1
+
+# one copy's modules against AGAINST's: those the same and those that differ, as listed
+AGAINST = $(WRITTEN)
+tied_text:
+	sed '$(TIED_FLOPS)' $(COPY) | awk -f tied/modules.awk $(AGAINST) - > $(TIED)/modules.txt
+	[ "$$(sed -n 's/^same //p' $(TIED)/modules.txt | LC_ALL=C sort | xargs)" = "$(sort $(SAME))" ]
+	[ "$$(sed -n 's/^differs //p' $(TIED)/modules.txt | LC_ALL=C sort | xargs)" = "$(sort $(DIFFERS))" ]
+
+tied_wrapper:
+	rm -rf $(W) && mkdir $(W)
+	awk -f tied/direct.awk $(WRITTEN) > $(W)/direct.v
+	cp $(WRAPPER) $(W)/wrapper.v
+	cd $(W) && yosys -q -l wrapper.log ../tied/wrapper.ys > /dev/null 2>&1; echo $$? > status
+	if [ -z "$(FAILS)" ]; then grep -qx 0 $(W)/status; \
+	else grep -q 'SAT proof finished - model found: FAIL!' $(W)/wrapper.log; fi
+
+tied_equiv:
+	rm -rf $(EQ) && mkdir $(EQ)
+	cp $(WRITTEN) $(EQ)/side.v
+	cd $(EQ) && yosys -q -l gold.log -p 'script ../tied/side.ys; rename engines gold; write_rtlil gold.il'
+	sed '$($(EDIT))' engines_sram.v > $(EQ)/side.v
+	[ $$(diff engines_sram.v $(EQ)/side.v | grep -c '^>') = $(EDITS) ]
+	cd $(EQ) && yosys -q -l gate.log -p 'script ../tied/side.ys; rename engines gate; write_rtlil gate.il'
+	cd $(EQ) && yosys -q -l equiv.log ../tied/equiv.ys > /dev/null 2>&1; echo $$? > status
+	if [ -z "$(FAILS)" ]; then grep -qx 0 $(EQ)/status; \
+	else grep -q 'SAT proof finished - model found: FAIL!' $(EQ)/equiv.log; fi
+
 # Power-up is deterministic: two copies of the chip from any two states, reset at the first
 # edge and with the same pins after it, drive the same pins (powerup.sv). By induction on
 # an invariant over the flops powerup.tcl brings out. havoc proves it with the words and
@@ -1186,4 +1251,4 @@ witness_reject:
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
   self_check_clean self_check_clean_proof \
   powerup isolation isolation_proof offset_axioms translation translation_proof translation_tooth \
-  frontend_equiv frontend_equiv_step
+  frontend_equiv frontend_equiv_step tied tied_proof tied_text tied_wrapper tied_equiv

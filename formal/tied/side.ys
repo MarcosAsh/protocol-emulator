@@ -1,0 +1,27 @@
+# One side of equiv.ys: module engines of side.v, flattened and cut open. Its three macros'
+# inputs and its flops' next values become outputs to compare, and the macros' outputs and
+# the flops' values become inputs both sides share, by name. Refused is left out, since a
+# gated start sets it differently.
+read_verilog side.v
+read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+hierarchy -check -top engines
+proc
+flatten
+memory_collect
+memory_map
+opt_expr -mux_undef
+opt_clean
+delete t:$scopeinfo
+select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
+delete =A:blackbox
+check -assert
+dffunmap
+select -assert-none t:* t:$dff t:$adff %u %d t:$*ff* t:$*dff* t:$*latch* %u %u %i
+rename -hide w:signal_* w:signal_reg* %d
+opt_clean -purge
+expose -evert-dff t:$dff t:$adff
+delete t:$dff t:$adff
+check -assert
+select -assert-count 6 o:check$refused_*
+delete -port o:check$refused_*
