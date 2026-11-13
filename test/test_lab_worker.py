@@ -50,7 +50,8 @@ esac
     case $1 in
     --scan) [ -n "$NO_ANALYSER" ] || echo "fx2lafw:conn=3.4 - Saleae Logic"; exit 0 ;;
     -o) case $ANALYSER in B) cp "$RAW_B" "$2" ;; *) cp "$RAW" "$2" ;; esac; exit 0 ;;
-    -i) echo "uart-1: A3"; echo "uart-1: 5C"; exit 0 ;;
+    -i) echo "$SIGROKDECODE_DIR $(basename "$2") $3 $4 $5 $6" >> "$TMP/decodes"
+        echo "uart-1: A3"; echo "uart-1: 5C"; exit 0 ;;
     esac
     shift
 done
@@ -160,6 +161,19 @@ class Worker(unittest.TestCase):
         self.assertEqual(sorted(r["captures"]), ["lab_a.sr", "lab_b.sr"])
         # a reset before each pass and one after
         self.assertEqual(len(self.lines("loads")), 3)
+        self.assertEqual(self.lines("decodes"), ["%s lab_a.sr -P spi:clk=D6:mosi=D4 -A spi=mosi-data"
+                                                 % (ROOT / "demo/decoders")])
+
+    def test_decode_args_that_are_not_an_allowed_decoders_never_run(self):
+        good = ["-P", "uart:rx=D4:baudrate=115200", "-A", "uart=rx-data"]
+        self.assertTrue(lab.decode_args(good))
+        self.assertTrue(lab.decode_args(["-P", "spi:clk=D6:mosi=D4"]))
+        for bad in (["-P", "uart:rx=D4;rm -rf ~"], ["-P", "uart:rx=$(id)"],
+                    ["-P", "../../tmp/x:rx=D4"], ["-P", "os:rx=D4"],
+                    ["-P", "uart:rx=D4", "-A", "spi=mosi-data"], ["-P", "uart", "-o", "/tmp/x"],
+                    ["-P", "uart:rx=D4 -o /tmp/x"], ["-P", "uart", "-A", "uart=rx-data", "-O", "x"],
+                    ["-i", "/etc/passwd"], "uart", [], ["-P", "uart:rx=D4\n-o"]):
+            self.assertFalse(lab.decode_args(bad), bad)
 
     def test_a_pass_that_strays_on_b_differs(self):
         (self.tmp / "raw.bin").write_bytes(raw("four_lanes", "A"))

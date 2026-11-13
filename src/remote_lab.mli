@@ -13,21 +13,46 @@ open! Core
 (** [Wavedrom.rated_hz]: a job has no clock of its own. *)
 val clock_hz : int
 
-(** Which of sigrok's decoders to run on the capture, from a fixed list. *)
+(** Which of sigrok's decoders to run on a capture, from a fixed list, with each option's
+    value checked against what the decoder takes. Nothing from the job reaches sigrok-cli
+    unless it is one of those names or values, or a channel the check names itself. *)
 module Decode : sig
+  module Value_rule : sig
+    type t =
+      | Range of int * int
+      | One_of of string list
+  end
+
+  module Decoder : sig
+    type t =
+      { id : string
+      ; channels : string list
+      ; required : string list
+      ; options : (string * Value_rule.t) list
+      ; rows : string list -> string (** the [-A] rows, given the channels bound *)
+      }
+  end
+
   type t =
     | Off
-    | Uart of int (** baud, 300 to 4 000 000 *)
-    | Ws281x
-  [@@deriving sexp_of, equal]
+    | On of
+        { decoder : Decoder.t
+        ; channels : (string * int) list (** each channel's pin *)
+        ; options : (string * string) list
+        }
+  [@@deriving sexp_of]
 
-  (** [none], [ws281x] or [uart:BAUD]. *)
+  val max_length : int
+
+  (** [none], or [DECODER:KEY=VALUE:...] where a key is a channel (its value a pin, as
+      [OUT0]) or an option. A decoder of one line may leave its channel out. [ws281x] and
+      [uart:BAUD] are short for [rgb_led_ws281x] and [uart:baudrate=BAUD]. *)
   val of_string : string -> t Or_error.t
 
   val to_string : t -> string
 
-  (** [-P ... -A ...] for the capture's [channel], as [D4]; empty for [Off]. *)
-  val sigrok_args : t -> channel:string -> string list
+  (** The decoders a job may name. *)
+  val ids : string list
 end
 
 module Job : sig
@@ -81,6 +106,8 @@ module Bench : sig
     | Takes of
         { probes : Probe.t list (** one pass a bench run for each analyser they use *)
         ; run_ms : int (** how long the host lets the engine run before it stops it *)
+        ; decode : (Bench_wiring.Analyser.t * string list) option
+        (** the analyser whose capture sigrok-cli reads, and its [-P] and [-A] *)
         }
     | Declines of string (** why, which the result page shows beside the model's trace *)
 end
@@ -117,8 +144,8 @@ type t =
       ; bench : Bench.t
       }
 
-(** An error means a malformed job (for example frames that don't fit the diagram), not a
-    refusal. *)
+(** An error means a malformed job (for example frames that don't fit the diagram, or a
+    decode of a pin the bench doesn't capture), not a refusal. *)
 val check : Job.t -> t Or_error.t
 
 (** The result folder's files from the check, as name and contents: [job.json],

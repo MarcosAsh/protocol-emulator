@@ -49,9 +49,15 @@ QUEUE_TAKE = 50
 DOWN_AFTER = 2
 DOWN_S = 1800
 SUBMITTER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,38}")
-# the words check.json may pass to sigrok-cli
-DECODE_ARG = re.compile(r"-P|-A|uart:rx=D[0-7]:baudrate=\d{3,7}|uart=rx-data"
-                        r"|rgb_led_ws281x:din=D[0-7]|rgb_led_ws281x=rgb:reset")
+# the decoders remote_lab.ml's Decode allows, and the shape of what check.json may pass to
+# sigrok-cli for them
+DECODERS = {"uart", "spi", "i2c", "rgb_led_ws281x", "ir_nec", "ir_rc5", "onewire_link", "can",
+            "pwm", "dcf77", "ps2", "dali", "caliper", "lfast", "snorble", "plinkoo",
+            "i2c_timing"}
+DECODE_P = re.compile(r"([a-z0-9_]+)((?::[a-z_]+=[A-Za-z0-9_.-]+)*)")
+DECODE_A = re.compile(r"([a-z0-9_]+)=[a-z0-9_:-]+")
+# the decoders written here (demo/decoders), searched before sigrok's own
+DECODER_DIR = HERE / "decoders"
 # stripped from a published result: local paths, Pico A's serial, the USB tree
 PRIVATE = {"run.txt", "make.txt", "scan.txt"}
 ANALYSERS = ("A", "B")
@@ -73,6 +79,17 @@ def sha256_text(text):
 
 def capture_name(analyser):
     return "lab_%s.sr" % analyser.lower()
+
+
+def decode_args(args):
+    """Whether args is ["-P", P] or ["-P", P, "-A", A] for one allowed decoder, its values
+    letters, digits, _ . and - alone."""
+    if not (isinstance(args, list) and len(args) in (2, 4) and all(isinstance(a, str) for a in args)
+            and args[0] == "-P" and (len(args) == 2 or args[2] == "-A")):
+        return False
+    p = DECODE_P.fullmatch(args[1])
+    a = DECODE_A.fullmatch(args[3]) if len(args) == 4 else p
+    return bool(p and a and p.group(1) in DECODERS and a.group(1) == p.group(1))
 
 
 def analysers_of(check):
@@ -502,14 +519,15 @@ class Worker:
         if differs:
             result["match"]["why"] = "%s: %s" % (differs[0]["pin"], differs[0].get("why"))
         decode = bench.get("decode")
-        sr = decode and folder / capture_name(decode["analyser"])
-        if sr and sr.exists() and decode["args"] and all(DECODE_ARG.fullmatch(w)
-                                                          for w in decode["args"]):
+        if decode and decode_args(decode["args"]) and decode["analyser"] in ANALYSERS:
+            sr = folder / capture_name(decode["analyser"])
             out = folder / "decode.txt"
-            self.runner.open(folder)
-            self.runner.run("decode", ["sigrok-cli", "-i", str(sr), *decode["args"]],
-                            TIMEOUT["decode"], out=out)
-            self.runner.close()
+            if sr.exists():
+                self.runner.open(folder)
+                self.runner.run("decode", ["sigrok-cli", "-i", str(sr), *decode["args"]],
+                                TIMEOUT["decode"], out=out,
+                                env={"SIGROKDECODE_DIR": str(DECODER_DIR)})
+                self.runner.close()
             result["decode"] = out.read_text() if out.exists() else None
 
     def work(self):

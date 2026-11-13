@@ -42,40 +42,233 @@ let rec json (v : Value.t) =
 let int i = Value.Number (Float.of_int i)
 let ints l = Value.List (List.map l ~f:int)
 
+let pin_name pin =
+  if pin < Isa.first_output_pin
+  then sprintf "IN%d" pin
+  else if pin < Isa.first_bidir_pin
+  then sprintf "OUT%d" (pin - Isa.first_output_pin)
+  else sprintf "IO%d" (pin - Isa.first_bidir_pin)
+;;
+
 module Decode = struct
+  module Value_rule = struct
+    type t =
+      | Range of int * int
+      | One_of of string list
+
+    let check t ~key value =
+      match t with
+      | Range (lo, hi) ->
+        (match Int.of_string_opt value with
+         | Some v when v >= lo && v <= hi && String.for_all value ~f:Char.is_digit ->
+           Ok ()
+         | _ -> Or_error.error_s [%message "a decoder option is out of range" key value])
+      | One_of values ->
+        if List.mem values value ~equal:String.equal
+        then Ok ()
+        else
+          Or_error.error_s [%message "a decoder option takes" key (values : string list)]
+    ;;
+  end
+
+  module Decoder = struct
+    type t =
+      { id : string
+      ; channels : string list
+      ; required : string list
+      ; options : (string * Value_rule.t) list
+      ; rows : string list -> string (* the annotation rows to print, by bound channel *)
+      }
+  end
+
+  let polarity = "polarity", Value_rule.One_of [ "active-low"; "active-high" ]
+  let yes_no = Value_rule.One_of [ "yes"; "no" ]
+  let rows r _ = r
+
+  (* sigrok's decoders that read one or two logic lines, with their options as
+     libsigrokdecode 0.5.3 (the bench's) names them, plus demo/pinned_decoders.sh's and
+     demo/decoders' own *)
+  let decoders =
+    let d ?(required = []) ?(options = []) id channels rows =
+      { Decoder.id; channels; required; options; rows }
+    in
+    [ d
+        "uart"
+        [ "rx"; "tx" ]
+        ~options:
+          [ "baudrate", Range (300, 4_000_000)
+          ; "data_bits", One_of [ "5"; "6"; "7"; "8"; "9" ]
+          ; "parity", One_of [ "none"; "odd"; "even"; "zero"; "one"; "ignore" ]
+          ; "stop_bits", One_of [ "0.0"; "0.5"; "1.0"; "1.5" ]
+          ; "bit_order", One_of [ "lsb-first"; "msb-first" ]
+          ; "format", One_of [ "ascii"; "dec"; "hex"; "oct"; "bin" ]
+          ; "invert_rx", yes_no
+          ; "invert_tx", yes_no
+          ]
+        (fun bound -> List.map bound ~f:(fun c -> c ^ "-data") |> String.concat ~sep:":")
+    ; d
+        "spi"
+        [ "clk"; "mosi"; "miso"; "cs" ]
+        ~required:[ "clk" ]
+        ~options:
+          [ "cs_polarity", One_of [ "active-low"; "active-high" ]
+          ; "cpol", One_of [ "0"; "1" ]
+          ; "cpha", One_of [ "0"; "1" ]
+          ; "bitorder", One_of [ "msb-first"; "lsb-first" ]
+          ; "wordsize", Range (1, 32)
+          ]
+        (fun bound ->
+          List.filter_map bound ~f:(fun c ->
+            Option.some_if (String.equal c "mosi" || String.equal c "miso") (c ^ "-data"))
+          |> String.concat ~sep:":")
+    ; d
+        "i2c"
+        [ "scl"; "sda" ]
+        ~required:[ "scl"; "sda" ]
+        ~options:[ "address_format", One_of [ "shifted"; "unshifted" ] ]
+        (rows "addr-data")
+    ; d "rgb_led_ws281x" [ "din" ] ~required:[ "din" ] (rows "rgb:reset")
+    ; d "ir_nec" [ "ir" ] ~required:[ "ir" ] ~options:[ polarity ] (rows "fields")
+    ; d
+        "ir_rc5"
+        [ "ir" ]
+        ~required:[ "ir" ]
+        ~options:[ polarity; "protocol", One_of [ "standard"; "extended" ] ]
+        (rows "fields")
+    ; d
+        "onewire_link"
+        [ "owr" ]
+        ~required:[ "owr" ]
+        ~options:[ "overdrive", yes_no ]
+        (rows "bits")
+    ; d
+        "can"
+        [ "can_rx" ]
+        ~required:[ "can_rx" ]
+        ~options:
+          [ "nominal_bitrate", Range (1_000, 1_000_000); "sample_point", Range (50, 90) ]
+        (rows "fields")
+    ; d "pwm" [ "data" ] ~required:[ "data" ] ~options:[ polarity ] (rows "duty-cycle")
+    ; d "dcf77" [ "data" ] ~required:[ "data" ] (rows "fields")
+    ; d "ps2" [ "clk"; "data" ] ~required:[ "clk"; "data" ] (rows "fields")
+    ; d "dali" [ "dali" ] ~required:[ "dali" ] ~options:[ polarity ] (rows "fields")
+    ; d
+        "caliper"
+        [ "clk"; "data" ]
+        ~required:[ "clk"; "data" ]
+        ~options:
+          [ "timeout_ms", Range (0, 1000)
+          ; "unit", One_of [ "keep"; "mm"; "inch" ]
+          ; "changes", yes_no
+          ]
+        (rows "measurements")
+    ; d "lfast" [ "data" ] ~required:[ "data" ] (rows "fields")
+    ; d "snorble" [ "sig" ] ~required:[ "sig" ] (rows "bytes")
+    ; d "plinkoo" [ "stb"; "dat" ] ~required:[ "stb"; "dat" ] (rows "bytes")
+    ; d
+        "i2c_timing"
+        [ "scl"; "sda" ]
+        ~required:[ "scl"; "sda" ]
+        ~options:[ "mode", One_of [ "standard"; "fast"; "fastplus" ] ]
+        (rows "fails:unsures")
+    ]
+  ;;
+
   type t =
     | Off
-    | Uart of int
-    | Ws281x
-  [@@deriving sexp_of, equal]
+    | On of
+        { decoder : Decoder.t
+        ; channels : (string * int) list (** channel, pin *)
+        ; options : (string * string) list
+        }
+
+  let max_length = 256
+  let find id = List.find decoders ~f:(fun (d : Decoder.t) -> String.equal d.id id)
 
   let of_string s =
-    match String.lsplit2 s ~on:':' with
-    | None when String.equal s "none" -> Ok Off
-    | None when String.equal s "ws281x" -> Ok Ws281x
-    | Some ("uart", baud) ->
-      (match Int.of_string_opt baud with
-       | Some b when b >= 300 && b <= 4_000_000 && String.for_all baud ~f:Char.is_digit ->
-         Ok (Uart b)
-       | _ -> Or_error.error_s [%message "uart's baud is 300 to 4000000" baud])
-    | _ ->
-      Or_error.error_s
-        [%message "decode is none, ws281x or uart:BAUD" ~decode:(s : string)]
+    let open Or_error.Let_syntax in
+    let%bind () =
+      if String.length s > max_length
+      then Or_error.error_s [%message "a decode is at most" (max_length : int) "bytes"]
+      else Ok ()
+    in
+    match String.split s ~on:':' with
+    | [ "none" ] -> Ok Off
+    | [] | [ "" ] -> Ok Off
+    | id :: pairs ->
+      (* ws281x and uart:BAUD as the first lab took them *)
+      let id, pairs =
+        match id, pairs with
+        | "ws281x", _ -> "rgb_led_ws281x", pairs
+        | "uart", [ baud ] when String.for_all baud ~f:Char.is_digit ->
+          "uart", [ "baudrate=" ^ baud ]
+        | _ -> id, pairs
+      in
+      let%bind decoder =
+        match find id with
+        | Some d -> Ok d
+        | None ->
+          Or_error.error_s
+            [%message
+              "no such decoder"
+                ~decode:(String.prefix s 64 : string)
+                ~decoders:(List.map decoders ~f:(fun d -> d.id) : string list)]
+      in
+      let%bind pairs =
+        List.map pairs ~f:(fun pair ->
+          match String.lsplit2 pair ~on:'=' with
+          | Some (key, value) -> Ok (key, value)
+          | None -> Or_error.error_s [%message "a decoder option is KEY=VALUE" pair])
+        |> Or_error.all
+      in
+      let%bind () =
+        if List.contains_dup (List.map pairs ~f:fst) ~compare:String.compare
+        then Or_error.error_s [%message "a decoder option is given twice"]
+        else Ok ()
+      in
+      let channel_pairs, option_pairs =
+        List.partition_tf pairs ~f:(fun (key, _) ->
+          List.mem decoder.channels key ~equal:String.equal)
+      in
+      let%bind channels =
+        List.map channel_pairs ~f:(fun (key, value) ->
+          match
+            List.find (List.range Isa.first_output_pin Isa.num_pins) ~f:(fun pin ->
+              String.equal (pin_name pin) value)
+          with
+          | Some pin -> Ok (key, pin)
+          | None ->
+            Or_error.error_s [%message "a decoder channel is a pin, as OUT0" key value])
+        |> Or_error.all
+      in
+      let%map () =
+        List.map option_pairs ~f:(fun (key, value) ->
+          match List.Assoc.find decoder.options key ~equal:String.equal with
+          | Some rule -> Value_rule.check rule ~key value
+          | None ->
+            Or_error.error_s
+              [%message
+                "the decoder has no such option"
+                  ~decoder:decoder.id
+                  key
+                  ~options:
+                    (List.map decoder.options ~f:fst @ decoder.channels : string list)])
+        |> Or_error.all_unit
+      in
+      On { decoder; channels; options = option_pairs }
   ;;
 
   let to_string = function
     | Off -> "none"
-    | Ws281x -> "ws281x"
-    | Uart b -> sprintf "uart:%d" b
+    | On { decoder; channels; options } ->
+      String.concat
+        ~sep:":"
+        ((decoder.id :: List.map channels ~f:(fun (c, pin) -> c ^ "=" ^ pin_name pin))
+         @ List.map options ~f:(fun (k, v) -> k ^ "=" ^ v))
   ;;
 
-  let sigrok_args t ~channel =
-    match t with
-    | Off -> []
-    | Uart b -> [ "-P"; sprintf "uart:rx=%s:baudrate=%d" channel b; "-A"; "uart=rx-data" ]
-    | Ws281x ->
-      [ "-P"; "rgb_led_ws281x:din=" ^ channel; "-A"; "rgb_led_ws281x=rgb:reset" ]
-  ;;
+  let sexp_of_t t = Sexp.Atom (to_string t)
+  let ids = List.map decoders ~f:(fun d -> d.id)
 end
 
 module Job = struct
@@ -227,6 +420,7 @@ module Bench = struct
     | Takes of
         { probes : Probe.t list
         ; run_ms : int
+        ; decode : (Bench_wiring.Analyser.t * string list) option
         }
     | Declines of string
 end
@@ -261,14 +455,6 @@ type t =
       ; bench : Bench.t
       }
 
-let pin_name pin =
-  if pin < Isa.first_output_pin
-  then sprintf "IN%d" pin
-  else if pin < Isa.first_bidir_pin
-  then sprintf "OUT%d" (pin - Isa.first_output_pin)
-  else sprintf "IO%d" (pin - Isa.first_bidir_pin)
-;;
-
 let channel (w : Bench_wiring.t) =
   sprintf
     "analyser %s D%d"
@@ -297,8 +483,65 @@ let lane_safety (l : Lane.t) =
 (* whole milliseconds, plus one for the start *)
 let run_ms cycles = (((cycles * 1000) + clock_hz - 1) / clock_hz) + 1
 
-let bench_for (lanes : Lane.t list) ~host_words ~wanted =
-  let declines why = Bench.Declines why in
+(* sigrok-cli's [-P] and [-A] for the decode, on the one analyser that sees all its pins *)
+let decode_args (decode : Decode.t) ~(probes : Probe.t list) =
+  let open Or_error.Let_syntax in
+  match decode with
+  | Off -> Ok None
+  | On { decoder; channels; options } ->
+    (* a decoder of one line reads the first probe unless told otherwise *)
+    let channels =
+      match channels, decoder.channels, probes with
+      | [], first :: _, probe :: _
+        when List.length decoder.channels = 1 || List.is_empty decoder.required ->
+        [ Option.value (List.hd decoder.required) ~default:first, probe.wiring.pin ]
+      | _ -> channels
+    in
+    let%bind () =
+      match
+        List.find decoder.required ~f:(fun c ->
+          not (List.Assoc.mem channels c ~equal:String.equal))
+      with
+      | Some channel ->
+        Or_error.error_s
+          [%message
+            "the decoder needs a pin, as CHANNEL=OUT0" ~decoder:decoder.id channel]
+      | None -> Ok ()
+    in
+    let%bind bound =
+      List.map channels ~f:(fun (channel, pin) ->
+        match List.find probes ~f:(fun p -> p.wiring.pin = pin) with
+        | Some p -> Ok (channel, p.wiring)
+        | None ->
+          Or_error.error_s
+            [%message
+              "the decoder reads a pin no analyser captures in this job"
+                channel
+                ~pin:(pin_name pin)])
+      |> Or_error.all
+    in
+    let%map analyser =
+      match
+        List.map bound ~f:(fun (_, w) -> w.analyser)
+        |> List.dedup_and_sort ~compare:Bench_wiring.Analyser.compare
+      with
+      | [ analyser ] -> Ok analyser
+      | _ -> Or_error.error_s [%message "the decoder's pins are on both analysers"]
+    in
+    let p =
+      String.concat
+        ((decoder.id :: List.map bound ~f:(fun (c, w) -> sprintf ":%s=D%d" c w.channel))
+         @ List.map options ~f:(fun (k, v) -> sprintf ":%s=%s" k v))
+    in
+    let rows = decoder.rows (List.map bound ~f:fst) in
+    Some
+      ( analyser
+      , [ "-P"; p ]
+        @ if String.is_empty rows then [] else [ "-A"; decoder.id ^ "=" ^ rows ] )
+;;
+
+let bench_for (lanes : Lane.t list) ~host_words ~wanted ~decode =
+  let declines why = Ok (Bench.Declines why) in
   match lanes, List.find_map lanes ~f:lane_safety with
   | [], _ -> declines "it drives no pin"
   | _, Some why -> declines why
@@ -317,16 +560,23 @@ let bench_for (lanes : Lane.t list) ~host_words ~wanted =
            the tx fifo holds before the start"]
     else if wanted > max_cycles
     then declines [%string "it runs past %{max_cycles#Int} cycles"]
-    else Takes { probes; run_ms = run_ms wanted }
+    else (
+      let%map.Or_error decode = decode_args decode ~probes in
+      Bench.Takes { probes; run_ms = run_ms wanted; decode })
 ;;
 
 let bench_line = function
-  | Bench.Takes { probes; run_ms } ->
+  | Bench.Takes { probes; run_ms; decode } ->
     let seen =
       List.map probes ~f:(fun p -> channel p.wiring) |> String.concat ~sep:" and "
     in
     [%string "bench: takes it, %{seen}, the engine stopped after %{run_ms#Int} ms"]
-  | Declines why -> [%string "bench: declines it, %{why}, the trace is the model's"]
+    :: Option.to_list
+         (Option.map decode ~f:(fun (analyser, args) ->
+            [%string
+              "decode: sigrok-cli on analyser %{analyser_name analyser}'s capture, \
+               %{String.concat ~sep:\" \" args}"]))
+  | Declines why -> [ [%string "bench: declines it, %{why}, the trace is the model's"] ]
 ;;
 
 let lane_line (l : Lane.t) =
@@ -389,7 +639,7 @@ let check (job : Job.t) =
       else Bool.to_int line.(Int.min c (Array.length line - 1))
     in
     let%bind levels, _, faults = Wavedrom.simulate t ~host_words ~inputs ~cycles in
-    let%map data = Tables.words t.table in
+    let%bind data = Tables.words t.table in
     let lanes =
       List.mapi t.outputs ~f:(fun i name ->
         let pin = t.table.wiring.out_base + i in
@@ -397,15 +647,16 @@ let check (job : Job.t) =
     in
     let chip = Chip_verdict.of_timed interpreter in
     let image = image_of_timed interpreter ~chip ~data in
-    let bench =
+    let%map bench =
       match t.input, image with
-      | _, None -> Bench.Declines "the chip's load check refuses the interpreter"
+      | _, None -> Ok (Bench.Declines "the chip's load check refuses the interpreter")
       | Some _, _ ->
-        Declines
-          [%string
-            "it reads %{pin_name t.table.wiring.in_base}, which no peer drives on the \
-             bench"]
-      | None, Some _ -> bench_for lanes ~host_words ~wanted
+        Ok
+          (Bench.Declines
+             [%string
+               "it reads %{pin_name t.table.wiring.in_base}, which no peer drives on the \
+                bench"])
+      | None, Some _ -> bench_for lanes ~host_words ~wanted ~decode:job.decode
     in
     let input =
       match t.input with
@@ -432,7 +683,7 @@ let check (job : Job.t) =
          then
            [ [%string "the table holds %{pin_name first_free} to %{pin_name last} low"] ]
          else [])
-      @ [ bench_line bench ]
+      @ bench_line bench
     in
     Certified
       { job
@@ -540,20 +791,15 @@ let files t =
     ->
     let bench_json =
       match bench with
-      | Takes { probes; run_ms } ->
+      | Takes { probes; run_ms; decode } ->
         let decode =
-          match probes with
-          | [] -> Value.Null
-          | first :: _ ->
-            (match
-               Decode.sigrok_args job.decode ~channel:(sprintf "D%d" first.wiring.channel)
-             with
-             | [] -> Null
-             | args ->
-               Object
-                 [ "analyser", String (analyser_name first.wiring.analyser)
-                 ; "args", List (List.map args ~f:(fun a -> Value.String a))
-                 ])
+          match decode with
+          | None -> Value.Null
+          | Some (analyser, args) ->
+            Object
+              [ "analyser", String (analyser_name analyser)
+              ; "args", List (List.map args ~f:(fun a -> Value.String a))
+              ]
         in
         Value.Object
           [ "takes", Bool true
@@ -607,7 +853,7 @@ let files t =
     @
       (match bench, image with
       | Declines _, _ | _, None -> []
-      | Takes { probes; run_ms }, Some image ->
+      | Takes { probes; run_ms; decode = _ }, Some image ->
         [ file "firmware.json" (firmware_json image ~probes ~host_words ~run_ms ~faults) ])
 ;;
 

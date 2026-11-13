@@ -7,3 +7,4 @@ model: 2152 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_d
 lane tx: OUT0, Pico B GP1 via 1k, analyser A D4
 the table holds OUT1 to OUT5 low
 bench: takes it, analyser A D4, the engine stopped after 2 ms
+decode: sigrok-cli on analyser A's capture, -P uart:rx=D4:baudrate=1846154 -A uart=rx-data

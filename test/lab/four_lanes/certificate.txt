@@ -10,3 +10,4 @@ lane sck: OUT2, SWCLK, 220R to the RP2040 target, analyser A D6
 lane strobe: OUT3, SK6812 level shifter, 10k to GND, analyser B D4
 the table holds OUT4 to OUT5 low
 bench: takes it, analyser A D4 and analyser A D6 and analyser B D4, the engine stopped after 2 ms
+decode: sigrok-cli on analyser A's capture, -P spi:clk=D6:mosi=D4 -A spi=mosi-data

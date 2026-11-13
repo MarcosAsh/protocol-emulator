@@ -462,6 +462,9 @@ jobs:
       - name: Lab worker, against stand-ins for the bench's tools
         run: python3 test/test_lab_worker.py
 
+      - name: Lab decoders, each with every option, through sigrok
+        run: python3 test/test_lab_decoders.py
+
   # simulates the netlists of both boards. The firmware words they load are the committed
   # ones, and the test job checks those are current. On the 8x4 chip the tests and the
   # replays each come near a runner's six hours, so each runs in two halves

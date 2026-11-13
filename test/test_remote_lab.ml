@@ -22,7 +22,7 @@ let check ?(decode = Remote_lab.Decode.Off) ~frames diagram =
 
 let bench (b : Remote_lab.Bench.t) =
   match b with
-  | Takes { probes; run_ms } ->
+  | Takes { probes; run_ms; decode = _ } ->
     let seen =
       List.map probes ~f:(fun p -> p.wiring.name) |> String.concat ~sep:" and "
     in
@@ -175,7 +175,8 @@ let%expect_test "malformed jobs" =
     [ "not an object", "[1, 2]"
     ; "another version", job ~lab:"2" uart
     ; "firmware", job ~extra:{|, "firmware": [1, 2, 3]|} uart
-    ; "no such decoder", job ~extra:{|, "decode": "spi"|} uart
+    ; "no such decoder", job ~extra:{|, "decode": "jtag"|} uart
+    ; "a decoder without its pins", job ~extra:{|, "decode": "spi"|} uart
     ; "a baud out of range", job ~extra:{|, "decode": "uart:12"|} uart
     ; "not ASCII", job "{signal: [{name: '\xc3\xa9', wave: '01'}]}"
     ; "too big", job (String.make 20_000 ' ')
@@ -198,8 +199,15 @@ let%expect_test "malformed jobs" =
     ("another version" (malformed "a job says \"lab\": 1"))
     (firmware (malformed ("a job has no such key" firmware)))
     ("no such decoder"
-     (malformed ("decode is none, ws281x or uart:BAUD" (decode spi))))
-    ("a baud out of range" (malformed ("uart's baud is 300 to 4000000" 12)))
+     (malformed
+      ("no such decoder" (decode jtag)
+       (decoders
+        (uart spi i2c rgb_led_ws281x ir_nec ir_rc5 onewire_link can pwm dcf77 ps2
+         dali caliper lfast snorble plinkoo i2c_timing)))))
+    ("a decoder without its pins"
+     (malformed ("the decoder needs a pin, as CHANNEL=OUT0" (decoder spi) clk)))
+    ("a baud out of range"
+     (malformed ("a decoder option is out of range" baudrate 12)))
     ("not ASCII" (malformed "a job is printable ASCII"))
     ("too big" (malformed ("a job is at most" (max_bytes 16384) bytes)))
     ("too many frames" (malformed ("a job has at most" (max_frames 16) frames)))
@@ -393,24 +401,100 @@ let%expect_test "the bench takes lanes on OUT0 to OUT3 and captures them on eith
     |}]
 ;;
 
-let%expect_test "decoders" =
+let decode_of_check = function
+  | Ok (Remote_lab.Certified { bench = Takes { decode = Some (analyser, args); _ }; _ })
+    -> Ok (Sexp.to_string (Bench_wiring.Analyser.sexp_of_t analyser) :: args)
+  | Ok (Certified { bench = Takes { decode = None; _ }; _ }) -> Ok []
+  | Ok _ -> Or_error.error_s [%message "the bench does not take it"]
+  | Error e -> Error e
+;;
+
+let%expect_test "decoders: the allowlist, each option's values, and the pins they read" =
+  let four =
+    lanes_diagram
+      [ "tx", "0========"
+      ; "hold", "0........"
+      ; "sck", "0nnnnnnnn"
+      ; "strobe", "0nnnnnnnn"
+      ]
+  in
   List.iter
-    [ "none"; "ws281x"; "uart:115200"; "uart:5000000"; "uart:12a"; "i2c" ]
-    ~f:(fun s ->
+    [ "none"
+    ; "ws281x"
+    ; "uart:115200"
+    ; "uart:5000000"
+    ; "uart:12a"
+    ; "uart:tx=OUT3:invert_tx=yes:format=ascii"
+    ; "spi:clk=OUT2:mosi=OUT0:cpol=1:wordsize=8"
+    ; "spi:clk=OUT2:mosi=OUT3"
+    ; "spi:mosi=OUT0"
+    ; "i2c:scl=OUT2:sda=OUT0"
+    ; "caliper:clk=OUT2:data=OUT0:unit=mm"
+    ; "uart:rx=OUT1"
+    ; "uart:rx=OUT4"
+    ; "uart:rx=D4"
+    ; "uart:format=hex:format=ascii"
+    ; "uart:baudrate=9600;rm -rf ~"
+    ; "uart:baudrate=$(id)"
+    ; "uart:file=/etc/passwd"
+    ; "../../tmp/evil:rx=OUT0"
+    ; "uart:parity=none:baudrate"
+    ; String.make 300 'a'
+    ]
+    ~f:(fun decode ->
+      let checked =
+        Or_error.bind (Remote_lab.Decode.of_string decode) ~f:(fun decode ->
+          Remote_lab.Job.to_string { diagram = four; frames = "11000101"; decode }
+          |> Remote_lab.Job.of_string
+          |> Or_error.bind ~f:Remote_lab.check)
+      in
       print_s
         [%message
-          s
-            ~_:
-              (Remote_lab.Decode.of_string s
-               |> Or_error.map ~f:(Remote_lab.Decode.sigrok_args ~channel:"D4")
-               : string list Or_error.t)]);
+          (String.prefix decode 48) ~_:(decode_of_check checked : string list Or_error.t)]);
   [%expect
     {|
     (none (Ok ()))
-    (ws281x (Ok (-P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset)))
-    (uart:115200 (Ok (-P uart:rx=D4:baudrate=115200 -A uart=rx-data)))
-    (uart:5000000 (Error ("uart's baud is 300 to 4000000" 5000000)))
-    (uart:12a (Error ("uart's baud is 300 to 4000000" 12a)))
-    (i2c (Error ("decode is none, ws281x or uart:BAUD" (decode i2c))))
+    (ws281x (Ok (A -P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset)))
+    (uart:115200 (Ok (A -P uart:rx=D4:baudrate=115200 -A uart=rx-data)))
+    (uart:5000000 (Error ("a decoder option is out of range" baudrate 5000000)))
+    (uart:12a (Error ("a decoder option is KEY=VALUE" 12a)))
+    (uart:tx=OUT3:invert_tx=yes:format=ascii
+     (Ok (B -P uart:tx=D4:invert_tx=yes:format=ascii -A uart=tx-data)))
+    (spi:clk=OUT2:mosi=OUT0:cpol=1:wordsize=8
+     (Ok (A -P spi:clk=D6:mosi=D4:cpol=1:wordsize=8 -A spi=mosi-data)))
+    (spi:clk=OUT2:mosi=OUT3 (Error "the decoder's pins are on both analysers"))
+    (spi:mosi=OUT0
+     (Error ("the decoder needs a pin, as CHANNEL=OUT0" (decoder spi) clk)))
+    (i2c:scl=OUT2:sda=OUT0 (Ok (A -P i2c:scl=D6:sda=D4 -A i2c=addr-data)))
+    (caliper:clk=OUT2:data=OUT0:unit=mm
+     (Ok (A -P caliper:clk=D6:data=D4:unit=mm -A caliper=measurements)))
+    (uart:rx=OUT1
+     (Error
+      ("the decoder reads a pin no analyser captures in this job" rx (pin OUT1))))
+    (uart:rx=OUT4
+     (Error
+      ("the decoder reads a pin no analyser captures in this job" rx (pin OUT4))))
+    (uart:rx=D4 (Error ("a decoder channel is a pin, as OUT0" rx D4)))
+    (uart:format=hex:format=ascii (Error "a decoder option is given twice"))
+    ("uart:baudrate=9600;rm -rf ~"
+     (Error ("a decoder option is out of range" baudrate "9600;rm -rf ~")))
+    ("uart:baudrate=$(id)"
+     (Error ("a decoder option is out of range" baudrate "$(id)")))
+    (uart:file=/etc/passwd
+     (Error
+      ("the decoder has no such option" (decoder uart) file
+       (options
+        (baudrate data_bits parity stop_bits bit_order format invert_rx invert_tx
+         rx tx)))))
+    (../../tmp/evil:rx=OUT0
+     (Error
+      ("no such decoder" (decode ../../tmp/evil:rx=OUT0)
+       (decoders
+        (uart spi i2c rgb_led_ws281x ir_nec ir_rc5 onewire_link can pwm dcf77 ps2
+         dali caliper lfast snorble plinkoo i2c_timing)))))
+    (uart:parity=none:baudrate
+     (Error ("a decoder option is KEY=VALUE" baudrate)))
+    (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+     (Error ("a decode is at most" (max_length 256) bytes)))
     |}]
 ;;
