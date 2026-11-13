@@ -10,7 +10,7 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   `kernel_table.ml`, 1,837 lines. `formal/phase_step.sv` with a
   SAT query in `test/test_kernel.ml` proves the theorem, and so does
   `formal/phase_table.sby`, with `formal/phase_table_affine.sby` for Ethernet.
-- The 74 firmwares `test/certify/write_certificate.exe -names` lists, the library's 68 among
+- The 78 firmwares `test/certify/write_certificate.exe -names` lists, the library's 72 among
   them, each have their own certificate proved an inductive invariant on one engine with the
   firmware's configuration, line code included. So do a stamped transmitter and 5 firmwares with
   claims on their data (the `inductive_certificate` job, one run a firmware).

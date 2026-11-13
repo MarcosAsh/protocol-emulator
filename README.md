@@ -29,7 +29,7 @@ checked, and 10BASE-T frames when clocked at 40 or 50 MHz.
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
 | Hardened | 47,958 standard cells at 65.7% utilisation, setup slack +4.034 ns at the slow corner, hold slack +0.019 ns, precheck clean | gds run [42268510223](https://github.com/MarcosAsh/protocol-emulator/actions/runs/42268510223) |
-| Firmware | 68 library firmwares the kernel accepts | `test/test_kernel.ml` |
+| Firmware | 72 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
 | Board | the 8 x 4 RTL on an Icepi Zero (ECP5 FPGA): all 21 bench demos PASS, self-timing and USB keyboard included, witnesses recorded 2026-11-03, and 42 witnesses in all by 2026-11-11. No silicon yet | `test/board/` |
 
