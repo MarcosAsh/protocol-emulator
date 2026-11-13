@@ -158,3 +158,36 @@
  (action
   (run node %{dep:lab_submit_test.js} %{dep:lab.html})))
 
+; each timing table the page offers, at 48 and 50 MHz, through the page and a native build
+
+(executable
+ (name table_reference)
+ (modules table_reference)
+ (libraries core playground_checks)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
+ (preprocess
+  (pps ppx_jane)))
+
+(rule
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (action
+  (with-stdout-to
+   table_native.txt
+   (run ./table_reference.exe))))
+
+(rule
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (action
+  (with-stdout-to
+   table_browser.txt
+   (run node %{dep:table_agree.js} %{dep:playground.bc.js}))))
+
+(rule
+ (alias agree)
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (action
+  (diff table_native.txt table_browser.txt)))
