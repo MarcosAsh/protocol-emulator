@@ -61,6 +61,7 @@ DECODE_P = re.compile(r"([a-z0-9_]+)((?::[a-z_]+=[A-Za-z0-9_.-]+)*)")
 DECODE_A = re.compile(r"([a-z0-9_]+)=[a-z0-9_:-]+")
 # the decoders written here (demo/decoders), searched before sigrok's own
 DECODER_DIR = HERE / "decoders"
+DECODE_LIMIT = 16_384
 # stripped from a published result: local paths, Pico A's serial, the USB tree
 PRIVATE = {"run.txt", "make.txt", "scan.txt"}
 ANALYSERS = ("A", "B")
@@ -533,7 +534,12 @@ class Worker:
                                 TIMEOUT["decode"], out=out,
                                 env={"SIGROKDECODE_DIR": str(DECODER_DIR)})
                 self.runner.close()
-            result["decode"] = out.read_text() if out.exists() else None
+            text = out.read_text(errors="replace") if out.exists() else None
+            # a busy line decodes past what a comment holds, and decode.txt keeps it all
+            if text and len(text) > DECODE_LIMIT:
+                text = text[:DECODE_LIMIT] + "[the first %d of %d bytes, decode.txt has all]\n" % (
+                    DECODE_LIMIT, len(text))
+            result["decode"] = text
 
     def work(self):
         while True:

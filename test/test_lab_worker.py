@@ -53,7 +53,9 @@ esac
     --scan) [ -n "$NO_ANALYSER" ] || echo "fx2lafw:conn=3.4 - Saleae Logic"; exit 0 ;;
     -o) case $ANALYSER in B) cp "$RAW_B" "$2" ;; *) cp "$RAW" "$2" ;; esac; exit 0 ;;
     -i) echo "$SIGROKDECODE_DIR $(basename "$2") $3 $4 $5 $6" >> "$TMP/decodes"
-        echo "uart-1: A3"; echo "uart-1: 5C"; exit 0 ;;
+        echo "uart-1: A3"; echo "uart-1: 5C"
+        [ -z "$DECODE_BIG" ] || yes "uart-1: 00" | head -n 5000
+        exit 0 ;;
     esac
     shift
 done
@@ -165,6 +167,14 @@ class Worker(unittest.TestCase):
         self.assertEqual(len(self.lines("loads")), 3)
         self.assertEqual(self.lines("decodes"), ["%s lab_a.sr -P spi:clk=D6:mosi=D4 -A spi=mosi-data"
                                                  % (ROOT / "demo/decoders")])
+
+    def test_a_long_decode_is_cut_in_the_result(self):
+        self.queue.submit(job("uart_tx"), "judge")
+        self.work(DECODE_BIG="1")
+        (r,) = self.results_of()
+        self.assertLess(len(r["decode"]), lab.DECODE_LIMIT + 100)
+        self.assertTrue(r["decode"].endswith("decode.txt has all]\n"))
+        self.assertEqual(len((self.results / r["id"] / "decode.txt").read_text().splitlines()), 5002)
 
     def test_decode_args_that_are_not_an_allowed_decoders_never_run(self):
         good = ["-P", "uart:rx=D4:baudrate=115200", "-A", "uart=rx-data"]
