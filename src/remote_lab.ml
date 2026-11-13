@@ -214,6 +214,8 @@ type t =
       ; cycles : int
       ; levels : int array
       ; faults : Machine.Fault.t
+      ; chip : Chip_verdict.t
+      ; interpreter : Timed_program.t
       ; bench : Bench.t
       }
 
@@ -240,15 +242,17 @@ let fault_bits (f : Machine.Fault.t) =
     ~f:(fun (set, bit) -> if set then bit else 0)
 ;;
 
-let bench_for (t : Wavedrom.t) (lanes : Lane.t list) ~host_words ~wanted =
+let bench_for (t : Wavedrom.t) (lanes : Lane.t list) ~host_words ~wanted ~chip =
   let declines why = Bench.Declines why in
-  match Option.is_some t.input, lanes with
-  | true, _ ->
+  match Option.is_some t.input, lanes, (chip : Chip_verdict.t) with
+  | _, _, (Refused _ | No_certificate _) ->
+    declines "the chip's load check refuses the interpreter"
+  | true, _, _ ->
     declines
       [%string
         "it reads %{pin_name t.table.wiring.in_base}, which no peer drives on the bench"]
-  | false, [] -> declines "it has no output lane"
-  | false, lanes ->
+  | false, [], _ -> declines "it has no output lane"
+  | false, lanes, _ ->
     (match
        List.find lanes ~f:(fun l -> not (List.mem bench_pins l.pin ~equal:Int.equal))
      with
@@ -311,7 +315,8 @@ let check (job : Job.t) =
         let pin = t.table.wiring.out_base + i in
         { Lane.name; pin; wiring = Bench_wiring.find ~pin })
     in
-    let bench = bench_for t lanes ~host_words ~wanted in
+    let chip = Chip_verdict.of_timed interpreter in
+    let bench = bench_for t lanes ~host_words ~wanted ~chip in
     let last = t.table.wiring.out_base + Tables.output_bits - 1 in
     let first_free = t.table.wiring.out_base + List.length lanes in
     let lines =
@@ -320,6 +325,7 @@ let check (job : Job.t) =
       ; "interpreter: "
         ^ Analyser.Verdict.to_string (Timed_program.verdict interpreter)
         ^ ", certified once with the data memory free"
+      ; Chip_verdict.to_string chip
       ; "host words: "
         ^ (List.map host_words ~f:(sprintf "0x%04x") |> String.concat ~sep:" ")
       ; [%string
@@ -352,6 +358,8 @@ let check (job : Job.t) =
       ; cycles
       ; levels
       ; faults
+      ; chip
+      ; interpreter
       ; bench
       }
 ;;
@@ -366,6 +374,20 @@ let edges levels ~bit =
     @ List.filter_map
         (List.range 1 (Array.length levels))
         ~f:(fun c -> Option.some_if (level c <> level (c - 1)) (c, level c))
+;;
+
+(* the whole data memory, so the walk reads zeros past the certificate on the chip too *)
+let padded certificate =
+  certificate
+  @ List.init ((1 lsl Isa.data_addr_bits) - List.length certificate) ~f:(Fn.const 0)
+;;
+
+let loaded timed =
+  match
+    Option.first_some (Timed_program.period_floor timed) (Timed_program.period timed)
+  with
+  | None -> Value.Null
+  | Some p -> int p
 ;;
 
 let edge_list l = Value.List (List.map l ~f:(fun (c, v) -> ints [ c; v ]))
@@ -394,7 +416,18 @@ let files t =
            ])
     ]
   | Certified
-      { job; diagram; certificate; lanes; host_words; cycles; levels; faults; bench } ->
+      { job
+      ; diagram
+      ; certificate
+      ; lanes
+      ; host_words
+      ; cycles
+      ; levels
+      ; faults
+      ; chip
+      ; interpreter
+      ; bench
+      } ->
     let bench_json =
       match bench with
       | Takes { probe; run_ms } ->
@@ -459,9 +492,9 @@ let files t =
            ])
     ]
     @
-      (match bench with
-      | Declines _ -> []
-      | Takes { probe = _; run_ms } ->
+      (match bench, chip with
+      | Declines _, _ | _, (Refused _ | No_certificate _) -> []
+      | Takes { probe = _; run_ms }, Accepted { certificate } ->
         (match Wavedrom.image diagram with
          | Error _ -> []
          | Ok (config, program, data) ->
@@ -477,6 +510,14 @@ let files t =
                (Object
                   [ "config", Object fields
                   ; "words", ints program
+                  ; "certificate", ints (padded certificate)
+                  ; "loaded", loaded interpreter
+                  ; ( "floor"
+                    , int
+                        (Bool.to_int
+                           (Option.is_some (Timed_program.period_floor interpreter))) )
+                  ; ( "single_edge"
+                    , int (Bool.to_int (Timed_program.single_capture_edge interpreter)) )
                   ; "data", ints data
                   ; "tx", ints host_words
                   ; "run_ms", int run_ms

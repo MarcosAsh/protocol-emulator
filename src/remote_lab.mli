@@ -81,6 +81,8 @@ type t =
       ; cycles : int (** the model's run, as the playground's *)
       ; levels : int array (** the output lanes each cycle, the first lowest *)
       ; faults : Machine.Fault.t (** the model's at the end of its run *)
+      ; chip : Chip_verdict.t (** the chip's own load check on the interpreter *)
+      ; interpreter : Timed_program.t
       ; bench : Bench.t
       }
 
@@ -91,8 +93,9 @@ val check : Job.t -> t Or_error.t
 (** The result folder's files from the check, as name and contents: [job.json],
     [certificate.txt] and [check.json]. A certified job also gets [simulated.json] (each
     lane's edges, by cycle). If the bench takes it, there is also [firmware.json] (the
-    config, the interpreter's words, the table, the tx words, [run_ms] and the expected
-    faults, for python/demo_lab.py). *)
+    config, the interpreter's words, the certificate the chip checks them against and its
+    assumptions, the table, the tx words, [run_ms] and the expected faults, for
+    python/demo_lab.py). *)
 val files : t -> (string * string) list
 
 (** [check.json] for a job that never reached [check], saying why. *)
