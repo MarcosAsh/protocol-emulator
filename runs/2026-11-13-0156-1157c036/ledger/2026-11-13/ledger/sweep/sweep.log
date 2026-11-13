@@ -1,0 +1,75 @@
+firmware           watch  edges  exact  within  out  faults
+uart_tx            line      28     28       0    0  0 0     PASS
+uart_tx16          line      28     28       0    0  0 0     PASS
+uart_tx_host_rate  line      14     14       0    0  0 0     PASS
+spi_master         mosi      20     20       0    0  0 0     PASS
+jtag               tdi       10     10       0    0  0 0     PASS
+can                tx        22     22       0    0  0 0     PASS
+sent               line      20     20       0    0  0 0     PASS
+wiegand            DATA0     34     34       0    0  0 0     PASS
+
+not swept:
+uart_rx            a receiver: it samples, and nothing on the chip sends to it
+uart_rx_host_rate  a receiver: both_roles.ml sends to it on a wire
+spi_slave          a slave: the master's clock moves it
+i2c_master         open drain, which a wire does not show, and a slave has to acknowledge
+i2c_slave          a slave: the master's clock moves it
+i2c_logger         an I2C master: open drain, and a slave has to answer
+i2c_master_standard open drain, which a wire does not show, and a slave has to acknowledge
+i2c_master_fast    open drain, which a wire does not show, and a slave has to acknowledge
+i2c_master_standard_asym open drain, which a wire does not show, and a slave has to acknowledge
+i2c_master_fast_asym open drain, which a wire does not show, and a slave has to acknowledge
+i2c_controller_wire on two wires already, and both_roles.ml's target acknowledges
+i2c_target_wire    a target: the controller's clock moves it
+usb_tx             certified at 32 cycles a bit only, where 9 edges come in 256: the fifo holds 8
+usb_rx             a receiver: nothing on the chip sends to it
+usb_device         a device: a USB host has to talk first
+edge_meter         toggles every 16 cycles for ever, so 9 edges come in 128: the fifo holds 8
+ws2812             48 edges a pixel in 600 cycles: the fifo holds 8
+ws2812_standard    48 edges a pixel in 1488 cycles: the fifo holds 8
+ethernet           half bits of 2 cycles: the logger needs up to 6 between edges
+one_wire           open drain, which a wire does not show, and a slave has to answer
+ps2                open drain, which a wire does not show, and the host holds the clock
+dshot600           32 edges a frame in 1328 cycles: the fifo holds 8
+cec                open drain, which a wire does not show
+spi_cs_mode0       the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board
+spi_cs_mode1       the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board
+spi_cs_mode2       the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board
+spi_cs_mode3       the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board
+spi_cs_mode0_default_pins not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target
+spi_cs_mode1_default_pins not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target
+spi_cs_mode2_default_pins not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target
+spi_cs_mode3_default_pins not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target
+spi_target_mode0   a target: the controller's clock moves it
+spi_target_mode1   a target: the controller's clock moves it
+spi_target_mode2   a target: the controller's clock moves it
+spi_target_mode3   a target: the controller's clock moves it
+spi_target_fast_mode0 a target: the controller's clock moves it
+spi_target_fast_mode1 a target: the controller's clock moves it
+spi_target_fast_mode2 a target: the controller's clock moves it
+spi_target_fast_mode3 a target: the controller's clock moves it
+swd                SWDIO turns round for the target's ACK, which a wire does not show, and a target has to answer
+table              its pins follow a table in data memory, which the sweep does not load
+table_open_drain   the same
+nec_tx             a 9 ms mark is 432000 cycles, past the 65536 a stamp tells apart
+nec_rx             a receiver: it drives no line to stamp
+snorble            idles 8448 cycles a frame, past the sweep's window
+plinkoo            refused at the margin: note 1's tB and the turnaround's tDH and tREL, see test_plinkoo
+microwire          an erase/write holds CS low 1245217 cycles, past the 65536 a stamp tells apart
+ir_rc6             a 6 unit mark is 128000 cycles, past the 65536 a stamp tells apart
+caliper            the data moves 3 cycles after each clock rise: the sweep's edge logger cannot follow edges so close
+xy2_100            SENDCK edges 12 cycles apart without a break: the fifo holds 8
+lfast              a fixed-length frame with no field to carry a cycle stamp
+tdm_audio          a fixed 256-bit frame with no field to carry a cycle stamp
+usb_fs_device      a device: a USB host has to talk first
+dali               a half bit is 20000 cycles and the idle 540000, past the 65536 a stamp tells apart
+lin                open drain, which a wire does not show, and it waits for a slave's answer
+spdif              a fixed 64-slot subframe with no field to carry a cycle stamp
+usb_power_delivery the host computes each packet's CRC-32, which a stamp the engine put in would break
+dmx512             a packet is 1092101 cycles, past the 65536 a stamp tells apart
+swd_blind          SWDIO turns around, which a wire does not show, and a target answers
+ir_nec             the 4.5 ms space after the AGC burst is 216000 cycles, past the 65536 a stamp tells apart
+uart_tx_stream     time-triggered: it underflows, a sticky fault, once the host stops
+spi_master_stream  time-triggered: it underflows, a sticky fault, once the host stops
+uart_tx_stamped    26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know
+PASS

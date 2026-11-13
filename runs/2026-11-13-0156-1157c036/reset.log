@@ -1,0 +1,4 @@
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Refresh: DONE
