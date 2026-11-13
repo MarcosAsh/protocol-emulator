@@ -196,7 +196,7 @@ module Decode = struct
     | [ "none" ] -> Ok Off
     | [] | [ "" ] -> Ok Off
     | id :: pairs ->
-      (* ws281x and uart:BAUD as the first lab took them *)
+      (* the short forms the lab page writes *)
       let id, pairs =
         match id, pairs with
         | "ws281x", _ -> "rgb_led_ws281x", pairs
