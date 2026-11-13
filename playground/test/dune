@@ -1,0 +1,12 @@
+(library
+ (name playground_test)
+ (libraries core protocol_emulator playground_checks)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
+ (preprocess
+  (pps ppx_jane))
+ (inline_tests
+  (deps
+   (glob_files ../tables/*.table))
+  (flags
+   (-source-tree-root .))))

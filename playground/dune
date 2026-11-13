@@ -52,12 +52,27 @@
 
 (library
  (name playground_checks)
- (modules checks diagram_example isa_view)
+ (modules checks diagram_example isa_view table_example timing_table)
  (libraries core pio protocol_emulator)
  (lint
   (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane)))
+
+; each timing table the page offers, with the public document it comes from
+
+(rule
+ (with-stdout-to
+  table_example.ml
+  (progn
+   (echo
+    "let all =\n  [ \"WS2812B\", \"Worldsemi WS2812B datasheet, p.3, Data transfer time\", {|")
+   (cat %{dep:tables/ws2812b.table})
+   (echo "|}\n  ; \"MIDI\", \"MMA/AMEI CA-033 (2014), p.2, Hardware\", {|")
+   (cat %{dep:tables/midi.table})
+   (echo "|}\n  ; \"10BASE-T\", \"IEEE 802.3i-1990, Clause 14\", {|")
+   (cat %{dep:tables/10base_t.table})
+   (echo "|}\n  ]\n"))))
 
 ; each library diagram, and frames of bits to send, a line a frame: host bits, or a
 ; receiver's peer's
@@ -142,3 +157,4 @@
   (= %{env:PLAYGROUND=no} yes))
  (action
   (run node %{dep:lab_submit_test.js} %{dep:lab.html})))
+
