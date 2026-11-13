@@ -681,6 +681,8 @@ let%expect_test "hostile firmware jobs" =
       , firmware "    mov t, now\nloop:\n    wait t+\n    jmp loop" )
     ; ( "a path for a decode"
       , raw {|, "certificate": [], "decode": "../../../../etc/passwd"|} )
+    ; ( "a period and a floor"
+      , raw {|, "certificate": [], "period": 400, "period_floor": 400|} )
     ]
     ~f:(fun (what, text) -> print_s [%message what ~_:(firmware_summary text : Sexp.t)]);
   [%expect
@@ -756,5 +758,36 @@ let%expect_test "hostile firmware jobs" =
        (decoders
         (uart spi i2c rgb_led_ws281x ir_nec ir_rc5 onewire_link can pwm dcf77 ps2
          dali caliper lfast snorble plinkoo i2c_timing)))))
+    ("a period and a floor"
+     (malformed "a firmware gives period or period_floor, not both"))
+    |}]
+;;
+
+let%expect_test "a firmware toggling every pin every cycle leaves a small trace" =
+  let source =
+    "    mov pindirs, !null\n.wrap_target\n    mov pins, x\n    mov pins, !x\n.wrap"
+  in
+  let config = [ "out_count", 16 ] in
+  let text = firmware ~config ~cycles:400_000 source in
+  (match Remote_lab.Job.of_string text |> Or_error.bind ~f:Remote_lab.check with
+   | Ok t ->
+     let size name =
+       List.Assoc.find (Remote_lab.files t) name ~equal:String.equal
+       |> Option.value_map ~default:0 ~f:String.length
+     in
+     print_s
+       [%message
+         (firmware_summary text : Sexp.t)
+           ~simulated_under_400k:(size "simulated.json" < 400_000 : bool)]
+   | Error e -> print_s [%message (e : Error.t)]);
+  [%expect
+    {|
+    (("firmware_summary text"
+      (certified
+       (drives
+        ("pins it can drive: OUT0 OUT1 OUT2 OUT3 OUT4 OUT5 OUT6 IO0 IO1 IO2 IO3 IO4 IO5 IO6 IO7"))
+       (bench
+        "declines it: it can drive IO0, USB_MIR0, Pico A GP6 with no series resistor")))
+     (simulated_under_400k true))
     |}]
 ;;

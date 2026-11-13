@@ -6,6 +6,9 @@ let clock_hz = Wavedrom.rated_hz
 (* the playground's cap on the model's run: 8.3 ms at 48 MHz *)
 let max_cycles = 400_000
 
+(* a lane's edges in simulated.json, so a pin that toggles every cycle stays small *)
+let max_edges = 2048
+
 module Value = Wavejson.Value
 
 let quote s =
@@ -476,6 +479,11 @@ module Job = struct
     in
     let%bind period = optional "period" in
     let%bind period_floor = optional "period_floor" in
+    let%bind () =
+      if Option.is_some period && Option.is_some period_floor
+      then Or_error.error_s [%message "a firmware gives period or period_floor, not both"]
+      else Ok ()
+    in
     let%map single_capture_edge =
       match field "single_capture_edge" with
       | None | Some (Value.Bool false) -> Ok false
@@ -1291,7 +1299,7 @@ let files t =
                     Value.Object
                       [ "name", String l.name
                       ; "pin", String (pin_name l.pin)
-                      ; "edges", edge_list (edges levels ~bit:i)
+                      ; "edges", edge_list (List.take (edges levels ~bit:i) max_edges)
                       ])) )
            ; "input", input
            ; "faults", int (fault_bits faults)

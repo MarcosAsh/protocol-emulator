@@ -180,10 +180,10 @@ val check : Job.t -> t Or_error.t
 
 (** The result folder's files from the check, as name and contents: [job.json],
     [certificate.txt] and [check.json]. A certified job also gets [simulated.json] (each
-    lane's edges, by cycle). If the bench takes it, there is also [firmware.json] (the
-    config, the interpreter's words, the certificate the chip checks them against and its
-    assumptions, the table, the tx words, [run_ms], the expected faults and the probes,
-    for python/demo_lab.py and test/test_lab_rtl.py). *)
+    lane's first 2048 edges, by cycle). If the bench takes it, there is also
+    [firmware.json] (the config, the interpreter's words, the certificate the chip checks
+    them against and its assumptions, the table, the tx words, [run_ms], the expected
+    faults and the probes, for python/demo_lab.py and test/test_lab_rtl.py). *)
 val files : t -> (string * string) list
 
 (** [check.json] for a job that never reached [check], saying why. *)
