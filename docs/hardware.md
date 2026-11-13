@@ -47,8 +47,8 @@ decoders the bench uses.
 
 ## Downloads
 
-[Release v0.4.0](https://github.com/MarcosAsh/protocol-emulator/releases/tag/v0.4.0) has
-`generate-linux-x86_64`, the Icepi Zero and UP5K bitstreams, and the chip's GDS and render.
+[Release v0.5.0](https://github.com/MarcosAsh/protocol-emulator/releases/tag/v0.5.0) has
+`generate-linux-x86_64`, the Icepi Zero bitstream, and the chip's GDS and render.
 Release v0.2.0 holds the
 [board capture](https://github.com/MarcosAsh/protocol-emulator/releases/download/v0.2.0/act3-board-2026-10-02.zip)
 from 2026-10-02.

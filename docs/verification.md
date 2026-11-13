@@ -115,14 +115,21 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   edges of engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the
   host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
   2026-10-15 (release evidence-2026-10-15). The 8 x 4 chip's RTL has since run on the same
-  board, bitstream sha256 012dc5e1b0769f12, and `test/board/` holds 37 witnesses, each with
+  board, bitstream sha256 012dc5e1b0769f12, and `test/board/` holds 42 witnesses, each with
   its bitstream hash:
   - the 21 bench demos, self-timing and keyboard included, recorded 2026-11-03 (release
     evidence-2026-11-03). eth_rx ran on a 40 MHz build, sha256 c426327526b6b574
   - the 8 held-out protocols, recorded 2026-11-07 (see [Flexibility](flexibility.md))
   - `kernel_vs_board`, 2026-11-07: 3,735 delay variants of 8 firmwares, 3,711 accepted by
     the chip and on time, 24 refused by the chip and the kernel alike
-  - `fault_release`, 2026-11-07
+  - `fault_release`, 2026-11-11: engine 0 holds SWDIO low against its pull-up, and the
+    line rises when the engine faults
+  - `spdif_ac3` (2026-11-10) and `spdif_codecs` (2026-11-11): FFmpeg reads AC-3, MP3, AAC
+    and DTS frames back from a capture of the S/PDIF line
+  - `start_hold_pio` and `start_hold_hw`, 2026-11-11: pico-examples' pio_i2c holds every
+    START 3.1 us where I2C needs 4.0, and the RP2040's I2C block holds 4.4
+  - `usb_fs_device`, 2026-11-11: a Linux host enumerates the chip as a full speed USB
+    device, on the FS=1 build, sha256 25d1deeeb29b3c58
   - 6 protocol-learning runs (`learn_*`), committed 2026-11-03
 
 ## Trying to break it
