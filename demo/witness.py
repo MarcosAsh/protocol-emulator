@@ -2463,7 +2463,7 @@ def witness(directory, scratch):
     return {
         "demo": demo,
         "time": fields["time"],
-        "result": fields["result"],
+        "result": "PARTIAL" if fields["result"] == "PASS" and d.partial else fields["result"],
         "commit": fields["commit"],
         "bitstream_sha256": fields["bitstream_sha256"],
         "netlist_sha256": fields.get("netlist_sha256", "not recorded"),
@@ -2630,8 +2630,8 @@ def main():
                   "edges are the captures'" % (name, learn_witness.sent(Path(directory))))
         elif not problems and "tally" in w:
             print("PASS %s: %s" % (name, LOG_DEMOS[w["demo"]].says(w["tally"])))
-        elif not problems and w.get("partial"):
-            print("PARTIAL %s: %s, %s" % (name, says(w), w["partial"]))
+        elif not problems and w["result"] == "PARTIAL":
+            print("PARTIAL %s: %s" % (name, ", ".join(filter(None, [says(w), w.get("partial")]))))
         elif not problems:
             print("PASS %s: %s" % (name, says(w)))
         ok = ok and not problems and all(why for _, why in bitten)
