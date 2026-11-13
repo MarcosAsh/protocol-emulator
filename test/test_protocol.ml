@@ -887,6 +887,24 @@ let%expect_test "every protocol from its file to the decoded trace" =
     decode: test/traces/modbus_rtu.trace, by sigrok's uart:tx=OUT0:baudrate=19200:parity=even,modbus
       uart=tx-data: uart-1: 01, uart-1: 03, uart-1: 00, uart-1: 00, uart-1: 00, uart-1: 0A, uart-1: C5, uart-1: CD, uart-1: 11, uart-1: 06, uart-1: 00, uart-1: 01, uart-1: 00, uart-1: 03, uart-1: 9A, uart-1: 9B
       modbus=cs-server-id:cs-function:cs-crc:cs-address:cs-data:cs-length: modbus-1: Slave ID: 1, modbus-1: Function 3: Read Holding Registers, modbus-1: Start at address 0x0 / 30001, modbus-1: Read 10 units of data, modbus-1: CRC correct, modbus-1: Slave ID: 17, modbus-1: Function 6: Write Single Register, modbus-1: Address 0x1 / 30001, modbus-1: Register Value 0x3 / 3, modbus-1: CRC correct
+
+    === avr_isp
+
+    certificates
+    avr_isp: 47 words, 3 deadline waits, worst slack 16, the kernel accepts it, assuming no wrap
+
+    limits
+    avr_isp            SCK high, more than 2 CPU clock cycles >=     2000 ns  kernel 149 (3104.2 ns)   needs   97       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8, p.378; margin a cycle
+    avr_isp            SCK low, more than 2 CPU clock cycles >=     2000 ns  kernel 151 (3145.8 ns)   needs   97       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8, p.378; margin a cycle
+    avr_isp            wait after power-up, RESET and SCK low, before programming enable >=    2e+07 ns  run    983230 (20483958.3 ns) needs 960001       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8.2 step 2, p.379; margin a cycle
+
+    lockstep: avr_isp, avr_isp
+    ("lockstep held" (cycles 1100000))
+    (received (0x5300 0x1e 0x93 0xa 0x62))
+    decode: test/traces/avr_isp.trace, by sigrok's spi:clk=OUT0:mosi=OUT3:miso=IN0,avr_isp
+      spi=mosi-data: spi-1: AC, spi-1: 53, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 01, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 02, spi-1: 00, spi-1: 50, spi-1: 00, spi-1: 00, spi-1: 00
+      spi=miso-data: spi-1: 00, spi-1: AC, spi-1: 53, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 1E, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 93, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 0A, spi-1: 00, spi-1: 50, spi-1: 00, spi-1: 62
+      avr_isp=pe:rsb0:rsb1:rsb2:rfb:dev: avr_isp-1: Programming enable, avr_isp-1: Vendor code: 0x1e (Atmel), avr_isp-1: Part family / memory size: 0x93, avr_isp-1: Part number: 0x0a, avr_isp-1: Device: Atmel ATmega88, avr_isp-1: Read fuse bits: 0x62
     |}]
 ;;
 

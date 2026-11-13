@@ -289,6 +289,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     ir_nec             5            -          5-20           12-19
     tlc5620            5-8          -          5-23           12-19
     modbus_rtu         5            -          5-20           12-19
+    avr_isp            5-6 8        -          5-6 8-23       12-19
     |}]
 ;;
 
@@ -413,6 +414,7 @@ let%expect_test "each firmware stays inside its footprint" =
     ir_nec             -            -
     tlc5620            5-8          -
     modbus_rtu         5            -
+    avr_isp            -            -
     |}]
 ;;
 

@@ -755,6 +755,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (ir_nec (verdict (Ok ())))
     (tlc5620 (verdict (Ok ())))
     (modbus_rtu (verdict (Ok ())))
+    (avr_isp (verdict (Ok ())))
     |}]
 ;;
 
@@ -1599,6 +1600,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (ir_nec (pc 28) (jitter_bound 0) (untimed (3)))
     (tlc5620 (pc 11) (jitter_bound 0) (untimed (0)))
     (modbus_rtu (pc 17) (jitter_bound 0) (untimed (0)))
+    (avr_isp (pc 27) (jitter_bound 3) (untimed (0)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

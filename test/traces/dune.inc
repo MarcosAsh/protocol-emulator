@@ -222,6 +222,16 @@
 
 (rule
  (with-stdout-to
+  avr_isp.trace.gen
+  (run ./write_trace.exe avr_isp)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff avr_isp.trace avr_isp.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

@@ -41,6 +41,7 @@ let protocols =
   ; Ir_nec.protocol
   ; Tlc5620.protocol
   ; Modbus_rtu.protocol
+  ; Avr_isp.protocol
   ]
 ;;
 
