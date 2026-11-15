@@ -132,7 +132,8 @@ let%expect_test "a receiver reads the messages, a byte every 320 us" =
         ~byte_ns:(List.dedup_and_sort spans ~compare:Int.compare : int list)
         ~violations:(Receiver.(receiver.violations) : string list)
         ~fault:(machine.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ((messages ((90 3C 40) (90 3E 40) (80 3C 00) (C0 05) (B0 07 64)))
      (byte_ns (320125)) (violations ())
      (fault
