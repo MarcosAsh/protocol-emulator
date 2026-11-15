@@ -500,7 +500,8 @@ let%expect_test "decoders: the allowlist, each option's values, and the pins the
     |}]
 ;;
 
-let blink = In_channel.read_all "blink.asm"
+(* read in the tests, as pio/test links this library from another directory *)
+let blink () = In_channel.read_all "blink.asm"
 
 (* the certificate the chip's load check accepts for [source] under [config] *)
 let certificate_for ?period ?(config = []) source =
@@ -557,6 +558,7 @@ let firmware_summary text =
 
 let%expect_test "firmware jobs: the pins each can drive, and what the bench makes of them"
   =
+  let blink = blink () in
   let uart =
     {|
     wait tx
@@ -652,6 +654,7 @@ bit:
 ;;
 
 let%expect_test "hostile firmware jobs" =
+  let blink = blink () in
   let ours = certificate_for blink in
   let tampered = List.mapi ours ~f:(fun i w -> if i = 2 then w lxor 1 else w) in
   let raw extra = [%string {|{"lab": 1, "firmware": %{json_string blink}%{extra}}|}] in
