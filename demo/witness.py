@@ -2330,6 +2330,17 @@ def firmware_hash(name, text_at):
     return sha256(json.dumps(scope[name], sort_keys=True, separators=(",", ":")).encode())
 
 
+def script_hash(script, text_at):
+    """Returns the sha256 of a host script. python/sweep_firmware.py gains a NOT_SWEPT line
+    with each firmware, so it is hashed as sorted JSON less that list, which a run only prints."""
+    if script != "python/sweep_firmware.py":
+        return sha256(text_at(script))
+    scope = {}
+    exec(text_at(script).decode(), scope)
+    ran = {k: v for k, v in scope.items() if k.isupper() and k != "NOT_SWEPT"}
+    return sha256(json.dumps(ran, sort_keys=True, separators=(",", ":")).encode())
+
+
 def in_tree(path):
     return (ROOT / path).read_bytes()
 
@@ -2421,7 +2432,7 @@ def check_log(directory, w):
         if firmware_hash(firmware, in_tree) != w["firmware"].get(firmware):
             problems.append("%s is not the firmware the board ran" % firmware)
     for script in d.scripts:
-        if sha256(in_tree(script)) != w["host_scripts"].get(script):
+        if script_hash(script, in_tree) != w["host_scripts"].get(script):
             problems.append("%s is not the script Pico A ran" % script)
     if problems:
         return problems, []
@@ -2503,7 +2514,7 @@ def check(directory):
         if firmware_hash(firmware, in_tree) != w["firmware"].get(firmware):
             problems.append("%s is not the firmware the board ran" % firmware)
     for script in d.scripts:
-        if sha256(in_tree(script)) != w["host_scripts"].get(script):
+        if script_hash(script, in_tree) != w["host_scripts"].get(script):
             problems.append("%s is not the script Pico A ran" % script)
     if problems:
         return problems, []
@@ -2559,7 +2570,7 @@ def write(run, directory, carrier, bitstream):
         "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, "
                            "or of the test/ file, at the run's commit",
         "firmware": {f: firmware_hash(f, ran) for f in d.firmware},
-        "host_scripts": {f: sha256(ran(f)) for f in d.scripts},
+        "host_scripts": {f: script_hash(f, ran) for f in d.scripts},
         "bench": ("an Icepi Zero (ECP5 LFE5U-25F) running the chip at %s on bench carrier "
                   "%s, Pico A as the host on SPI, %s%s" % (
                       d.clock if demo in LOG_DEMOS else "48 MHz", carrier, d.peer,

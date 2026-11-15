@@ -34,7 +34,7 @@
     "python/demo_kernel_vs_board.py": "96fea10906669c6e5912cde7e8d097347215d9c043203158c72b1ac3dbf9dfef",
     "python/demo_sweep.py": "6c3b1deae998589c20026bf2418b90002dfabd9ce76930be6248182d5289d6d2",
     "python/demo_self_timing.py": "cdfc86827e210aeb00c3b9eba441723cd06fc5fdbafcaa15f2d1b47ea94142d1",
-    "python/sweep_firmware.py": "920080f09fcb1897ddb0137de17e332d68feaf8c45af2d775198e070e4d7f322"
+    "python/sweep_firmware.py": "a3181eb96d54af0c4119162723de9eebb15f82d6b6b33cba5e72161cf2d66151"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, engine 1 stamping engine 0's output on wire 20, as the sweep does",
   "scope": "the board's result for every delay variant of the swept firmware, the chip checking each certificate itself, as Pico A printed them",
