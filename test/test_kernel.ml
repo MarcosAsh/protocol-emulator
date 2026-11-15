@@ -225,7 +225,6 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
            ~a
            ~b)
       &: (~:x_dec |: (x <>:. 0) |: (offset ==: phase))
-      &: (side_set_count <=:. 2)
       &: (~:(s.capture_bounded) |: in_capture_range))
   in
   (* a run-time write under a floor leaves at least the loaded period, since the core's

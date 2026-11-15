@@ -1,0 +1,10 @@
+# The chip's engines (gold.il) against the ungated ones the proofs read, each start taken
+# only once certified (gate.il), flops cut open (side.ys). miter -equiv wants the same ports,
+# so every flop has a namesake. From the same flops and inputs both drive the same outputs
+# and next flops, so from any one state they agree for all time on all but refused.
+# Trusted: yosys's frontend, proc, flatten, memory_map, dffunmap, expose, miter and sat.
+read_rtlil gold.il
+read_rtlil gate.il
+miter -equiv -flatten gold gate miter
+hierarchy -top miter
+sat -verify -prove trigger 0
