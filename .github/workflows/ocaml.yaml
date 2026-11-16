@@ -23,13 +23,18 @@ concurrency:
 
 jobs:
   # works out which jobs a branch's changes reach (.github/changed.sh). The rest are
-  # skipped, which counts as a pass
+  # skipped, which counts as a pass. A nightly on a commit whose push run is green is a
+  # repeat, and runs phase_spacing alone
   changes:
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
     outputs:
       tests: ${{ steps.changed.outputs.tests }}
       proofs: ${{ steps.changed.outputs.proofs }}
       fpga: ${{ steps.changed.outputs.fpga }}
+      repeat: ${{ steps.changed.outputs.repeat }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -38,7 +43,9 @@ jobs:
 
       - name: List what changed
         id: changed
-        run: .github/changed.sh tests proofs fpga | tee -a "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/changed.sh tests proofs fpga repeat | tee -a "$GITHUB_OUTPUT"
 
   # builds the Verilog and certificates the proof jobs read, so they don't wait for the tests
   generate:
@@ -546,7 +553,9 @@ jobs:
   # or 20 with the teeth
   icepi_equiv:
     needs: changes
-    if: needs.changes.outputs.fpga == 'true' || needs.changes.outputs.proofs == 'true'
+    if: >-
+      needs.changes.outputs.repeat != 'true'
+      && (needs.changes.outputs.fpga == 'true' || needs.changes.outputs.proofs == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     strategy:
@@ -586,7 +595,8 @@ jobs:
             icepi/build/*.sha256
 
   inductive_certificate:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     name: inductive_certificate (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -630,7 +640,8 @@ jobs:
   # proves the step lemma and the kernel's check in one run, then runs the teeth, which have
   # to fail
   phase_table:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -656,7 +667,8 @@ jobs:
   # the same on each engine inside the two-engine chip, with the fail-safe as a corollary,
   # plus the teeth, which have to fail
   fail_safe_table:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -681,7 +693,8 @@ jobs:
 
   # the same for rows that bound the offset too, using row_step's lemma, plus the teeth
   phase_table_affine:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -737,7 +750,8 @@ jobs:
 
   # the step lemma on the narrow core, where a timer that stops at its top must fail
   saturating:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -763,7 +777,8 @@ jobs:
   # proves the self-check checker against its contract from the clear, with covers and
   # teeth, and by induction for all time until a break
   self_check:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -789,7 +804,8 @@ jobs:
   # proves the uart link between two engines and the bridge across both, by induction,
   # with covers and teeth
   link:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -815,7 +831,8 @@ jobs:
   # proves by induction that the load checker's verdict is the load check's walk's, with
   # covers and teeth
   complete:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -842,7 +859,8 @@ jobs:
   # check's LRAT proof with cake_lpr, and runs the teeth, whose models must fail.
   # phase_table's is too big for a hosted runner
   witness:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
