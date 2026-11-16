@@ -90,7 +90,8 @@ def runs(workflow):
 
 @cache
 def jobs(run_id):
-    out = gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100", "--paginate",
+    # a page of 100 gets a 502 on a run with over a hundred jobs
+    out = gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=50", "--paginate",
              "--jq", ".jobs[]")
     return [json.loads(line) for line in out.splitlines() if line]
 
