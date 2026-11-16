@@ -435,9 +435,11 @@ module Job = struct
       match field "config" with
       | None -> Ok []
       | Some (Value.Object kv) ->
+        (* in the browser an int has 32 bits and 0xffff_ffff reads as -1 *)
+        let most = if Int.num_bits > 32 then 0xffff_ffff else Int.max_value in
         List.map kv ~f:(fun (key, v) ->
           if List.Assoc.mem Firmware.config_fields key ~equal:String.equal
-          then natural ~what:key ~most:0xffff_ffff v >>| fun v -> key, v
+          then natural ~what:key ~most v >>| fun v -> key, v
           else
             Or_error.error_s
               [%message
