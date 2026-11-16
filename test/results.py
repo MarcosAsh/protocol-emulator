@@ -463,7 +463,11 @@ def matrix(name, keep=lambda value: True):
 
 
 def plain_certificate(value):
-    return value != "stamped" and not value.startswith("data_")
+    return value not in ("stamped", "data") and not value.startswith("data_")
+
+
+def data_certificate(value):
+    return value == "data" or value.startswith("data_")
 
 
 TESTED = "the mutation row"
@@ -577,7 +581,7 @@ CLAIMS = [
               sby("certificate_")),
         Claim("For the five transmitters that pull by hand, the pins show the right bit of "
               "the right host word", "ocaml",
-              matrix("inductive_certificate", lambda v: v.startswith("data_")), "data_proof",
+              matrix("inductive_certificate", data_certificate), "data_proof",
               sby("certificate_data_")),
         Claim("Each uart_tx_stamped frame carries the low 16 bits of the cycle its start bit "
               "showed on the pin",

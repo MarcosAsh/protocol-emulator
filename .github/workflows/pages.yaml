@@ -173,8 +173,8 @@ jobs:
       - name: Install dependencies
         run: opam install . --deps-only --locked
 
-      # the firmware CI proves certificates for, built the way its inductive_certificate
-      # matrix is
+      # the firmware CI proves certificates for, listed the way ocaml.yaml's generate job
+      # lists them
       - name: Write the library's data
         run: |
           opam exec -- dune build ./test/certify/write_corpus.exe ./test/certify/write_certificate.exe

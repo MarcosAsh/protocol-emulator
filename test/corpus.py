@@ -275,8 +275,8 @@ def protocol_page(inp, name, out):
     items = []
     for n in names:
         if n in inp.matrix:
-            items.append(f"<li><code>{esc(n)}</code>: proved in CI by inductive_certificate "
-                         f"({esc(n)}), {link}</li>")
+            items.append(f"<li><code>{esc(n)}</code>: proved in CI by inductive_certificate, "
+                         f"{link}</li>")
         else:
             items.append(f"<li><code>{esc(n)}</code>: not in CI's certificate matrix</li>")
     body = "<ul>" + "".join(items) + "</ul>"

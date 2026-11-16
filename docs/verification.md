@@ -13,7 +13,7 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
 - The 74 firmwares `test/certify/write_certificate.exe -names` lists, the library's 68 among
   them, each have their own certificate proved an inductive invariant on one engine with the
   firmware's configuration, line code included. So do a stamped transmitter and 5 firmwares with
-  claims on their data (the `inductive_certificate` job, one run a firmware).
+  claims on their data (the `inductive_certificate` jobs).
 - The hardened netlist equals the RTL for all time from all flops 0, and from any state
   once reset (`netlist_equiv` job).
 - When and how the host talks reaches the pins only through the program's own fifo waits
