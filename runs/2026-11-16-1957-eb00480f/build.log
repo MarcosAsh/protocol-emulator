@@ -1,0 +1,34 @@
+make: Entering directory '~/repo/icepi'
+mkdir -p build
+yosys -q -l build/usb1.log -p "read_verilog -DFUNCTIONAL icepi_top.v ../src/project.v ../src/protocol_emulator.v ../test/models/RM_IHPSG13_1P_512x16_c2_bm_bist.v ../test/models/RM_IHPSG13_1P_core_behavioral_bm_bist.v; \
+	chparam -set USB_UIO 1 -set MHZ 48 -set FULL_SPEED 0 -set USB_PROBE 0 icepi_top; synth_ecp5 -top icepi_top -json build/usb1.json"
+Warning: Feature 'write_xaiger2' is experimental.
+rm -f build/v1.3.config
+for seed in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do \
+  nextpnr-ecp5 --25k --package CABGA256 --speed 6 --json build/usb1.json --lpf header.lpf \
+    --lpf v1.3.lpf --seed $seed --placer-heap-timingweight 80 --textcfg build/v1.3.config \
+    --report build/v1.3.report.json --log build/v1.3.log -q \
+    && awk '/Max frequency/ { f = $(NF - 5) } END { exit !(f >= 48 + 1.6) }' \
+      build/v1.3.log \
+    && echo "seed $seed" && break; \
+  rm -f build/v1.3.config; \
+done; test -f build/v1.3.config
+ERROR: Max frequency for clock '$glbnet$chip.core.top.both_edges.signal_wire_2': 47.80 MHz (FAIL at 48.00 MHz)
+0 warnings, 1 error
+seed 7
+grep -h "Max frequency\|TRELLIS_COMB:\|TRELLIS_FF:\|DP16KD:" build/v1.3.log | tail -5
+Info: 	              DP16KD:       3/     56     5%
+Info: 	          TRELLIS_FF:    3142/  24288    12%
+Info: 	        TRELLIS_COMB:   16926/  24288    69%
+Info: Max frequency for clock '$glbnet$chip.core.top.both_edges.signal_wire_2': 40.04 MHz (FAIL at 48.00 MHz)
+Info: Max frequency for clock '$glbnet$chip.core.top.both_edges.signal_wire_2': 49.65 MHz (PASS at 48.00 MHz)
+ecppack --compress --input build/v1.3.config --bit build/v1.3.bit
+cd build && sha256sum usb1.json v1.3.bit > v1.3.sha256
+mkdir -p build
+yosys -q -l build/carrier_check.log -p "read_verilog carrier_check.v; synth_ecp5 -top carrier_check -json build/carrier_check.json"
+Warning: Feature 'write_xaiger2' is experimental.
+nextpnr-ecp5 --25k --package CABGA256 --speed 6 --json build/carrier_check.json --lpf header.lpf \
+	--lpf carrier_check.lpf --lpf v1.3.lpf --freq 50 --seed 1 --textcfg build/v1.3-carrier-check.config \
+	--log build/v1.3-carrier-check.log -q
+ecppack --compress --input build/v1.3-carrier-check.config --bit build/v1.3-carrier-check.bit
+make: Leaving directory '~/repo/icepi'
