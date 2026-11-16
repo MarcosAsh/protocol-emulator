@@ -1,0 +1,9 @@
+# MIDI, MMA/AMEI CA-033 MIDI 1.0 Electrical Specification Update (2014), p.2, Hardware:
+# 31.25 kbaud +-1%, a start bit, 8 data bits, a stop bit, LSB first. Three bytes, a
+# note on.
+shape uart
+bit rate
+data 8
+stop 1
+chars 3
+rate 30.9375 31.5625 kbaud

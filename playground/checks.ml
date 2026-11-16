@@ -22,6 +22,22 @@ let listing (program : Asm.Program.t) words =
   |> String.concat ~sep:"\n"
 ;;
 
+let accepted timed chip : Report.t =
+  let rows = Timed_program.rows timed in
+  let program = Asm.assemble (Timed_program.source timed) |> Or_error.ok_exn in
+  { verdict =
+      (match (chip : Chip_verdict.t) with
+       | Accepted _ -> "accepted"
+       | Refused _ | No_certificate _ -> "accepted by the kernel, refused by the chip")
+  ; detail =
+      Analyser.Verdict.to_string (Timed_program.verdict timed)
+      ^ "\nkernel: accepted, so no deadline is missed by the step lemma\n"
+      ^ Chip_verdict.to_string chip
+  ; listing = listing program (Timed_program.words timed)
+  ; rows = Analyser.to_string ~side_set_count:program.side_set_count rows
+  }
+;;
+
 let check ?period ?period_floor ~single_capture_edge ~config source : Report.t =
   let refused stage e =
     { Report.verdict = "refused by the " ^ stage
@@ -65,17 +81,9 @@ let check ?period ?period_floor ~single_capture_edge ~config source : Report.t =
            ^ Error.to_string_hum error
        }
      | Ok timed ->
-       let chip = Chip_verdict.of_timed timed in
-       { report with
-         verdict =
-           (match chip with
-            | Accepted _ -> "accepted"
-            | Refused _ | No_certificate _ ->
-              "accepted by the kernel, refused by the chip")
-       ; detail =
-           Analyser.Verdict.to_string (Timed_program.verdict timed)
-           ^ "\nkernel: accepted, so no deadline is missed by the step lemma\n"
-           ^ Chip_verdict.to_string chip
+       { (accepted timed (Chip_verdict.of_timed timed)) with
+         listing = report.listing
+       ; rows = report.rows
        })
 ;;
 

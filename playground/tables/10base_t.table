@@ -1,0 +1,7 @@
+# 10BASE-T Ethernet, IEEE 802.3i-1990, Clause 14: 10 Mbit/s, phase encoded (Manchester),
+# as Wikipedia's Ethernet over twisted pair lists it, rev. 1356253892. The library sends it
+# on the 40 MHz build. A frame here is one byte, idle low as the pair is.
+shape manchester
+bits 8
+bit BR
+BR 10 10 mbit/s
