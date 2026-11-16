@@ -1,0 +1,36 @@
+cp python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp python/pico_board.py :
+Up to date: ./pico_board.py
+cp python/bench.py :
+Up to date: ./bench.py
+cp python/both_roles_firmware.py :
+Up to date: ./both_roles_firmware.py
+cp python/demo_both_roles.py :
+Up to date: ./demo_both_roles.py
+ok   I2C Standard-mode on wires: controller 00 00 00 00 00 00 12 34 01, target 84 10 5a 84 01 85
+ok   I2C Fast-mode on wires: controller 00 00 00 00 00 00 12 34 01, target 84 10 5a 84 01 85
+ok   SPI mode 0 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   SPI mode 1 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   SPI mode 2 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   SPI mode 3 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   UART 9600 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 19200 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 38400 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 57600 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 115200 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 230400 baud on a wire: controller , target 55 a3 00 ff
+PASS
+ok   I2C Standard-mode on wires: controller 00 00 00 00 00 00 12 34 01, target 84 10 5a 84 01 85
+ok   I2C Fast-mode on wires: controller 00 00 00 00 00 00 12 34 01, target 84 10 5a 84 01 85
+ok   SPI mode 0 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   SPI mode 1 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   SPI mode 2 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   SPI mode 3 on wires: controller 11 22 33 44 55 66, target 9f 00 00 a5 3c c3
+ok   UART 9600 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 19200 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 38400 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 57600 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 115200 baud on a wire: controller , target 55 a3 00 ff
+ok   UART 230400 baud on a wire: controller , target 55 a3 00 ff
+PASS
