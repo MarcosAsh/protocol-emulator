@@ -103,7 +103,7 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
     (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
   - the gate-level netlist with the router's delays at the slow, typical and fast corners
-    (the `gl_sdf` job, 48 runs, all green in gds run 42268510223)
+    (the `gl_sdf` job, 48 runs, all green in gds run 43769514206)
   - that no one-field variant of the library the kernel accepts misses a deadline in a run:
     41,727 accepted and none late (`test/split/split.ml`, the `split` job, run
     40663800189, 2026-10-28)
