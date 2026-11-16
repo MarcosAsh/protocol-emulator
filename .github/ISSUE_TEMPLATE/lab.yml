@@ -1,12 +1,12 @@
-name: Run a diagram on the bench
-description: Queue a WaveDrom diagram for the Icepi Zero bench. Easiest from the lab page, which fills this in.
+name: Run a job on the bench
+description: Queue a WaveDrom diagram or a firmware job for the Icepi Zero bench. Easiest from the lab page, which fills this in.
 title: "lab: "
 labels: [lab]
 body:
   - type: markdown
     attributes:
       value: |
-        The lab page checks your diagram in the browser and fills the job in for you.
+        The lab page checks your job in the browser and fills it in for you.
         The bench is a home PC, so the answer comes as a comment here when it is free.
         Everything in this issue is public.
   - type: textarea
