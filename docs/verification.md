@@ -69,6 +69,11 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
 - Power-up is deterministic. Two copies of the chip from any two states of their flops and
   fifos, with the same words in their SRAMs, reset at the first edge and given the same
   pins, drive the same pins (`formal/powerup.sby`).
+- The Verilog copies the proofs read are held to the chip's. Their modules are the chip's
+  word for word, except the flop program memory that stands in for the SRAM macro, the
+  one-engine data memory and the engines without the start gate. Those engines, with each
+  start taken only once certified, step as the chip's from any state
+  (`make -C formal tied`).
 - Each UNSAT in the SAT proofs is checked by cake_lpr, an LRAT checker verified in HOL4.
   Each SAT answer counts only once its model satisfies every clause the solver was given.
 
@@ -80,8 +85,8 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   `make -C formal offset_axioms`), IHP's behavioural SRAM model, the self-check's contract
   (`test/self_check_contract.ml`), the PDK's models and the flow's timing analysis, the
   flow from the netlist `netlist_equiv` reads to the GDS, and nextpnr and ecppack after the
-  netlist `icepi_equiv` reads. The proofs use engine copies that `formal/Makefile` generates
-  apart from the chip's Verilog, from the same OCaml.
+  netlist `icepi_equiv` reads. The one-engine proofs use a data memory of their own, not
+  the chip's shared one.
 - The theorem assumes that:
   - every write to `p` other than a `set` leaves the checked period
   - a receiver's capture pin is at the other level at `capture_arm` and, once at the
@@ -89,8 +94,6 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   - the core runs the words and configuration the kernel checked, with zeros past the
     program
   - the configuration is fixed from power-on, the only reset
-  - the configuration has `line_code` and `route` off
-  - side-set count is at most 2
 - The chip's certificate rows carry no spacing and no slope, so it refuses firmware that
   needs either, even where the host's kernel would accept it.
 - The theorem says nothing of the underflow and overflow a slow host can cause.

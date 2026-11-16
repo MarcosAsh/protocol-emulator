@@ -9,11 +9,16 @@ interpreter the kernel certified once, so the chip runs that one certified progr
 job only brings data words. A diagram that can't meet its timing is refused before it reaches
 the board, and the refusal names the limit.
 
+A job can also be firmware with its certificate, as `test/lab/blink_out3.job.json`. It runs
+only if the kernel accepts the firmware and the chip's load check accepts the certificate.
+
 ## Sending a job
 
 1. On the [lab page](https://marcosash.github.io/protocol-emulator/playground/lab.html),
-   write the diagram, give the frames (a line of bits per frame, first bit sent first) and
-   pick a decoder: none, `ws281x`, or `uart` at 300 to 4,000,000 baud.
+   write the diagram and give the frames (a line of bits per frame, first bit sent first),
+   or paste a firmware job file. Set the decode to `none` or to a sigrok decoder with its
+   options, as `uart:baudrate=115200` or `spi:clk=OUT2:mosi=OUT0`. The lab allows 17
+   decoders, with uart, spi, i2c, can, ps2, dali, ir_nec and rgb_led_ws281x among them.
 2. Press Check. Your browser runs the same check as the bench and shows the certificate or
    the refusal.
 3. Press "Run on the real chip". It opens the issue form with the job filled in and the `lab`
@@ -37,9 +42,12 @@ UART bytes at 1.846 Mbaud, 26 cycles a bit at 48 MHz:
 The worker checks for open `lab` issues every 10 minutes. It waits while Tiny Tapeout CI or
 a game has the PC, or another run has the board, so an answer can take hours.
 
-The bench takes a job if every output lane is on OUT0, the job reads nothing, and all the
-host's words fit the transmit FIFO before the start. Analyser A captures OUT0 at 24 MS/s and
-sigrok decodes it. Other jobs run on the model of the core. Each answer says which it was:
+The bench takes a job if every pin it can drive is one of OUT0 to OUT3, an analyser sees at
+least one of them, the job reads nothing, and all the host's words fit the transmit FIFO
+before the start. Analyser A captures OUT0 and OUT2 and analyser B captures OUT3, each at
+24 MS/s in a pass of its own. No analyser sees OUT1, which goes to the CAN transceiver.
+sigrok decodes the capture, and a long decode is cut in the answer and kept whole in
+`decode.txt`. Other jobs run on the model of the core. Each answer says which it was:
 captured on the bench, rehearsed on the RTL in cocotb, or simulated on the model.
 
 The answer is one comment with the verdict, the sealed `result.json` and a link to the run's
