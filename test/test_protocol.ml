@@ -851,6 +851,76 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/ir_nec.trace, by sigrok's ir_nec:ir=OUT0:polarity=active-high:cd_freq=38000
       ir_nec=bit:agc-pulse:longpause:shortpause:stop-bit:leader-code:addr:addr-inv:cmd:cmd-inv:repeat-code:remote: ir_nec-1: AGC pulse, ir_nec-1: Long pause, ir_nec-1: Leader code, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: Address: 0x59, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: Address#: 0xA6, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: Command: 0x16, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: Command#: 0xE9, ir_nec-1: Stop bit, ir_nec-1: Unknown device: Unknown, ir_nec-1: AGC pulse, ir_nec-1: Short pause, ir_nec-1: Stop bit, ir_nec-1: Repeat code
+
+    === tlc5620
+
+    certificates
+    tlc5620: 27 words, 7 deadline waits, worst slack 16, the kernel accepts it, assuming no wrap
+
+    limits
+    tlc5620            CLK frequency, at most 1 MHz >=     1000 ns  run    60 (1250.0 ns)    needs   49       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, data input, tsu(DATA-CLK) >=       50 ns  kernel 40 (833.3 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Valid time, data input valid after CLK falls, tv(DATA-CLK) >=       50 ns  kernel 20 (416.7 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, CLK eleventh falling edge to LOAD, tsu(CLK-LOAD) >=       50 ns  kernel 20 (416.7 ns)     needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >=       50 ns  kernel 69 (1437.5 ns)    needs    4       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Pulse duration, LOAD, tw(LOAD) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+    tlc5620            Pulse duration, LDAC, tw(LDAC) >=      250 ns  kernel 20 (416.7 ns)     needs   13       TLC5620C, TLC5620I, Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001 p.6, recommended operating conditions; margin a cycle
+
+    lockstep: tlc5620, tlc5620
+    ("lockstep held" (cycles 4000))
+    (received ())
+    decode: test/traces/tlc5620.trace, by sigrok's tlc5620:clk=OUT0:data=OUT3:load=OUT1:ldac=OUT2
+      tlc5620=dac-select:gain:value:bit:data-latch:reg-write:voltage-update-all: tlc5620-1: DAC select: DACA, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 128, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACA register value to 1.65V, tlc5620-1: DAC select: DACB, tlc5620-1: Gain: x2, tlc5620-1: DAC value: 64, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACB register value to 1.65V, tlc5620-1: DAC select: DACC, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 255, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACC register value to 3.29V, tlc5620-1: DAC select: DACD, tlc5620-1: Gain: x1, tlc5620-1: DAC value: 1, tlc5620-1: 1, tlc5620-1: 1, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 0, tlc5620-1: 1, tlc5620-1: Falling edge on LOAD, tlc5620-1: Setting DACD register value to 0.01V, tlc5620-1: Updating voltages: DACA=1.65V DACB=1.65V DACC=3.29V DACD=0.01V
+
+    === modbus_rtu
+
+    certificates
+    modbus_rtu: 28 words, 6 deadline waits, worst slack 2496, the kernel accepts it, assuming period 2500, no wrap
+
+    limits
+    modbus_rtu         silent interval between frames, t3,5 >= 2.00521e+06 ns  run    97511 (2031479.2 ns) needs 96251       MODBUS RTU, Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006 2.5.1.1, p.13; margin a cycle
+    modbus_rtu         silent interval between characters of a frame, t1,5 <=   859375 ns  run    5 (104.2 ns)      needs 41249       MODBUS RTU, Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006 2.5.1.1, p.13; margin a cycle
+
+    lockstep: modbus_rtu, modbus_rtu
+    ("lockstep held" (cycles 660000))
+    (received ())
+    decode: test/traces/modbus_rtu.trace, by sigrok's uart:tx=OUT0:baudrate=19200:parity=even,modbus
+      uart=tx-data: uart-1: 01, uart-1: 03, uart-1: 00, uart-1: 00, uart-1: 00, uart-1: 0A, uart-1: C5, uart-1: CD, uart-1: 11, uart-1: 06, uart-1: 00, uart-1: 01, uart-1: 00, uart-1: 03, uart-1: 9A, uart-1: 9B
+      modbus=cs-server-id:cs-function:cs-crc:cs-address:cs-data:cs-length: modbus-1: Slave ID: 1, modbus-1: Function 3: Read Holding Registers, modbus-1: Start at address 0x0 / 30001, modbus-1: Read 10 units of data, modbus-1: CRC correct, modbus-1: Slave ID: 17, modbus-1: Function 6: Write Single Register, modbus-1: Address 0x1 / 30001, modbus-1: Register Value 0x3 / 3, modbus-1: CRC correct
+
+    === avr_isp
+
+    certificates
+    avr_isp: 47 words, 3 deadline waits, worst slack 16, the kernel accepts it, assuming no wrap
+
+    limits
+    avr_isp            SCK high, more than 2 CPU clock cycles >=     2000 ns  kernel 149 (3104.2 ns)   needs   97       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8, p.378; margin a cycle
+    avr_isp            SCK low, more than 2 CPU clock cycles >=     2000 ns  kernel 151 (3145.8 ns)   needs   97       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8, p.378; margin a cycle
+    avr_isp            wait after power-up, RESET and SCK low, before programming enable >=    2e+07 ns  run    983230 (20483958.3 ns) needs 960001       ATmega48/88/168, shipped at 1 MHz, Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016 section 32.8.2 step 2, p.379; margin a cycle
+
+    lockstep: avr_isp, avr_isp
+    ("lockstep held" (cycles 1100000))
+    (received (0x5300 0x1e 0x93 0xa 0x62))
+    decode: test/traces/avr_isp.trace, by sigrok's spi:clk=OUT0:mosi=OUT3:miso=IN0,avr_isp
+      spi=mosi-data: spi-1: AC, spi-1: 53, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 01, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 02, spi-1: 00, spi-1: 50, spi-1: 00, spi-1: 00, spi-1: 00
+      spi=miso-data: spi-1: 00, spi-1: AC, spi-1: 53, spi-1: 00, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 1E, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 93, spi-1: 00, spi-1: 30, spi-1: 00, spi-1: 0A, spi-1: 00, spi-1: 50, spi-1: 00, spi-1: 62
+      avr_isp=pe:rsb0:rsb1:rsb2:rfb:dev: avr_isp-1: Programming enable, avr_isp-1: Vendor code: 0x1e (Atmel), avr_isp-1: Part family / memory size: 0x93, avr_isp-1: Part number: 0x0a, avr_isp-1: Device: Atmel ATmega88, avr_isp-1: Read fuse bits: 0x62
+
+    === midi
+
+    certificates
+    midi: 17 words, 3 deadline waits, worst slack 1532, the kernel accepts it, assuming period 1536, no wrap
+
+    limits
+    midi               bit at 31.25 kbaud +1% >=  31683.2 ns  kernel 1536 (32000.0 ns) needs 1522       MIDI 1.0, MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014 page 2, Hardware; margin a cycle
+    midi               bit at 31.25 kbaud -1% <=  32323.2 ns  run    1536 (32000.0 ns) needs 1550       MIDI 1.0, MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014 page 2, Hardware; margin a cycle
+
+    lockstep: midi, midi
+    ("lockstep held" (cycles 215040))
+    (received ())
+    decode: test/traces/midi.trace, by sigrok's uart:tx=OUT0:baudrate=31250,midi
+      uart=tx-data: uart-1: 90, uart-1: 3C, uart-1: 40, uart-1: 3E, uart-1: 40, uart-1: 80, uart-1: 3C, uart-1: 00, uart-1: C0, uart-1: 05, uart-1: B0, uart-1: 07, uart-1: 64
+      midi=text-verbose: midi-1: Channel 1: note on (note = 60 'C4', velocity = 64), midi-1: Channel 1: note on (note = 62 'D4', velocity = 64), midi-1: Channel 1: note off (note = 60 'C4', velocity = 0), midi-1: Channel 1: program change to instrument 6 (assuming Electric Piano 2), midi-1: Channel 1: control change 'channel volume MSB (formerly main volume)' (param = 0x64)
     |}]
 ;;
 

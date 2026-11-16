@@ -202,6 +202,46 @@
 
 (rule
  (with-stdout-to
+  tlc5620.trace.gen
+  (run ./write_trace.exe tlc5620)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff tlc5620.trace tlc5620.trace.gen)))
+
+(rule
+ (with-stdout-to
+  modbus_rtu.trace.gen
+  (run ./write_trace.exe modbus_rtu)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff modbus_rtu.trace modbus_rtu.trace.gen)))
+
+(rule
+ (with-stdout-to
+  avr_isp.trace.gen
+  (run ./write_trace.exe avr_isp)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff avr_isp.trace avr_isp.trace.gen)))
+
+(rule
+ (with-stdout-to
+  midi.trace.gen
+  (run ./write_trace.exe midi)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff midi.trace midi.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

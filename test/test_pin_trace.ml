@@ -36,6 +36,10 @@ let%expect_test "what the host reads back in every scenario" =
       ((ff00 ff00 ff00 ff00) (ff00 ff00 ff00 0000) (a500 b900 2300 0900)
        (5e00 1000 8700 0100) (0000 0000 0000 1000) (0000))))
     (ir_nec (cycles 390349) (reads ()))
+    (tlc5620 (cycles 146232) (reads ()))
+    (modbus_rtu (cycles 805251) (reads ()))
+    (avr_isp (cycles 1243000) (reads ()))
+    (midi (cycles 357528) (reads ()))
     (wrapped_loop (cycles 140244) (reads ((0000))))
     (fifo_poll (cycles 148160)
      (reads

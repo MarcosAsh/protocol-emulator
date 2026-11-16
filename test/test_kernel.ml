@@ -752,6 +752,10 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (wiegand (verdict (Ok ())))
     (swd_blind (verdict (Ok ())))
     (ir_nec (verdict (Ok ())))
+    (tlc5620 (verdict (Ok ())))
+    (modbus_rtu (verdict (Ok ())))
+    (avr_isp (verdict (Ok ())))
+    (midi (verdict (Ok ())))
     |}]
 ;;
 
@@ -1594,6 +1598,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (wiegand (pc 21) (jitter_bound 0) (untimed (0)))
     (swd_blind (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4 5 6)))
     (ir_nec (pc 28) (jitter_bound 0) (untimed (3)))
+    (tlc5620 (pc 11) (jitter_bound 0) (untimed (0)))
+    (modbus_rtu (pc 17) (jitter_bound 0) (untimed (0)))
+    (avr_isp (pc 27) (jitter_bound 3) (untimed (0)))
+    (midi (pc 8) (jitter_bound 0) (untimed (0)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

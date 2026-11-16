@@ -1,7 +1,7 @@
 # Protocols
 
 The library is `test/library.ml`, a protocol to a module, in the order of the certificates.
-These are the 68 library firmwares the kernel accepts in `test/test_kernel.ml`.
+These are the 72 library firmwares the kernel accepts in `test/test_kernel.ml`.
 
 | Protocol | Firmware the kernel accepts |
 |---|---|
@@ -42,6 +42,10 @@ These are the 68 library firmwares the kernel accepts in `test/test_kernel.ml`.
 | Wiegand | wiegand |
 | SWD, written blind | swd_blind |
 | NEC infrared, written blind | ir_nec |
+| TLC5620 DAC | tlc5620 |
+| Modbus RTU | modbus_rtu |
+| AVR in-system programming | avr_isp |
+| MIDI | midi |
 
 Microwire, XY2-100, Caliper, LFAST, RC-6 and TDM audio came from the [random draw](flexibility.md).
 DALI to NEC infrared, written blind, are the [held-out list](flexibility.md#the-held-out-list).

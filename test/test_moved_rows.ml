@@ -135,5 +135,9 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (wiegand (phase 34) (arm 0) (capture 0) (accepted ()))
     (swd_blind (phase 30) (arm 0) (capture 0) (accepted ()))
     (ir_nec (phase 166) (arm 0) (capture 0) (accepted ()))
+    (tlc5620 (phase 38) (arm 0) (capture 0) (accepted ()))
+    (modbus_rtu (phase 36) (arm 0) (capture 0) (accepted ()))
+    (avr_isp (phase 80) (arm 0) (capture 0) (accepted ()))
+    (midi (phase 18) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

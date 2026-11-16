@@ -39,6 +39,10 @@ let protocols =
   ; Wiegand.protocol
   ; Swd_blind.protocol
   ; Ir_nec.protocol
+  ; Tlc5620.protocol
+  ; Modbus_rtu.protocol
+  ; Avr_isp.protocol
+  ; Midi.protocol
   ]
 ;;
 
