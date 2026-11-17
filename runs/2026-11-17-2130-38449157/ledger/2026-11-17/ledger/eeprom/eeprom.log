@@ -1,0 +1,5 @@
+24LC256 at 0x50
+byte write 0x7fbf: 8a -> 8b, 2 NACKs over 4 ms, read back 8b
+page write 0x7fc0, 64 bytes from 8b: 1 NACKs over 2 ms, read back 8b 98 a5 b2 bf cc d9 e6 ..., equal
+faults 0x0
+PASS
