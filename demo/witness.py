@@ -1176,13 +1176,12 @@ def dmx512(line):
                       at_least=1 / 44)]
 
     def byte_tooth(samples, rate, _capture, _decode):
-        """Inverts the second packet's channel 1 bit 0 at its middle. The first packet reads
-        misframed, from the line's low from reset."""
+        """Inverts the first packet's channel 1 bit 0 at its middle."""
         found, at = breaks(samples, rate)
         # the break, MAB, the start code's low and high, then channel 1's start bit
-        fall, bit = found[at[1] + 4][1], DMX_BIT * rate
+        fall, bit = found[at[0] + 4][1], DMX_BIT * rate
         return (changed(samples, line, round(fall + 1.25 * bit), round(fall + 1.75 * bit)),
-                "half of the second packet's channel 1 bit 0 inverted")
+                "half of the first packet's channel 1 bit 0 inverted")
 
     def edge_tooth(samples, rate):
         """Ends the first break 10 us early."""
@@ -1820,9 +1819,9 @@ DEMOS = {
                    HELD_OUT + ("the page gives 250 kbit/s no tolerance, which a sample either "
                                "way can't settle, so each low is also held to the firmware's "
                                "bit within half a bit over nine",
-                               "the first packet reads misframed, as the line is low from "
-                               "reset, so the bytes are the second's"),
-                   partial="without the first packet: the line's low from reset misframes it"),
+                               "sigrok's dmx512 takes any level held 88 us to 1 s for a "
+                               "break, so the line stays low from reset, then at mark, over "
+                               "a second each before the first break")),
     "spdif": Demo(outside("spdif"), "A", {"D4": "OUT0"}, ("SPDIF",), ("python/demo_spdif.py",),
                   "nothing, Pico B idle on OUT0", spdif(4),
                   HELD_OUT + ("sigrok's spdif reads nothing past the line's low from reset, so "

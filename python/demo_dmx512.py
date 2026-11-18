@@ -3,7 +3,7 @@
 # packet of start code 0x00 and 512 channels at 250 kbit/s twice, then the next packet's
 # break. demo/outside.sh dmx512 runs it and takes the analyser, capture length and sigrok
 # decoders from the next line.
-# outside: analyser=A ms=2000 decode=-P dmx512:dmx=D4 -A dmx512=break:mab:startcode:channel:data
+# outside: analyser=A ms=5000 decode=-P dmx512:dmx=D4 -A dmx512=break:mab:startcode:channel:data
 
 import bench
 import bench_firmware
@@ -13,11 +13,13 @@ import protocol_emulator as pe
 CHANNELS = [(37 * n + 11) & 0xFF for n in range(512)]
 
 # the bit period (192 cycles at 48 MHz for 250 kbit/s), then the packet twice: its start
-# code, the channels two per word (low byte first), and the next start code. A line that's
-# low from reset reads as a break, which frames the first packet on the wrong edges.
+# code, the channels two per word (low byte first), and the next start code
 PERIOD = 192
 PACKET = [0x00] + [lo | hi << 8 for lo, hi in zip(CHANNELS[::2], CHANNELS[1::2])]
 WORDS = [PERIOD] + PACKET * 2 + [0x00]
+# sigrok's dmx512 takes any level held 88 us to 1 s for a break, so hold the reset low and
+# then the mark longer than that before the first break
+QUIET_MS = 1200
 
 
 def lines(channels):
@@ -29,10 +31,12 @@ def lines(channels):
     return out
 
 
-def run(transfer, log=print, polls=100_000):
+def run(transfer, pause_ms, log=print, polls=100_000):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.DMX512)
+    pause_ms(QUIET_MS)
     host.start()
+    pause_ms(QUIET_MS)
     waiting = list(WORDS)
     for _ in range(polls):
         if not waiting:
@@ -54,4 +58,4 @@ if __name__ == "__main__":
     log = bench.Log()
     spi = pico_board.PicoSpi()
     time.sleep_ms(bench.START_MS)
-    bench.report(lambda: run(spi.transfer, log), log)
+    bench.report(lambda: run(spi.transfer, time.sleep_ms, log), log)

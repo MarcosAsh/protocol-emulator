@@ -17,7 +17,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "demo"))
 import learn_witness  # noqa: E402
+import traffic  # noqa: E402
 import witness  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "python"))
+import demo_dmx512  # noqa: E402
 
 BOARD = ROOT / "test/board/self_timing"
 
@@ -131,7 +135,12 @@ class Partial(unittest.TestCase):
 
     def test_the_partial_runs(self):
         self.assertEqual(sorted(n for n, d in witness.DEMOS.items() if d.partial),
-                         ["dmx512", "lin", "spdif"])
+                         ["lin", "spdif"])
+
+    def test_dmx512_needs_the_first_packet(self):
+        packet = demo_dmx512.lines(demo_dmx512.CHANNELS)
+        misframed = packet[:3] + ["dmx512-1: 248 / 0xf8"] + packet[4:]
+        self.assertTrue(traffic.dmx512(None)(misframed + packet + demo_dmx512.lines([]), ""))
 
     def test_the_line_says_partial(self):
         done = subprocess.run([sys.executable, "demo/witness.py", "check", str(copy("lin"))],

@@ -382,8 +382,9 @@ def dali(_levels):
 
 
 def dmx512(_levels):
-    expected = demo_dmx512.lines(demo_dmx512.CHANNELS)
-    return lambda decoded, _log: run_of(decoded, expected, "the packet sent")
+    """Both packets, then the third's break and start code."""
+    expected = demo_dmx512.lines(demo_dmx512.CHANNELS) * 2 + demo_dmx512.lines([])
+    return lambda decoded, _log: exactly(decoded, expected, "the packets sent")
 
 
 def spdif(_levels):
