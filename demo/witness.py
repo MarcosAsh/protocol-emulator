@@ -1280,14 +1280,14 @@ def spdif(line):
                   at_least=1 / 192e3)]
 
     def byte_tooth(samples, rate, _capture, _decode):
-        """Removes the middle edges of slots 14 and 15 in the first right subframe, sigrok's
-        first, which turns the sample's bits 2 and 3 (both 1) to 0 and keeps the parity."""
+        """Removes the middle edges of slots 16 and 17 in the first left sample, which clears
+        its bits 4 and 5 (both 1) and keeps the parity."""
         _, _, starts = subframes(samples, rate)
         at, half = edges(samples, line)[0], SPDIF_HALF * rate
-        start = starts[1][0]
+        start = starts[2][0]
         first, last = (nearest(at, round(start + (2 * slot + 1) * half), half / 2)
-                       for slot in (14, 15))
-        return changed(samples, line, first, last), "the first right sample's bits 2 and 3 cleared"
+                       for slot in (16, 17))
+        return changed(samples, line, first, last), "the first left sample's bits 4 and 5 cleared"
 
     def edge_tooth(samples, rate):
         """Cuts the first one-half-slot run after the first preamble's low to a sample."""
@@ -1826,13 +1826,13 @@ DEMOS = {
                   "nothing, Pico B idle on OUT0", spdif(4),
                   HELD_OUT + ("sigrok's spdif reads nothing past the line's low from reset, so "
                               "the samples are judged from its decode once the line idles high",
+                              "sigrok's spdif takes its clock from the first subframe, so a "
+                              "frame of zeros goes first",
                               "the capture holds fewer frames than a 192-frame block, so the "
                               "block's windows hold 192 times their mean",
                               "a half slot is about four samples, so its windows can stay "
                               "unresolved"),
-                  judge=spdif_problems,
-                  partial="without the frames before the line first idles high: sigrok's "
-                          "spdif reads nothing past the low from reset"),
+                  judge=spdif_problems),
     "spdif_ac3": Demo(outside("spdif_ac3"), "A", {"D4": "OUT0"}, ("SPDIF",),
                       ("python/demo_spdif_ac3.py",), "nothing, Pico B idle on OUT0",
                       spdif_ac3(4),
