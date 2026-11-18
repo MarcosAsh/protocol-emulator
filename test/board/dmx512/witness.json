@@ -1,16 +1,16 @@
 {
   "demo": "dmx512",
-  "time": "2026-11-07T19:30:25",
-  "result": "PARTIAL",
-  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "time": "2026-11-18T14:53:37",
+  "result": "PASS",
+  "commit": "5160bcb3c7d3b4a17bf926c8a2ca3d6686d2c095",
   "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "-",
-  "sums_sha256": "ce0d07f5567fe6100ceec0bd1620b9895ba6543b9598de886cb397de3692e79d",
+  "sums_sha256": "59cb7d1c3f9b467a06afdb80580b0cd709fa4b85cc8ff042f482c75037068d43",
   "capture": {
     "file": "dmx512.sr",
-    "sha256": "9eebecfceb7c59e22a480ea615b9e1044078d01abfd75ed299bc652ede6c3993",
+    "sha256": "c4b461eec7a7fcc4558c822c22612336772d1a40f607a4ab3368ae9c4b60777e",
     "rate_hz": 24000000,
-    "seconds": 2.0,
+    "seconds": 5.0,
     "analyser": "A",
     "channels": {
       "D4": "OUT0"
@@ -18,7 +18,7 @@
   },
   "decode": {
     "arguments": "-P dmx512:dmx=D4 -A dmx512=break:mab:startcode:channel:data",
-    "sha256": "cbfcfbb7ce1b28fba993c2ece5474137b3c89da44b679a3d3d36b33e9b1d9bd4"
+    "sha256": "32cb143cc76d11ca666d9347f15356263972f4048aebc1ddddf6ef35b0b92247"
   },
   "timing": [
     {
@@ -108,7 +108,7 @@
       "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313",
       "source": "spec",
       "spans": 2,
-      "measured": "31723.08 us to 35546.80 us",
+      "measured": "31201.67 us to 34888.45 us",
       "verdict": "proved"
     },
     {
@@ -117,7 +117,7 @@
       "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313",
       "source": "spec",
       "spans": 2,
-      "measured": "31723.08 us to 35546.80 us",
+      "measured": "31201.67 us to 34888.45 us",
       "verdict": "proved"
     },
     {
@@ -126,7 +126,7 @@
       "sheet": "DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 312",
       "source": "spec",
       "spans": 2,
-      "measured": "31723.08 us to 35546.80 us",
+      "measured": "31201.67 us to 34888.45 us",
       "verdict": "proved"
     }
   ],
@@ -136,9 +136,9 @@
     "decoder": 0,
     "derived": 0
   },
-  "partial": "without the first packet: the line's low from reset misframes it",
+  "partial": null,
   "teeth": [
-    "half of the second packet's channel 1 bit 0 inverted",
+    "half of the first packet's channel 1 bit 0 inverted",
     "the first break 10 us short"
   ],
   "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
@@ -147,7 +147,7 @@
     "DMX512": "4e79461e6b26d1c1d2885d4c1074e350339b560f0be07c62ecb991ed16da16d8"
   },
   "host_scripts": {
-    "python/demo_dmx512.py": "ed7363d232d12d3dd1fe7ba0d4b3401dbdc9f2e3865204bf944cc2673c3b5c5b"
+    "python/demo_dmx512.py": "0647707022acb76df63b590be1080df6d370446fed1538160240a1d83581cb40"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
   "scope": "the bytes on the wire and their timing in one run of dmx512, as the analyser saw them",
@@ -158,6 +158,6 @@
     "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
     "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
     "the page gives 250 kbit/s no tolerance, which a sample either way can't settle, so each low is also held to the firmware's bit within half a bit over nine",
-    "the first packet reads misframed, as the line is low from reset, so the bytes are the second's"
+    "sigrok's dmx512 takes any level held 88 us to 1 s for a break, so the line stays low from reset, then at mark, over a second each before the first break"
   ]
 }
