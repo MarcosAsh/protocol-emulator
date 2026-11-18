@@ -122,7 +122,8 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   its bitstream hash:
   - the 21 bench demos, self-timing and keyboard included, recorded 2026-11-03 (release
     evidence-2026-11-03). eth_rx ran on a 40 MHz build, sha256 c426327526b6b574
-  - the 8 held-out protocols, recorded 2026-11-07 (see [Flexibility](flexibility.md))
+  - the 8 held-out protocols, recorded 2026-11-07, DMX512 and S/PDIF again on 2026-11-18
+    (see [Flexibility](flexibility.md))
   - `kernel_vs_board`, 2026-11-07: 3,735 delay variants of 8 firmwares, 3,711 accepted by
     the chip and on time, 24 refused by the chip and the kernel alike
   - `fault_release`, 2026-11-11: engine 0 holds SWDIO low against its pull-up, and the
