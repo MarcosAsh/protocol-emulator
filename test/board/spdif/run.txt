@@ -8,15 +8,14 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [========                                          ] 15.25%
-Loading: [================                                  ] 30.51%
-Loading: [=======================                           ] 45.76%
-Loading: [===============================                   ] 61.02%
-Loading: [=======================================           ] 76.27%
-Loading: [==============================================    ] 91.53%
+Loading: [===========                                       ] 20.04%
+Loading: [====================                              ] 39.78%
+Loading: [==============================                    ] 59.52%
+Loading: [========================================          ] 79.26%
+Loading: [==================================================] 99.31%
 Loading: [==================================================] 100.00%
 
 Done
 Disable configuration: DONE
-$ CAPTURES=/home/marcos/frozen-8x4/evidence/heldout/2026-11-07/ledger/spdif PICO=id:e66548545717552e demo/outside.sh spdif > /home/marcos/frozen-8x4/evidence/heldout/2026-11-07/ledger/spdif/outside.txt
+$ CAPTURES=/home/marcos/video/runs/partials-run1/evidence/2026-11-18/ledger/spdif PICO=id:e66548545717552e demo/outside.sh spdif > /home/marcos/video/runs/partials-run1/evidence/2026-11-18/ledger/spdif/outside.txt
 Pico A says PASS, every step ran

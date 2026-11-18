@@ -1,14 +1,14 @@
 {
   "demo": "spdif",
-  "time": "2026-11-07T19:30:40",
-  "result": "PARTIAL",
-  "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
+  "time": "2026-11-18T14:53:51",
+  "result": "PASS",
+  "commit": "5160bcb3c7d3b4a17bf926c8a2ca3d6686d2c095",
   "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "-",
-  "sums_sha256": "9696aa5b2e631e72c816fd11b9813df63c440b2595de76c1c89dbe6e51ce5a6e",
+  "sums_sha256": "624df940de0e17fdf0118c8a30aef8c58c166543b19aab18b8f160dc5c73d5ef",
   "capture": {
     "file": "spdif.sr",
-    "sha256": "fd159708b3e161e37a1d58cc504aba6d9532d0b55b8d88566d3927e0b971f3c8",
+    "sha256": "2e2d30c31f68adc1ea24c6d275f183edb2b9b007dbdb84fe6bbadf135a1dce88",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -26,17 +26,17 @@
       "limit": ">= 89 ns",
       "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
       "source": "own",
-      "spans": 259,
-      "measured": "83 ns to 250 ns",
-      "verdict": "unresolved"
+      "spans": 265,
+      "measured": "125 ns to 250 ns",
+      "verdict": "proved"
     },
     {
       "parameter": "1 half slot",
       "limit": "<= 266 ns",
       "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
       "source": "own",
-      "spans": 259,
-      "measured": "83 ns to 250 ns",
+      "spans": 265,
+      "measured": "125 ns to 250 ns",
       "verdict": "proved"
     },
     {
@@ -44,7 +44,7 @@
       "limit": ">= 266 ns",
       "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
       "source": "own",
-      "spans": 3024,
+      "spans": 3131,
       "measured": "292 ns to 417 ns",
       "verdict": "proved"
     },
@@ -53,7 +53,7 @@
       "limit": "<= 443 ns",
       "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
       "source": "own",
-      "spans": 3024,
+      "spans": 3131,
       "measured": "292 ns to 417 ns",
       "verdict": "proved"
     },
@@ -62,8 +62,8 @@
       "limit": ">= 443 ns",
       "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
       "source": "own",
-      "spans": 161,
-      "measured": "458 ns to 625 ns",
+      "spans": 165,
+      "measured": "458 ns to 583 ns",
       "verdict": "proved"
     },
     {
@@ -71,9 +71,9 @@
       "limit": "<= 620 ns",
       "sheet": "8 32991/65536 cycles at 48 MHz, the firmware's half slot, to half of it (the page gives no tolerance)",
       "source": "own",
-      "spans": 161,
-      "measured": "458 ns to 625 ns",
-      "verdict": "unresolved"
+      "spans": 165,
+      "measured": "458 ns to 583 ns",
+      "verdict": "proved"
     },
     {
       "parameter": "a block of 192 frames, 44.1 kHz and 1100 ppm",
@@ -81,7 +81,7 @@
       "sheet": "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, S/PDIF control word components, byte 3, spec.txt l.222-224",
       "source": "derived",
       "spans": 1,
-      "measured": "4353.38 us to 4354.55 us",
+      "measured": "4353.34 us to 4354.51 us",
       "verdict": "proved"
     },
     {
@@ -90,7 +90,7 @@
       "sheet": "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, S/PDIF control word components, byte 3, spec.txt l.222-224",
       "source": "derived",
       "spans": 1,
-      "measured": "4353.38 us to 4354.55 us",
+      "measured": "4353.34 us to 4354.51 us",
       "verdict": "proved"
     },
     {
@@ -98,20 +98,20 @@
       "limit": ">= 5208 ns",
       "sheet": "S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 p.1, text, spec.txt l.180",
       "source": "spec",
-      "spans": 53,
+      "spans": 54,
       "measured": "22623 ns to 22752 ns",
       "verdict": "proved"
     }
   ],
   "proved": {
     "spec": 1,
-    "own": 4,
+    "own": 6,
     "decoder": 0,
     "derived": 2
   },
-  "partial": "without the frames before the line first idles high: sigrok's spdif reads nothing past the low from reset",
+  "partial": null,
   "teeth": [
-    "the first right sample's bits 2 and 3 cleared",
+    "the first left sample's bits 4 and 5 cleared",
     "the first half slot cut to a sample"
   ],
   "bitstream_source": "main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3",
@@ -120,7 +120,7 @@
     "SPDIF": "ffa2efe05d8c9ac52bd881492e9a64f05a4b365b97f6ab85c0138495f388868d"
   },
   "host_scripts": {
-    "python/demo_spdif.py": "bc2430cb07a1466e8cc0398d56347354df9c92f3d875f0396cfec558b3f538dc"
+    "python/demo_spdif.py": "83ea1f179e08f7ba751ee6ae1f1fa92f3751f610ce1f44a769cbaeb71262d498"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
   "scope": "the bytes on the wire and their timing in one run of spdif, as the analyser saw them",
@@ -131,6 +131,7 @@
     "the bitstream is named by its sha256, built from main's Verilog, 67386afb's, by make -C icepi in CI's release dry run 42384444259 (icepi-zero-v1.4.bit), for an Icepi Zero v1.3 by the bench's notes, which CI does not rebuild",
     "sealed on the held-out list and written blind from its spec (docs/flexibility.md)",
     "sigrok's spdif reads nothing past the line's low from reset, so the samples are judged from its decode once the line idles high",
+    "sigrok's spdif takes its clock from the first subframe, so a frame of zeros goes first",
     "the capture holds fewer frames than a 192-frame block, so the block's windows hold 192 times their mean",
     "a half slot is about four samples, so its windows can stay unresolved"
   ]
