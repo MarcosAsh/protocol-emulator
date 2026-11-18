@@ -1,0 +1,76 @@
+{
+ "commit": "5f95fa7f26cfe2e8867852df2f0d8335c788a3b1",
+ "reason": "tt_ci",
+ "started": 1795026626.1687436,
+ "rev": "v1.3",
+ "dir": "2026-11-18-1830-5f95fa7f",
+ "commit_time": 1795012018,
+ "build_seconds": 869.2452497379854,
+ "build_ok": true,
+ "seed": 7,
+ "fmax_mhz": 49.65,
+ "carrier_tries": 1,
+ "carrier_nets": {
+  "pass": 40,
+  "fail": 0,
+  "skip": 2
+ },
+ "carrier_ok": true,
+ "demos": {
+  "smoke": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "self_timing": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "sweep": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "self_check": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "flash": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "eeprom": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "eeprom_stretch": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "ds18b20": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "neopixel": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "swd": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "referee": {
+   "result": "PASS",
+   "expected": "PASS"
+  },
+  "nec": {
+   "result": "PASS",
+   "expected": "PASS"
+  }
+ },
+ "both_roles_cases": {
+  "ok": 12,
+  "fail": 0
+ },
+ "both_roles_ok": true,
+ "seconds": 1224.7812011241913,
+ "ok": true
+}
