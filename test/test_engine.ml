@@ -591,8 +591,9 @@ let load (i : _ Solo.I.t) ~cycle ~config program =
   i.start := Bits.gnd
 ;;
 
-(* [Program_config] stops at 2, but the host port writes the field's two bits as given *)
-let%expect_test "a side-set count of 3, which only the host can write, acts as 2" =
+(* [Program_config] stops at 2, but the host port writes the field's two bits as given. 3
+   also drives a third pin low, here the set pin while it's low already *)
+let%expect_test "a side-set count of 3, which only the host can write, decodes as 2" =
   let program =
     assemble
       {|
