@@ -125,6 +125,12 @@ module phase_step (input clk);
   (* anyseq *) wire [1:0] dm;
   (* anyseq *) wire [8:0] frame_base;
   (* anyseq *) wire [19:0] stamps_mask;
+  // which engine's turn a frame word may take
+  (* anyseq *) wire frame_owner;
+`else
+  // the load checker's reads of the program, which only land while halted
+  (* anyseq *) wire program_read_valid;
+  (* anyseq *) wire [8:0] program_read_addr;
 `endif
 
   reg clear = 1;
@@ -226,7 +232,7 @@ module phase_step (input clk);
     .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0), \
     .check_setup$floor(1'b0), .start_all(start_all), .rd(rd), .dm(dm), \
     .frame$arm(frame_arm), .frame$base(frame_base), .frame$fifty(frame_fifty), \
-    .frame_usb(frame_usb), \
+    .frame_usb(frame_usb), .frame_owner(frame_owner), \
     .stamps$mask(stamps_mask), .stamps$engine(stamps_engine), \
     .stamps$flush(stamps_flush), .stamps$pop(stamps_pop)
 `ifdef ENGINE_1
@@ -257,9 +263,10 @@ module phase_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
-    .config$line_code(line_code), .config$route(route),
-    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
-    .line_write$data(line_write_data), .route_full(route_full),
+    .config$line_code(line_code), .config$route(route), .line_write$valid(line_write_valid),
+    .line_write$addr(line_write_addr), .line_write$data(line_write_data),
+    .route_full(route_full), .program_read$valid(program_read_valid),
+    .program_read$value(program_read_addr),
     .premises$period$valid(loads_period), .premises$period$value(loaded_period),
     .premises$floor(floor_period), .premises$single_edge(single_edge),
     .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
@@ -971,6 +978,9 @@ module phase_step (input clk);
     cover(pending && entry && e_may_carry && phase == e_expected - 1'd1);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
     cover(loads_period && pending && entry && wrote_p && p == e_loaded && e_loaded > 3);
+    // a routed run that jumps on its line code's flag
+    cover(line_code && route && pending && entry && e_is_jmp && e_word[12:9] == 4'd7
+      && pc == e_word[8:0] && pc != e_following);
 `ifdef CHIP
     cover(loads_period && wrote_p && loaded_before && p != last_load);
 `else

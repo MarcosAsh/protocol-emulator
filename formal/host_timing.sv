@@ -1,11 +1,17 @@
 // P3: when the host talks to the core never reaches the pins. [step] is one core with its
-// fifos and memories pulled out. Two copies share configuration, pins, the fetched word,
-// the data word and the pulled word, while what the fifos report is free in each. The
-// script makes every register an input and an output, so this is one induction step from
-// any state. Each teeth task in host_timing.sby removes one part and must fail.
+// fifos and memories pulled out. Two copies share configuration, line table writes,
+// premises, pins, the fetched word, the data word and the pulled word, while what the fifos
+// report is free in each. The script makes every register an input and an output, so this
+// is one induction step from any state. Each teeth task in host_timing.sby removes one part
+// and must fail.
 module step (
   input clock, clear, start, stop, clear_irq,
-  input [174:0] config_bits,
+  input [176:0] config_bits,
+  input line_write_valid,
+  input [4:0] line_write_addr,
+  input [15:0] line_write_data,
+  input loads_period, floor_period, single_edge,
+  input [15:0] loaded_period,
   input [31:0] inputs,
   input [15:0] fetched, pulled, data_word,
   output [31:0] pin_out, pin_dir,
@@ -31,6 +37,12 @@ module step (
   wire [7:0] opcode_onehot;
   wire [31:0] wait_select;
   wire [31:0] wait_pin = 32'd1 << instruction[4:0];
+`ifdef OWN_LINE_CODE
+  // a line code per copy, which a jump on the stuffing flag tells apart
+  (* anyseq *) wire line_code;
+`else
+  wire line_code = config_bits[142];
+`endif
 
   engine_top dut (
     .clock(clock), .clear(clear),
@@ -48,8 +60,13 @@ module step (
     .config$stuff_threshold(config_bits[104:100]), .config$stuff_level(config_bits[105]),
     .config$wrap_bottom(config_bits[114:106]), .config$wrap_top(config_bits[123:115]),
     .config$period_fraction(config_bits[139:124]), .config$autopull_data(config_bits[140]),
-    .config$manchester(config_bits[141]), .config$crc_poly_high(config_bits[157:142]),
-    .config$crc_init_high(config_bits[173:158]), .config$crc_complement(config_bits[174]),
+    .config$manchester(config_bits[141]), .config$line_code(line_code),
+    .config$route(config_bits[143]), .config$crc_poly_high(config_bits[159:144]),
+    .config$crc_init_high(config_bits[175:160]), .config$crc_complement(config_bits[176]),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data), .premises$period$valid(loads_period),
+    .premises$period$value(loaded_period), .premises$floor(floor_period),
+    .premises$single_edge(single_edge),
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
     .clear_irq(clear_irq), .stop(stop), .flush(flush), .inputs(inputs),

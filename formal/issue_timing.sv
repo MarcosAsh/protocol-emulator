@@ -15,7 +15,7 @@ module issue_timing (input clk);
   (* anyseq *) wire crc_reflect, crc_complement, stuff_level;
   (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire [15:0] period_fraction;
-  (* anyseq *) wire autopull_data, manchester, data_write_valid;
+  (* anyseq *) wire autopull_data, manchester, line_code, route, data_write_valid;
   (* anyseq *) wire [8:0] data_write_addr;
   (* anyseq *) wire [15:0] data_write_data;
   (* anyseq *) wire stop, flush;
@@ -23,6 +23,9 @@ module issue_timing (input clk);
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
+  (* anyseq *) wire line_write_valid, loads_period, floor_period, single_edge;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [15:0] line_write_data, loaded_period;
 
   reg clear = 1;
   always @(posedge clk) clear <= 0;
@@ -58,6 +61,7 @@ module issue_timing (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(line_code), .config$route(route),
     .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
     .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
@@ -65,6 +69,10 @@ module issue_timing (input clk);
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .data_write$valid(data_write_valid), .data_write$addr(data_write_addr),
     .data_write$data(data_write_data),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data), .premises$period$valid(loads_period),
+    .premises$period$value(loaded_period), .premises$floor(floor_period),
+    .premises$single_edge(single_edge),
     .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop), .clear_irq(clear_irq),
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
