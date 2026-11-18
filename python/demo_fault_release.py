@@ -1,17 +1,20 @@
-# Runtime fault on the board (MicroPython, Pico A), test_two_engines.py's
-# test_a_faulted_engine_lets_go_of_its_pins with engine 1's blink on OUT2 (analyser A D6).
-# Engine 0 (test/fault_release.asm) holds OUT0 (D4) high until one host word, then its
-# second pull underflows. Words and certificates from test/*.hex at commit 67386afb.
+# SPDX-License-Identifier: Apache-2.0
+# Runtime fault on the board (MicroPython, Pico A), as test_two_engines.py's
+# test_a_faulted_engine_lets_go_of_its_pins. Engine 0 (test/fault_release_low.asm) holds
+# SWDIO (IO5, analyser A D7) low against its pull-up until one host word, then its second
+# pull underflows. Engine 1's blink runs on OUT2 (D6) throughout. Words and certificates
+# are test/*.hex's. demo/outside.sh fault_release takes the analyser and capture length from
+# the next line, and its decode is SWDIO's low time.
+# outside: analyser=A ms=4000 decode=-P timing:data=D7 -A timing=time
 import time
+
+import bench
 import pico_board
 import protocol_emulator as pe
 
-FAULT = ([45153, 45057, 12512, 61444, 61444, 40960, 57345], [0, 0])
+FAULT = ([41057, 40960, 8416, 57348, 57348, 57345], [0, 0])
 BLINK = ([41057, 41729, 41472, 1], [1, 0, 128, 0, 0])
-lines = []
 
-def log(s):
-    lines.append(s)
 
 def load(host, engine, config, firmware):
     host.select(engine)
@@ -19,14 +22,16 @@ def load(host, engine, config, firmware):
     host.load(firmware[0])
     host.certify(firmware[1])
 
-time.sleep_ms(1000)
+
+log = bench.Log()
+time.sleep_ms(bench.START_MS)
 host = pe.Host(pico_board.PicoSpi().transfer)
 for e in (1, 0):
     host.select(e)
     host.stop()
     host.flush()
 load(host, 1, dict(pe.DEFAULT_CONFIG, set_base=7), BLINK)
-load(host, 0, dict(pe.DEFAULT_CONFIG, set_base=12, side_set_count=1, side_set_base=5), FAULT)
+load(host, 0, dict(pe.DEFAULT_CONFIG, set_base=17), FAULT)
 host.select(1)
 host.start()
 host.select(0)
@@ -48,5 +53,4 @@ s1 = host.read(pe.STATUS)[0]
 log("engine 1 0x%04x" % s1)
 ok = (s & 0x3D) == 0x05 and (s2 & 0x3D) == 0x05 and pc2 == pc and (s1 & 0x3D) == 0
 log("PASS" if ok else "FAIL")
-with open("fault.log", "w") as f:
-    f.write("\n".join(lines) + "\n")
+log.save()

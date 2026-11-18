@@ -19,6 +19,8 @@ on:
       - librelane_plugin_sram_pdn.py
       - librelane_plugin_sram_inputs.py
       - openroad_sram_inputs.tcl
+      - librelane_plugin_sram_outputs.py
+      - openroad_sram_outputs.tcl
       - odb_sram_stripes.py
       - librelane_plugin_die_art.py
       - die_art.py
@@ -80,7 +82,7 @@ jobs:
       # stops inside the job's 6 h, so a router that never converges still leaves its logs
       - name: Build GDS
         timeout-minutes: 355
-        uses: TinyTapeout/tt-gds-action@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action@ttihp27a
         with:
           pdk: ihp-sg13cmos5l
 
@@ -130,7 +132,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Run Tiny Tapeout Precheck
-        uses: TinyTapeout/tt-gds-action/precheck@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/precheck@ttihp27a
 
   gl_test:
     needs: gds
@@ -142,7 +144,7 @@ jobs:
           submodules: recursive
 
       - name: GL test
-        uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/gl_test@ttihp27a
 
   # replays the pin traces on the gate level, in three jobs beside gl_test (the action's
   # tests take two and a half hours and the replays nearly four). Each trace is rewritten
@@ -227,7 +229,7 @@ jobs:
 
   # reruns the gate-level tests and replays with the router's delays, one corner per job
   # (test/Makefile sdf_*), beside gl_test so the run takes no longer.
-  # Each corner is split into sixteen groups of tests (test/Makefile's GROUP), because a
+  # Each corner is split into eighteen groups of tests (test/Makefile's GROUP), because a
   # whole corner on the 8x4 chip would take a runner past six hours, and a third of it
   # still takes past five
   gl_sdf:
@@ -239,9 +241,10 @@ jobs:
       matrix:
         corner: [slow, typ, fast]
         group:
-          [replay_dmx512, replay_wiegand, replay_bridge, replay_c, replay_m, replay_rest,
-           two_engines_fault, two_engines_one, two_engines_uart, two_engines_chip, blame_a,
-           blame_b, core_a, core_b, boards, boards_usb]
+          [replay_dmx512, replay_avr_isp, replay_wiegand, replay_modbus, replay_bridge,
+           replay_c, replay_m, replay_rest, two_engines_fault, two_engines_one,
+           two_engines_uart, two_engines_chip, blame_a, blame_b, core_a, core_b, boards,
+           boards_usb]
     steps:
       - name: checkout repo
         uses: actions/checkout@v6

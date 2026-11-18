@@ -154,10 +154,14 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     wiegand                     4 waits,  4 refused a cycle late,  0 too long,  0 accepted at their slack
     swd_blind                   2 waits,  2 refused a cycle late,  0 too long,  0 accepted at their slack
     ir_nec                     34 waits, 34 refused a cycle late,  0 too long,  0 accepted at their slack
+    tlc5620                     7 waits,  7 refused a cycle late,  0 too long,  7 accepted at their slack
+    modbus_rtu                  6 waits,  6 refused a cycle late,  0 too long,  6 accepted at their slack
+    avr_isp                     3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
+    midi                        3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  0 too long,  4 accepted at their slack
 
-    71 firmwares, 845 deadline waits: 791 refused a cycle late, 54 too long to assemble a cycle late, 495 accepted at their slack
+    75 firmwares, 864 deadline waits: 810 refused a cycle late, 54 too long to assemble a cycle late, 514 accepted at their slack
     |}]
 ;;

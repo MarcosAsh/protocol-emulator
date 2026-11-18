@@ -1,0 +1,16 @@
+{
+ "lab": 1,
+ "firmware": "; Drives the set pin and toggles it for ever.\n    set pindirs, 1\nloop:\n    set pins, 1 [3]\n    set pins, 0 [2]\n    jmp loop\n",
+ "config": {
+  "set_base": 8
+ },
+ "certificate": [
+  1,
+  0,
+  129,
+  0,
+  0
+ ],
+ "cycles": 4000,
+ "decode": "none"
+}

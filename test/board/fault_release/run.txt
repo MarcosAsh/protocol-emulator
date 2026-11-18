@@ -1,7 +1,21 @@
-Not a transcript. fault.sh ran the demo on the pc and its output was not kept. What ran is
-fault.sh, fault_board.py (python/demo_fault_release.py) on Pico A and edges.py, as the run's
-SHA256SUMS.run hashed them when it ended. ledger.txt was written on 2026-11-08 from these:
-commit: ~/frozen-8x4/repo's HEAD, which its reflog checked out at 18:52:43 and never moved;
-fault.sh echoed it to the output that was not kept
-time: fault.sr's mtime on the pc, the end of the capture
-pico_a: fault.sh's P
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/pe-bench/runs/2026-11-10-2319-32267ee8/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [==========                                        ] 19.74%
+Loading: [====================                              ] 39.18%
+Loading: [==============================                    ] 58.93%
+Loading: [========================================          ] 78.67%
+Loading: [==================================================] 98.41%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ CAPTURES=/home/marcos/video/ledger-fault/2026-11-11/ledger/fault_release PICO=id:e66548545717552e demo/outside.sh fault_release > /home/marcos/video/ledger-fault/2026-11-11/ledger/fault_release/outside.txt
+Pico A says PASS, every step ran

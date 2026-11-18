@@ -39,26 +39,27 @@
 <h1>Remote lab</h1>
 <nav><a href="#draw">Draw</a><a href="#result">Result</a></nav>
 <section id="draw-tab">
-<p class="muted">The kernel checks the diagram here, in the same code the bench's worker
-runs. A job file holds the diagram and its frames, never firmware: the chip only ever
-runs the table interpreter the kernel certified once.</p>
+<p class="muted">The kernel checks the job here, in the same code the bench's worker
+runs. A diagram runs on the table interpreter the kernel certified once. Firmware runs
+only if the kernel accepts it and the chip's load check accepts its certificate.</p>
 <details open id="how">
 <summary><strong>How this runs</strong></summary>
-<p>Your diagram becomes data for a table interpreter that the kernel certified once. It is never firmware. This page checks it in your browser first.</p>
+<p>Your diagram becomes data for a table interpreter that the kernel certified once. A firmware job brings its program and the certificate the chip checks it against. This page checks either in your browser first.</p>
 <p>The run happens on an Icepi Zero FPGA (ECP5) running the chip's RTL at 48 MHz, on my desk. It is not on silicon. None exists yet.</p>
 <p>The bench is a home PC. Jobs queue and are answered when it is free. It pauses while I am using it, sometimes for hours. Each person gets 3 bench runs an hour and 10 a day, and 30 jobs an hour. The whole lab takes 30 bench runs an hour.</p>
-<p>Logic analyser A captures OUT0 at 24 MS/s.</p>
+<p>A job may drive OUT0 to OUT3. The rest of the pins reach parts that could fight it or keep what it sends. Analyser A captures OUT0 and OUT2, analyser B OUT3, each at 24 MS/s, one pass each. OUT1 goes to the CAN transceiver, which no analyser sees directly.</p>
 <p>The reply says which run it was: captured on the bench, rehearsed on the RTL in cocotb, or simulated on the model.</p>
 <p>Everything stays public in the GitHub issue, refusals included.</p>
 </details>
 <div class="controls">
+  <label>Job <select id="kind"><option value="diagram">diagram</option><option value="firmware">firmware job file</option></select></label>
   <label>Example <select id="example"></select></label>
-  <label>Decode <select id="decode"><option value="none">none</option><option value="ws281x">ws281x</option><option value="uart">uart</option></select></label>
-  <label id="baud-label" hidden>Baud <input id="baud" type="number" min="300" max="4000000" value="115200"></label>
+  <label>Decode <input id="decode" value="none" spellcheck="false" style="width:18rem" aria-label="Decode"></label>
   <button id="check">Check</button>
 </div>
+<p class="muted" id="decode-help">Decode: none, or a sigrok decoder and its options, as uart:baudrate=115200 or spi:clk=OUT2:mosi=OUT0.</p>
 <textarea id="diagram" spellcheck="false" aria-label="WaveJSON"></textarea>
-<p class="muted">Frames: a line of bits each, first sent first, as the playground takes them.</p>
+<p class="muted" id="frames-help">Frames: a line of bits each, first sent first, as the playground takes them.</p>
 <textarea id="frames" spellcheck="false" aria-label="Frames"></textarea>
 <p id="verdict" class="verdict"></p>
 <p id="bench"></p>
@@ -199,18 +200,24 @@ it to check each against the hashes result.json records.</p>
   // lab-submit end
 
   pe.diagramExamples.forEach(([name], i) => $("example").add(new Option(name, i)));
+  const firmware = () => $("kind").value === "firmware";
   const load = () => {
     const [name, source, frames] = pe.diagramExamples[$("example").value];
     $("diagram").value = source;
     $("frames").value = frames.split("\n")[0];
-    $("decode").value = { ws2812: "ws281x", uart_tx: "uart" }[name] || "none";
-    if (name === "uart_tx") $("baud").value = 1846154;
-    $("baud-label").hidden = $("decode").value !== "uart";
+    $("decode").value = { ws2812: "ws281x", uart_tx: "uart:1846154" }[name] || "none";
   };
-  const decode = () => $("decode").value === "uart" ? "uart:" + $("baud").value : $("decode").value;
+  // a firmware job file is pasted whole, its decode among its keys
+  const kind = () => {
+    ["example", "decode", "frames", "frames-help", "decode-help"].forEach((id) => { $(id).hidden = firmware(); });
+    $("diagram").setAttribute("aria-label", firmware() ? "Firmware job file" : "WaveJSON");
+    if (firmware()) $("diagram").value = "";
+    else load();
+  };
   let url = null;
   const check = async () => {
-    const job = JSON.stringify({ lab: 1, diagram: $("diagram").value, frames: $("frames").value, decode: decode() });
+    const job = firmware() ? $("diagram").value
+      : JSON.stringify({ lab: 1, diagram: $("diagram").value, frames: $("frames").value, decode: $("decode").value });
     const files = Object.fromEntries(Array.from(pe.labCheck(job), (f) => Array.from(f)));
     const result = JSON.parse(files["check.json"]);
     $("verdict").textContent = result.verdict;
@@ -231,7 +238,8 @@ it to check each against the hashes result.json records.</p>
     }
     const bench = result.bench;
     $("bench").textContent = bench.takes
-      ? "The bench takes it: " + bench.pin + " on analyser " + bench.analyser + " " + bench.channel + ", the engine stopped after " + bench.run_ms + " ms."
+      ? "The bench takes it: " + bench.probes.map((p) => p.pin + " on analyser " + p.analyser + " " + p.channel).join(", ")
+        + ", the engine stopped after " + bench.run_ms + " ms."
       : "Simulated only: the bench declines it, " + bench.why + ".";
     $("bench").className = bench.takes ? "ok" : "warn";
     const simulated = JSON.parse(files["simulated.json"]);
@@ -246,7 +254,7 @@ it to check each against the hashes result.json records.</p>
     $("download").download = "lab-job-" + (id ? id.slice(0, 16) : "new") + ".json";
     $("download").hidden = false;
     $("job-id").textContent = id ? "job " + id.slice(0, 16) : "";
-    const name = $("example").selectedOptions[0].text;
+    const name = firmware() ? "firmware" : $("example").selectedOptions[0].text;
     const compact = JSON.stringify(JSON.parse(text));
     const link = issueUrl(name, compact);
     $("run").hidden = false;
@@ -268,7 +276,7 @@ it to check each against the hashes result.json records.</p>
     }
   };
   $("example").onchange = () => { load(); check(); };
-  $("decode").onchange = () => { $("baud-label").hidden = $("decode").value !== "uart"; };
+  $("kind").onchange = () => { kind(); if (!firmware()) check(); };
   $("check").onclick = check;
   load();
   check();
@@ -279,25 +287,37 @@ it to check each against the hashes result.json records.</p>
     $("result-label").textContent = result.label ? result.label + (result.why ? ": " + result.why : "") : (result.why || (result.check && result.check.why) || "");
     $("result-label").className = result.run === "bench" ? "ok" : "warn";
     const m = result.match;
-    $("match").textContent = m ? m.verdict + (m.why ? ": " + m.why : "") + "\n" + Object.entries(m)
-      .filter(([k]) => !["verdict", "why"].includes(k)).map(([k, v]) => k + ": " + v).join("\n") : "";
+    const fields = (o) => Object.entries(o).filter(([k]) => !["verdict", "why", "lanes"].includes(k))
+      .map(([k, v]) => k + ": " + v).join("\n");
+    $("match").textContent = m ? m.verdict + (m.why ? ": " + m.why : "") + "\n"
+      + (m.lanes || [m]).map((l) => (l.pin ? l.pin + " " + l.verdict + "\n" : "") + fields(l)).join("\n") : "";
     $("result-certificate").textContent = result.certificate || (result.check && (result.check.certificate || result.check.why)) || "";
     $("decode-out").textContent = result.decode || "";
     $("pico-log").textContent = result.pico_log || "";
     $("result-wave").replaceChildren();
     if (result.simulated && result.simulated.lanes.length) {
-      const model = modelLane(result.simulated, result.simulated.lanes[0], "model (simulated)");
-      const lanes = [model];
-      const c = result.captured;
-      if (c && c.changes.length && model.changes.length) {
-        // shift the capture so it lines up with the model at the change the worker matched
-        const shift = model.changes[0][0] - c.changes[0][0];
-        lanes.push({ name: result.run === "bench" ? "captured, " + c.channel : "RTL, " + c.channel,
-          first: 1 - c.changes[0][1], changes: c.changes.map(([t, l]) => [t + shift, l]) });
-      }
-      const last = model.changes.length ? model.changes[model.changes.length - 1][0] : 1000;
-      const first = model.changes.length ? model.changes[0][0] : 0;
-      wave($("result-wave"), lanes, Math.max(0, first - 2000), last + 2000);
+      // a result from before the probes has one capture, of the first lane
+      const captured = Array.isArray(result.captured) ? result.captured
+        : result.captured ? [Object.assign({ pin: result.simulated.lanes[0].pin }, result.captured)] : [];
+      const lanes = [];
+      let first = Infinity, last = 0;
+      result.simulated.lanes.forEach((l) => {
+        const model = modelLane(result.simulated, l, l.pin + " model");
+        lanes.push(model);
+        if (model.changes.length) {
+          first = Math.min(first, model.changes[0][0]);
+          last = Math.max(last, model.changes[model.changes.length - 1][0]);
+        }
+        const c = captured.find((x) => x.pin === l.pin);
+        if (c && c.changes.length && model.changes.length) {
+          // shift the capture so it lines up with the model at the change the worker matched
+          const shift = model.changes[0][0] - c.changes[0][0];
+          lanes.push({ name: (result.run === "bench" ? "captured, " : "RTL, ") + (c.analyser || "A") + " " + c.channel,
+            first: 1 - c.changes[0][1], changes: c.changes.map(([t, l]) => [t + shift, l]) });
+        }
+      });
+      if (!Number.isFinite(first)) first = 0;
+      wave($("result-wave"), lanes, Math.max(0, first - 2000), Math.max(last, 1000) + 2000);
     }
     const p = $("provenance");
     p.replaceChildren();
@@ -305,7 +325,8 @@ it to check each against the hashes result.json records.</p>
      ["commit", result.commit], ["job sha256", result.job_sha256],
      ["interpreter sha256", result.interpreter_sha256], ["firmware sha256", result.firmware_sha256],
      ["bitstream sha256", result.bitstream_sha256],
-     ["capture sha256", result.captured && result.captured.capture_sha256]]
+     ...Object.entries(result.captures || {}).map(([name, sha]) => [name + " sha256", sha]),
+     ["capture sha256", result.captured && !Array.isArray(result.captured) && result.captured.capture_sha256]]
       .filter(([, v]) => v).forEach(([k, v]) => row(p, k, v));
     const f = $("files");
     f.replaceChildren();

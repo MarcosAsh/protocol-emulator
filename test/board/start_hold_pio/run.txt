@@ -1,0 +1,21 @@
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/pe-bench/runs/2026-11-10-2319-32267ee8/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [==========                                        ] 19.74%
+Loading: [====================                              ] 39.48%
+Loading: [==============================                    ] 59.22%
+Loading: [========================================          ] 78.97%
+Loading: [==================================================] 98.71%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ CAPTURES=/home/marcos/video/ledger-hold/2026-11-11/ledger/start_hold_pio PICO=id:e66548545717552e PICO_B_SERIAL=e66548545740ad29 demo/start_hold.sh pio > /home/marcos/video/ledger-hold/2026-11-11/ledger/start_hold_pio/start_hold.txt
+Pico A says FAIL, every step ran

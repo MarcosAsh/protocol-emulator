@@ -196,6 +196,18 @@ let () =
       (Array.of_list_map files ~f:(fun (name, contents) ->
          Js.array [| Js.string name; Js.string contents |]))
   in
+  let timing_table text clock_hz =
+    let r = Timing_table.run ~clock_hz (Js.to_string text) in
+    Js.Unsafe.obj
+      [| "verdict", Js.Unsafe.inject (Js.string r.verdict)
+       ; "detail", Js.Unsafe.inject (Js.string r.detail)
+       ; "limits", Js.Unsafe.inject (Js.string r.limits)
+       ; "source", Js.Unsafe.inject (Js.string r.source)
+       ; "listing", Js.Unsafe.inject (Js.string r.check.listing)
+       ; "rows", Js.Unsafe.inject (Js.string r.check.rows)
+       ; "host", Js.Unsafe.inject (Js.string r.host)
+      |]
+  in
   Js.export
     "protocolEmulator"
     (Js.Unsafe.obj
@@ -215,6 +227,12 @@ let () =
         ; "runDiagram", Js.Unsafe.inject (Js.wrap_callback run_diagram)
         ; "mutateDiagram", Js.Unsafe.inject (Js.wrap_callback mutate)
         ; "labCheck", Js.Unsafe.inject (Js.wrap_callback lab_check)
+        ; "timingTable", Js.Unsafe.inject (Js.wrap_callback timing_table)
+        ; ( "tableExamples"
+          , Js.Unsafe.inject
+              (Js.array
+                 (Array.of_list_map Table_example.all ~f:(fun (name, cited, table) ->
+                    Js.array [| Js.string name; Js.string cited; Js.string table |]))) )
         ; ( "diagramExamples"
           , Js.Unsafe.inject
               (Js.array

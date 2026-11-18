@@ -1,0 +1,3 @@
+kernel: accepted
+chip: its load check refuses the job's certificate at pc 0 (next phase), so the chip won't start it
+a certificate the chip accepts: 1,0,128,0,0

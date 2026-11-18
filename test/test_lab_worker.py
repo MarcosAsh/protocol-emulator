@@ -16,7 +16,8 @@ sys.path.insert(0, str(ROOT / "demo"))
 import lab  # noqa: E402
 
 EXAMPLES = ROOT / "test/lab"
-# the checker stand-in: returns an example's files for a job whose diagram matches it
+# the checker stand-in: returns an example's files for a job whose diagram matches it, or a
+# firmware job that is the example
 GENERATE = """#!%s
 import json, os, shutil, sys
 from pathlib import Path
@@ -27,8 +28,9 @@ try:
 except ValueError:
     sent = {}
 for example in sorted(Path(%r).glob("*.job.json")):
-    if set(sent) <= {"lab", "diagram", "frames", "decode"} and \\
-            json.loads(example.read_text())["diagram"] == sent.get("diagram"):
+    known = json.loads(example.read_text())
+    if (set(sent) <= {"lab", "diagram", "frames", "decode"} and "diagram" in known and
+            known["diagram"] == sent.get("diagram")) or ("firmware" in known and known == sent):
         shutil.copytree(example.with_name(example.name[:-len(".job.json")]), out, dirs_exist_ok=True)
         Path(out, "job.json").write_text(text)
         verdict = json.loads(Path(out, "check.json").read_text())["verdict"]
@@ -49,8 +51,11 @@ esac
     "sigrok-cli": """while [ $# -gt 0 ]; do
     case $1 in
     --scan) [ -n "$NO_ANALYSER" ] || echo "fx2lafw:conn=3.4 - Saleae Logic"; exit 0 ;;
-    -o) cp "$RAW" "$2"; exit 0 ;;
-    -i) echo "uart-1: A3"; echo "uart-1: 5C"; exit 0 ;;
+    -o) case $ANALYSER in B) cp "$RAW_B" "$2" ;; *) cp "$RAW" "$2" ;; esac; exit 0 ;;
+    -i) echo "$SIGROKDECODE_DIR $(basename "$2") $3 $4 $5 $6" >> "$TMP/decodes"
+        echo "uart-1: A3"; echo "uart-1: 5C"
+        [ -z "$DECODE_BIG" ] || yes "uart-1: 00" | head -n 5000
+        exit 0 ;;
     esac
     shift
 done
@@ -58,19 +63,26 @@ done
 }
 
 
-def raw(stretch=0):
-    """Analyser A's samples of OUT0 at 24 MS/s for the uart_tx example: idle, two glitches,
-    then the model's changes, with the fifth interval stretch samples longer."""
-    simulated = json.loads((EXAMPLES / "uart_tx/simulated.json").read_text())
-    edges = simulated["lanes"][0]["edges"]
-    lead = 5000
-    changes = [(1000, 1), (1003, 0)] + [
-        (lead + c // 2 + (stretch if i >= 5 else 0), level) for i, (c, level) in enumerate(edges[1:])]
-    samples, level, at = bytearray(), 0, 0
-    for t, new in changes:
-        samples += bytes([level << 4]) * (t - at)
-        level, at = new, t
-    samples += bytes([level << 4]) * 4000
+def raw(example="uart_tx", analyser="A", stretch=0):
+    """An analyser's samples at 24 MS/s of the example's lanes it probes: idle, two glitches
+    on the first, then the model's changes, with the fifth interval stretch samples longer."""
+    simulated = json.loads((EXAMPLES / example / "simulated.json").read_text())
+    probes = json.loads((EXAMPLES / example / "check.json").read_text())["bench"]["probes"]
+    lanes = {lane["pin"]: lane["edges"] for lane in simulated["lanes"]}
+    lead, length = 5000, 5000 + simulated["cycles"] // 2 + 4000
+    samples = bytearray(length)
+    for n, probe in enumerate(p for p in probes if p["analyser"] == analyser):
+        bit = 1 << int(probe["channel"][1:])
+        edges = lanes[probe["pin"]]
+        changes = ([(1000, 1), (1003, 0)] if n == 0 else []) + [
+            (lead + c // 2 + (stretch if i >= 5 else 0), level)
+            for i, (c, level) in enumerate(edges[1:])] + [(length, 0)]
+        level, at = edges[0][1], 0
+        for t, new in changes:
+            if level:
+                for i in range(at, t):
+                    samples[i] |= bit
+            level, at = new, t
     return bytes(samples)
 
 
@@ -94,8 +106,10 @@ class Worker(unittest.TestCase):
         self.generate.chmod(0o755)
         (self.tmp / "raw.bin").write_bytes(raw())
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("ANALYSER")}
+        # DEVICE keeps capture.sh off /sys
         self.env.update(PATH="%s:%s" % (bin, os.environ["PATH"]), PICO="id:a",
-                        TMP=str(self.tmp), RAW=str(self.tmp / "raw.bin"), TRIES="1")
+                        TMP=str(self.tmp), RAW=str(self.tmp / "raw.bin"),
+                        RAW_B=str(self.tmp / "raw_b.bin"), TRIES="1", DEVICE="fx2lafw")
         self.queue = lab.Spool(self.tmp / "queue")
         self.results = self.tmp / "results"
 
@@ -134,8 +148,53 @@ class Worker(unittest.TestCase):
         folder = self.results / r["id"]
         subprocess.run(["sha256sum", "--quiet", "-c", "SHA256SUMS"], cwd=folder, check=True)
         self.assertNotIn("run.txt", r["public"])
-        self.assertTrue(list((self.tmp / "evidence").glob("*/lab/" + r["id"] + "/lab.sr")))
+        self.assertTrue(list((self.tmp / "evidence").glob("*/lab/" + r["id"] + "/lab_a.sr")))
         self.assertEqual(list((self.tmp / "queue/inbox").iterdir()), [])
+        self.assertEqual(r["captures"]["lab_a.sr"], r["files"]["lab_a.sr"])
+
+    def test_lanes_on_both_analysers_take_a_pass_each(self):
+        (self.tmp / "raw.bin").write_bytes(raw("four_lanes", "A"))
+        (self.tmp / "raw_b.bin").write_bytes(raw("four_lanes", "B"))
+        self.queue.submit(job("four_lanes"), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual(r["run"], "bench", r.get("why"))
+        self.assertEqual(r["match"]["verdict"], "matches the model", r["match"])
+        self.assertEqual([(c["pin"], c["analyser"], c["channel"]) for c in r["captured"]],
+                         [("OUT0", "A", "D4"), ("OUT2", "A", "D6"), ("OUT3", "B", "D4")])
+        self.assertEqual(sorted(r["captures"]), ["lab_a.sr", "lab_b.sr"])
+        # a reset before each pass and one after
+        self.assertEqual(len(self.lines("loads")), 3)
+        self.assertEqual(self.lines("decodes"), ["%s lab_a.sr -P spi:clk=D6:mosi=D4 -A spi=mosi-data"
+                                                 % (ROOT / "demo/decoders")])
+
+    def test_a_long_decode_is_cut_in_the_result(self):
+        self.queue.submit(job("uart_tx"), "judge")
+        self.work(DECODE_BIG="1")
+        (r,) = self.results_of()
+        self.assertLess(len(r["decode"]), lab.DECODE_LIMIT + 100)
+        self.assertTrue(r["decode"].endswith("decode.txt has all]\n"))
+        self.assertEqual(len((self.results / r["id"] / "decode.txt").read_text().splitlines()), 5002)
+
+    def test_decode_args_that_are_not_an_allowed_decoders_never_run(self):
+        good = ["-P", "uart:rx=D4:baudrate=115200", "-A", "uart=rx-data"]
+        self.assertTrue(lab.decode_args(good))
+        self.assertTrue(lab.decode_args(["-P", "spi:clk=D6:mosi=D4"]))
+        for bad in (["-P", "uart:rx=D4;rm -rf ~"], ["-P", "uart:rx=$(id)"],
+                    ["-P", "../../tmp/x:rx=D4"], ["-P", "os:rx=D4"],
+                    ["-P", "uart:rx=D4", "-A", "spi=mosi-data"], ["-P", "uart", "-o", "/tmp/x"],
+                    ["-P", "uart:rx=D4 -o /tmp/x"], ["-P", "uart", "-A", "uart=rx-data", "-O", "x"],
+                    ["-i", "/etc/passwd"], "uart", [], ["-P", "uart:rx=D4\n-o"]):
+            self.assertFalse(lab.decode_args(bad), bad)
+
+    def test_a_pass_that_strays_on_b_differs(self):
+        (self.tmp / "raw.bin").write_bytes(raw("four_lanes", "A"))
+        (self.tmp / "raw_b.bin").write_bytes(raw("four_lanes", "B", stretch=4))
+        self.queue.submit(job("four_lanes"), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual(r["match"]["verdict"], "differs")
+        self.assertTrue(r["match"]["why"].startswith("OUT3: "), r["match"])
 
     def test_a_refusal_never_reaches_the_bench(self):
         self.queue.submit(job("ws2812_slow"), "judge")
@@ -145,12 +204,59 @@ class Worker(unittest.TestCase):
         self.assertIn("T1H", r["check"]["certificate"])
         self.assertEqual((self.lines("loads"), self.lines("mpremote")), ([], []))
 
-    def test_firmware_is_not_a_job(self):
+    def test_firmware_as_words_is_not_a_job(self):
         self.queue.submit('{"lab": 1, "firmware": [1, 2, 3]}', "judge")
         self.work()
         (r,) = self.results_of()
         self.assertEqual(r["verdict"], "malformed")
         self.assertEqual((self.lines("loads"), self.lines("mpremote")), ([], []))
+
+    def test_firmware_with_its_certificate_runs_on_its_pins(self):
+        (self.tmp / "raw_b.bin").write_bytes(raw("blink_out3", "B"))
+        self.queue.submit((EXAMPLES / "blink_out3.job.json").read_text(), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual((r["verdict"], r["run"]), ("certified", "bench"), r.get("why"))
+        self.assertEqual(r["match"]["verdict"], "matches the model", r["match"])
+        self.assertEqual(list(r["captures"]), ["lab_b.sr"])
+        copies = [line for line in self.lines("mpremote") if " cp " in line]
+        self.assertTrue(copies[1].endswith("firmware.json :lab.json"))
+        firmware = json.loads((self.results / r["id"] / "firmware.json").read_text())
+        self.assertEqual(firmware["certificate"][:5], [1, 0, 128, 0, 0])
+
+    def test_a_certificate_that_does_not_match_never_reaches_the_bench(self):
+        self.queue.submit((EXAMPLES / "blink_tampered.job.json").read_text(), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual((r["verdict"], r["run"]), ("refused", None))
+        self.assertIn("load check refuses", r["check"]["certificate"])
+        self.assertNotIn("firmware.json", r["files"])
+        self.assertEqual((self.lines("loads"), self.lines("mpremote")), ([], []))
+
+    def test_an_oversized_job_never_reaches_the_checker(self):
+        self.queue.submit('{"lab": 1, "firmware": "%s"}' % ("x" * lab.MAX_JOB), "judge")
+        self.work()
+        (r,) = self.results_of()
+        self.assertEqual((r["verdict"], r["why"]), ("malformed", "a job is at most 16384 bytes"))
+        self.assertFalse((self.results / r["id"] / "check.txt").exists())
+
+    def test_hostile_text_stays_data(self):
+        """Shell and path text in a job only ever reaches the checker as a file's contents,
+        and nothing is written outside the results folder."""
+        marker = self.tmp / "pwned"
+        for text in ('{"lab": 1, "diagram": "$(touch %s)", "frames": "1"}' % marker,
+                     '{"lab": 1, "firmware": "`touch %s`", "certificate": []}' % marker,
+                     '{"lab": 1, "diagram": "x", "frames": "1", "decode": "uart:rx=../../x"}',
+                     "; touch %s" % marker):
+            self.queue.submit(text, "judge")
+        before = set(self.tmp.rglob("*"))
+        self.work()
+        self.assertFalse(marker.exists())
+        added = set(self.tmp.rglob("*")) - before
+        self.assertTrue(all(p.is_relative_to(self.results)
+                            or p.is_relative_to(self.tmp / "queue/done") for p in added),
+                        sorted(map(str, added)))
+        self.assertEqual({r["verdict"] for r in self.results_of()}, {"malformed"})
 
     def test_what_the_bench_declines_gets_the_model(self):
         self.queue.submit(job("uart_rx"), "judge")
@@ -208,6 +314,52 @@ class Worker(unittest.TestCase):
         rows = (self.results / "admitted.tsv").read_text().splitlines()
         self.assertEqual([r.split("\t")[1] for r in rows], ["judge", "unnamed"])
         self.assertEqual({r["verdict"] for r in self.results_of()}, {"certified", "malformed"})
+
+
+REAL_GENERATE = ROOT / "_build/default/bin/generate.exe"
+
+
+@unittest.skipUnless(REAL_GENERATE.exists(), "needs dune build --root . bin/generate.exe")
+class Hostile(unittest.TestCase):
+    """Hostile jobs through the real checker and the model backend: each is refused or
+    malformed, or runs on the model alone, and nothing lands outside the results folder."""
+
+    def test_hostile_jobs(self):
+        tmp = Path(tempfile.mkdtemp())
+        marker = tmp / "pwned"
+        blink = json.loads((EXAMPLES / "blink_out3.job.json").read_text())
+        flash = dict(blink, config={"set_base": 9})
+        io = dict(blink, config={"set_base": 12})
+        jobs = {
+            "shell in a diagram": {"lab": 1, "diagram": "$(touch %s)" % marker, "frames": "1"},
+            "shell in a firmware": dict(blink, firmware="`touch %s`; $(id)" % marker),
+            "a path for a decode": dict(blink, decode="../../../%s:rx=OUT3" % marker),
+            "shell in a decode option": dict(blink, decode="uart:baudrate=9600;touch %s" % marker),
+            "a decode option naming a file": dict(blink, decode="uart:file=%s" % marker),
+            "the flash's DI": flash,
+            "IO0's direction": io,
+            "a certificate that does not match": json.loads(
+                (EXAMPLES / "blink_tampered.job.json").read_text()),
+            "too long": dict(blink, firmware="; " + "x" * 9000),
+        }
+        queue = lab.Spool(tmp / "queue")
+        for who, job in enumerate(jobs.values()):
+            queue.submit(json.dumps(job), "judge%d" % who)
+        before = set(tmp.rglob("*"))
+        subprocess.run([sys.executable, str(ROOT / "demo/lab.py"), "work", "--queue",
+                        str(tmp / "queue"), "--backend", "model", "--once", "--results",
+                        str(tmp / "results"), "--generate", str(REAL_GENERATE)],
+                       check=True, capture_output=True, timeout=300, cwd=tmp)
+        self.assertFalse(marker.exists())
+        added = set(tmp.rglob("*")) - before
+        self.assertTrue(all(p.is_relative_to(tmp / "results") or p.is_relative_to(tmp / "queue/done")
+                            for p in added), sorted(map(str, added)))
+        results = [json.loads(p.read_text()) for p in (tmp / "results").glob("*/result.json")]
+        verdicts = sorted((r["verdict"], r.get("run") or "-") for r in results)
+        self.assertEqual(verdicts, [("certified", "model")] * 2 + [("malformed", "-")] * 5
+                         + [("refused", "-")] * 2, verdicts)
+        for r in results:
+            self.assertNotIn("firmware.json", r["files"])
 
 
 class Compare(unittest.TestCase):

@@ -10,10 +10,10 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   `kernel_table.ml`, 1,837 lines. `formal/phase_step.sv` with a
   SAT query in `test/test_kernel.ml` proves the theorem, and so does
   `formal/phase_table.sby`, with `formal/phase_table_affine.sby` for Ethernet.
-- The 74 firmwares `test/certify/write_certificate.exe -names` lists, the library's 68 among
+- The 78 firmwares `test/certify/write_certificate.exe -names` lists, the library's 72 among
   them, each have their own certificate proved an inductive invariant on one engine with the
   firmware's configuration, line code included. So do a stamped transmitter and 5 firmwares with
-  claims on their data (the `inductive_certificate` job, one run a firmware).
+  claims on their data (the `inductive_certificate` jobs).
 - The hardened netlist equals the RTL for all time from all flops 0, and from any state
   once reset (`netlist_equiv` job).
 - When and how the host talks reaches the pins only through the program's own fifo waits
@@ -69,6 +69,11 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
 - Power-up is deterministic. Two copies of the chip from any two states of their flops and
   fifos, with the same words in their SRAMs, reset at the first edge and given the same
   pins, drive the same pins (`formal/powerup.sby`).
+- The Verilog copies the proofs read are held to the chip's. Their modules are the chip's
+  word for word, except the flop program memory that stands in for the SRAM macro, the
+  one-engine data memory and the engines without the start gate. Those engines, with each
+  start taken only once certified, step as the chip's from any state
+  (`make -C formal tied`).
 - Each UNSAT in the SAT proofs is checked by cake_lpr, an LRAT checker verified in HOL4.
   Each SAT answer counts only once its model satisfies every clause the solver was given.
 
@@ -80,8 +85,8 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   `make -C formal offset_axioms`), IHP's behavioural SRAM model, the self-check's contract
   (`test/self_check_contract.ml`), the PDK's models and the flow's timing analysis, the
   flow from the netlist `netlist_equiv` reads to the GDS, and nextpnr and ecppack after the
-  netlist `icepi_equiv` reads. The proofs use engine copies that `formal/Makefile` generates
-  apart from the chip's Verilog, from the same OCaml.
+  netlist `icepi_equiv` reads. The one-engine proofs use a data memory of their own, not
+  the chip's shared one.
 - The theorem assumes that:
   - every write to `p` other than a `set` leaves the checked period
   - a receiver's capture pin is at the other level at `capture_arm` and, once at the
@@ -89,8 +94,6 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   - the core runs the words and configuration the kernel checked, with zeros past the
     program
   - the configuration is fixed from power-on, the only reset
-  - the configuration has `line_code` and `route` off
-  - side-set count is at most 2
 - The chip's certificate rows carry no spacing and no slope, so it refuses firmware that
   needs either, even where the host's kernel would accept it.
 - The theorem says nothing of the underflow and overflow a slow host can cause.
@@ -103,7 +106,7 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
     (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
   - the gate-level netlist with the router's delays at the slow, typical and fast corners
-    (the `gl_sdf` job, 48 runs, all green in gds run 42268510223)
+    (the `gl_sdf` job, 48 runs, all green in gds run 43769514206)
   - that no one-field variant of the library the kernel accepts misses a deadline in a run:
     41,727 accepted and none late (`test/split/split.ml`, the `split` job, run
     40663800189, 2026-10-28)
@@ -115,14 +118,21 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   edges of engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the
   host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
   2026-10-15 (release evidence-2026-10-15). The 8 x 4 chip's RTL has since run on the same
-  board, bitstream sha256 012dc5e1b0769f12, and `test/board/` holds 37 witnesses, each with
+  board, bitstream sha256 012dc5e1b0769f12, and `test/board/` holds 42 witnesses, each with
   its bitstream hash:
   - the 21 bench demos, self-timing and keyboard included, recorded 2026-11-03 (release
     evidence-2026-11-03). eth_rx ran on a 40 MHz build, sha256 c426327526b6b574
   - the 8 held-out protocols, recorded 2026-11-07 (see [Flexibility](flexibility.md))
   - `kernel_vs_board`, 2026-11-07: 3,735 delay variants of 8 firmwares, 3,711 accepted by
     the chip and on time, 24 refused by the chip and the kernel alike
-  - `fault_release`, 2026-11-07
+  - `fault_release`, 2026-11-11: engine 0 holds SWDIO low against its pull-up, and the
+    line rises when the engine faults
+  - `spdif_ac3` (2026-11-10) and `spdif_codecs` (2026-11-11): FFmpeg reads AC-3, MP3, AAC
+    and DTS frames back from a capture of the S/PDIF line
+  - `start_hold_pio` and `start_hold_hw`, 2026-11-11: pico-examples' pio_i2c holds every
+    START 3.1 us where I2C needs 4.0, and the RP2040's I2C block holds 4.4
+  - `usb_fs_device`, 2026-11-11: a Linux host enumerates the chip as a full speed USB
+    device, on the FS=1 build, sha256 25d1deeeb29b3c58
   - 6 protocol-learning runs (`learn_*`), committed 2026-11-03
 
 ## Trying to break it

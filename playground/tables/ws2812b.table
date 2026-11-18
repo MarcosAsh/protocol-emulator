@@ -1,0 +1,15 @@
+# WS2812B LED, Worldsemi WS2812B datasheet (2013), p.3, Data transfer time:
+# T0H 0.4 us, T1H 0.8 us, T0L 0.85 us, T1L 0.45 us, each +-150 ns, RES above 50 us,
+# TH+TL 1.25 us +-600 ns. 24 bits a LED, GRB, the high bit first (p.4).
+shape pulse
+bits 24
+idle low
+zero T0H T0L
+one T1H T1L
+gap RES
+T0H 250 550 ns
+T1H 650 950 ns
+T0L 700 1000 ns
+T1L 300 600 ns
+RES 50 - us
+TH+TL 650 1850 ns

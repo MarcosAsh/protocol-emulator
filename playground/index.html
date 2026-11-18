@@ -16,7 +16,10 @@
   pre { overflow-x: auto; white-space: pre; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; }
   input[type=number] { width: 5rem; }
-  #verdict, #pio-verdict, #diagram-verdict { font-size: 1.2rem; font-weight: 600; }
+  #verdict, #pio-verdict, #diagram-verdict, #table-verdict { font-size: 1.2rem; font-weight: 600; }
+  #table-source { height: 14rem; }
+  #table-examples { list-style: none; padding: 0; margin: 8px 0; }
+  #table-examples li { margin: 4px 0; }
   .accepted { color: var(--ok); }
   .refused { color: var(--bad); }
   .muted { color: var(--muted); }
@@ -47,7 +50,7 @@
 <body>
 <p><a href="../">protocol-emulator</a></p>
 <h1>Firmware timing playground</h1>
-<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a><a href="#isa">ISA</a></nav>
+<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a><a href="#datasheet">Datasheet</a><a href="#isa">ISA</a></nav>
 <section id="firmware-tab">
 <p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
 with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
@@ -143,6 +146,43 @@ certificate. The model of the core then runs the table on the frames below.</p>
 <pre id="diagram-steps"></pre>
 <h2>Host words</h2>
 <pre id="diagram-words"></pre>
+</section>
+<section id="datasheet-tab" hidden>
+<p class="muted">A timing table in, firmware out, without a server. The generator behind
+generate learn writes firmware for the table's shape, the analyser and the kernel check
+it, and the chip's load check walks its certificate. Shapes: pulse codes, UART,
+Manchester and clocked serial, one frame shape, out on OUT0 (a clock on OUT0 and data on
+OUT1). Every run is a whole number of units, each limit cleared by a cycle as the
+library's are. A refusal names the row.</p>
+<ul id="table-examples"></ul>
+<textarea id="table-source" spellcheck="false" aria-label="Timing table"></textarea>
+<div class="controls">
+  <label>Clock <select id="table-clock"><option value="48000000">48 MHz, rated</option><option value="50000000">50 MHz</option></select></label>
+  <button id="table-run">Make firmware</button>
+</div>
+<details>
+<summary>What a table takes</summary>
+<pre>A row:  NAME MIN MAX UNIT, with - for a blank. A rate's least is the longest period.
+        Units: s ms us ns, Hz kHz MHz, baud kbaud, bit/s kbit/s Mbit/s.
+shape   pulse, uart, manchester or clocked
+idle    high or low, the data line between frames
+gap     ROW, the least idle between frames
+pulse        bits N, zero MARK SPACE, one MARK SPACE, leader ROW..., trailer ROW...
+uart         bit ROW, data N, parity none|even|odd, stop N, chars N
+manchester   bits N, half ROW or bit ROW, one-starts high|low
+clocked      bits N, high ROW, low ROW, clock ROW, sample rising|falling, clock-idle high|low
+A row no line names is listed as not checked. # starts a comment.</pre>
+</details>
+<p id="table-verdict"></p>
+<pre id="table-detail"></pre>
+<h2>Limits</h2>
+<pre id="table-limits"></pre>
+<h2>Firmware</h2>
+<pre id="table-firmware"></pre>
+<h2>Host words</h2>
+<pre id="table-host"></pre>
+<h2>Listing</h2>
+<pre id="table-listing"></pre>
 </section>
 <section id="isa-tab" hidden>
 <p class="muted">The 16-bit instruction word, decoded by the same Isa module the assembler and the hardware decoder use. The fields and their values come from it, not from this page.</p>
@@ -525,10 +565,32 @@ certificate. The model of the core then runs the table on the frames below.</p>
   isaAssemble();
   isaLayout();
 
-  let diagramRan = false;
+  const runTable = () => {
+    const r = pe.timingTable($("table-source").value, Number($("table-clock").value));
+    $("table-verdict").textContent = r.verdict;
+    $("table-verdict").className = r.verdict === "certified" ? "accepted" : "refused";
+    $("table-detail").textContent = r.detail;
+    $("table-limits").textContent = r.limits;
+    $("table-firmware").textContent = r.source;
+    $("table-host").textContent = r.host;
+    $("table-listing").textContent = r.listing;
+  };
+  pe.tableExamples.forEach(([name, cited, table]) => {
+    const button = document.createElement("button");
+    button.textContent = name;
+    button.onclick = () => { $("table-source").value = table; runTable(); };
+    const li = document.createElement("li");
+    li.append(button, " ", Object.assign(document.createElement("span"), { className: "muted", textContent: cited }));
+    $("table-examples").append(li);
+  });
+  $("table-run").onclick = runTable;
+  $("table-clock").onchange = runTable;
+
+  let diagramRan = false, tableRan = false;
   const show = () => {
-    const tab = ["#pio", "#diagram", "#isa"].includes(location.hash) ? location.hash.slice(1) : "firmware";
+    const tab = ["#pio", "#diagram", "#datasheet", "#isa"].includes(location.hash) ? location.hash.slice(1) : "firmware";
     if (tab === "diagram" && !diagramRan) { diagramRan = true; runDiagram(); }
+    if (tab === "datasheet" && !tableRan) { tableRan = true; $("table-source").value = pe.tableExamples[0][2]; runTable(); }
     document.querySelectorAll("section").forEach((s) => { s.hidden = s.id !== tab + "-tab"; });
     document.querySelectorAll("nav a").forEach((a) => {
       if (a.hash === "#" + tab) a.setAttribute("aria-current", "page");

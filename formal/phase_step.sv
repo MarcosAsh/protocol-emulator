@@ -1,11 +1,11 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
 // to the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the
-// pc and, with Manchester and line code off and edge_step.sv's lemma assumed, a watched
-// pair's edges. A deadline wait entered at phase <= 0 does not fault. Equalities are mod
-// 2^T, where T is the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in
-// a bounded run. The engine is the chip's, with every input free except its premises (the
-// kernel's), so this holds for each engine of several. CHIP runs it on one engine inside
-// the two-engine chip instead. Program memories are the flop stand-in for the SRAM macro.
+// pc and, with Manchester off and edge_step.sv's lemma assumed, a watched pair's edges. A
+// deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^T, where T is
+// the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in a bounded run.
+// The engine is the chip's, with every input free except its premises (the kernel's), so
+// this holds for each engine of several. CHIP runs it on one engine inside the two-engine
+// chip instead. Program memories are the flop stand-in for the SRAM macro.
 
 `ifndef TIMER_BITS
 `define TIMER_BITS 24
@@ -87,7 +87,7 @@ module phase_step (input clk);
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
-  // line table writes, and whether the next engine's fifo is full when routed
+  // the line table, and the full flag a routed core reads from the next engine
   (* anyseq *) wire line_write_valid, route_full;
   (* anyseq *) wire [4:0] line_write_addr;
   (* anyseq *) wire [15:0] line_write_data;
@@ -114,8 +114,8 @@ module phase_step (input clk);
   (* anyseq *) wire [8:0] data_write_addr, o_data_write_addr;
   (* anyseq *) wire [15:0] data_write_data, o_data_write_data;
   (* anyseq *) wire [19:0] pads;
-  // the other engine's line code, route and line table, the start of both engines at
-  // once, and the frame receiver
+  // the other engine's line code, route and line table, the start of both engines at once,
+  // and the frame receiver
   (* anyseq *) wire o_line_code, o_route, o_line_write_valid, start_all;
   (* anyseq *) wire [4:0] o_line_write_addr;
   (* anyseq *) wire [15:0] o_line_write_data;
@@ -304,7 +304,10 @@ module phase_step (input clk);
   wire [15:0] kp = p;
 `endif
 
-  always @(*) assume(side_set_count <= 2);
+`ifdef SPACING
+  // the spacing run and pair_step's lemma are proved only for these
+  always @(*) assume(side_set_count <= 2 && !line_code && !route);
+`endif
 `ifdef ONE_RUN
   // one of the runs above, so a failure in it is the lemma's: jmp 0 written at 0, then one
   // start and no stop. The wrap's tooth takes it to reach the timer's top in few choices.
@@ -787,10 +790,9 @@ module phase_step (input clk);
   endfunction
 
 `ifdef EDGES
-  // The spacing of the pair's edges, with Manchester and line code off, the only configs
-  // the kernel spaces. For each pin: its cycles since it last moved (saturating), and
-  // whether it has made a counted edge in this run, meaning an edge after the run's first
-  // write of it.
+  // The spacing of the pair's edges, with Manchester and the line code off. For each pin:
+  // its cycles since it last moved (saturating), and whether it has made a counted edge in
+  // this run, meaning an edge after the run's first write of it.
   wire plain = !manchester && !line_code;
   always @(*) assume(pin_a != pin_b);
   reg c3_last_clear = 1, c3_last_entry = 0, last_a = 0, last_b = 0;
@@ -1181,6 +1183,11 @@ module phase_step (input clk);
 
   always @(posedge clk) begin
     cover(pending && entry && e_deadline_wait && e_phase == 0);
+`ifndef SPACING
+    // the same with a line code, a route and three side-set pins
+    cover(pending && entry && e_deadline_wait && e_phase == 0 && line_code && route
+      && side_set_count == 3);
+`endif
 `ifdef AFFINE
     // a taken jmp x-- into a row of its slope with the full phase and a bounded offset,
     // and one falling through at x = 0 from such a row to a deadline wait whose bounded

@@ -319,6 +319,10 @@ let%expect_test "the checker agrees with the model on every firmware" =
     wiegand                       8935  accepted
     swd_blind                     8744  accepted
     ir_nec                       11823  accepted
+    tlc5620                       8663  accepted
+    modbus_rtu                    8738  accepted
+    avr_isp                       8620  accepted
+    midi                          8434  accepted
     asm/blink                     8251  accepted
     asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted
@@ -327,6 +331,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     asm/ethernet                  9162  accepted
     asm/ethernet_rx               8263  accepted
     asm/fault_release             8192  accepted
+    asm/fault_release_low         8192  accepted
     asm/i2c_master_marked         9793  accepted
     asm/i2c_start_watch           8308  accepted
     asm/quiet_watch                392  refused at 8, reason 0
@@ -381,6 +386,10 @@ let%expect_test "the checker agrees with the model on every firmware" =
     bench/wiegand                 8935  accepted
     bench/swd_blind               8744  accepted
     bench/ir_nec                 11823  accepted
+    bench/tlc5620                 8663  accepted
+    bench/modbus_rtu              8738  accepted
+    bench/avr_isp                 8620  accepted
+    bench/midi                    8434  accepted
     |}]
 ;;
 

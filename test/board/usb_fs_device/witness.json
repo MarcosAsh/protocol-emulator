@@ -1,0 +1,51 @@
+{
+  "demo": "usb_fs_device",
+  "time": "2026-11-11T13:56:57",
+  "result": "PASS",
+  "commit": "d93077a921d18ff4389a9c9ce0f50deb79dbc32f",
+  "bitstream_sha256": "25d1deeeb29b3c58abdfd1686fbf53da0c311e0c505e36ef2347fad66d09302a",
+  "netlist_sha256": "da296b78be176d677685dd9e2d770b348ecd9eaf1597510cde7e6739356c0cba",
+  "sums_sha256": "723553070686309c3b419d4a923366f0c6d7c8899004d5336a0fe95a5a17f530",
+  "log": {
+    "file": "usb_fs_device.log",
+    "sha256": "56589feeac014a2a965305a1e90c188ec5e19d0bc150b63591840341b5f2974c"
+  },
+  "tally": {
+    "host": {
+      "id": "1209:0002",
+      "speed": "12",
+      "version": "1.10",
+      "product": "Protocol Emulator",
+      "bConfigurationValue": "1",
+      "driver": "usbhid"
+    },
+    "descriptor_bytes": 52,
+    "report_descriptor_bytes": 21,
+    "address": 10,
+    "requests": 10
+  },
+  "teeth": [
+    "one digit of the descriptors the host read changed",
+    "the host seeing a low speed device",
+    "the log without its configured line"
+  ],
+  "bitstream_source": "the 8x4 line on 2026-11-02 with make -C icepi FS=1 PROBE=1 (icepi/build/v1.3-fs-probe.bit), whose netlist main 32267ee8's Verilog also makes",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "python/usb_fs_device_firmware.py": "83b7342040a694039322c26a6ae6739e6a87cf11f860b39978317799baca6295"
+  },
+  "host_scripts": {
+    "python/demo_usb_fs_device.py": "1c4e133cbb3b2610a2ceded61b9381011acf58e440361704c8cd04486c956a59",
+    "python/demo_usb_fs.py": "34822d32156e78ef43046935e3af7b7fafab8294a3f003b4a61d73aba68ff7c2",
+    "python/usb_fs_board.py": "0412f55517878c7f2046ed47068e6e1622a6ba7701bc6311d5697623b6834374"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, the bench pc as the USB host on the Icepi's first USB-C port, through a hub",
+  "scope": "each frame's bytes and the receiver's verdict in one run of usb_fs_device, as Pico A logged them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the bitstream is named by its sha256, and its netlist's, built from the 8x4 line on 2026-11-02 with make -C icepi FS=1 PROBE=1 (icepi/build/v1.3-fs-probe.bit), whose netlist main 32267ee8's Verilog also makes by the bench's notes, which CI does not rebuild",
+    "the host's side is what one Linux kernel kept in sysfs, read by demo/usb_fs_host.py",
+    "no capture of D+ and D-, as the analyser shares the pc's USB controller with the device and stops early when it attaches",
+    "the bitstream is the FS=1 build, whose pull-up is on D+, so not the one the other witnesses ran"
+  ]
+}

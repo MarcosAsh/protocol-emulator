@@ -3,12 +3,11 @@ open! Hardcaml
 
 let clock_hz = Wavedrom.rated_hz
 
-(* OUT0, analyser A's D4. The interpreter holds the lanes it isn't given low, and only
-   OUT0 is captured, wired to nothing that minds a toggle. *)
-let bench_pins = [ Isa.first_output_pin ]
-
 (* the playground's cap on the model's run: 8.3 ms at 48 MHz *)
 let max_cycles = 400_000
+
+(* a lane's edges in simulated.json, so a pin that toggles every cycle stays small *)
+let max_edges = 2048
 
 module Value = Wavejson.Value
 
@@ -46,46 +45,303 @@ let rec json (v : Value.t) =
 let int i = Value.Number (Float.of_int i)
 let ints l = Value.List (List.map l ~f:int)
 
+let pin_name pin =
+  if pin < Isa.first_output_pin
+  then sprintf "IN%d" pin
+  else if pin < Isa.first_bidir_pin
+  then sprintf "OUT%d" (pin - Isa.first_output_pin)
+  else sprintf "IO%d" (pin - Isa.first_bidir_pin)
+;;
+
 module Decode = struct
+  module Value_rule = struct
+    type t =
+      | Range of int * int
+      | One_of of string list
+
+    let check t ~key value =
+      match t with
+      | Range (lo, hi) ->
+        (match Int.of_string_opt value with
+         | Some v when v >= lo && v <= hi && String.for_all value ~f:Char.is_digit ->
+           Ok ()
+         | _ -> Or_error.error_s [%message "a decoder option is out of range" key value])
+      | One_of values ->
+        if List.mem values value ~equal:String.equal
+        then Ok ()
+        else
+          Or_error.error_s [%message "a decoder option takes" key (values : string list)]
+    ;;
+  end
+
+  module Decoder = struct
+    type t =
+      { id : string
+      ; channels : string list
+      ; required : string list
+      ; options : (string * Value_rule.t) list
+      ; rows : string list -> string (* the annotation rows to print, by bound channel *)
+      }
+  end
+
+  let polarity = "polarity", Value_rule.One_of [ "active-low"; "active-high" ]
+  let yes_no = Value_rule.One_of [ "yes"; "no" ]
+  let rows r _ = r
+
+  (* sigrok's decoders that read one or two logic lines, with their options as
+     libsigrokdecode 0.5.3 (the bench's) names them, plus demo/pinned_decoders.sh's and
+     demo/decoders' own *)
+  let decoders =
+    let d ?(required = []) ?(options = []) id channels rows =
+      { Decoder.id; channels; required; options; rows }
+    in
+    [ d
+        "uart"
+        [ "rx"; "tx" ]
+        ~options:
+          [ "baudrate", Range (300, 4_000_000)
+          ; "data_bits", One_of [ "5"; "6"; "7"; "8"; "9" ]
+          ; "parity", One_of [ "none"; "odd"; "even"; "zero"; "one"; "ignore" ]
+          ; "stop_bits", One_of [ "0.0"; "0.5"; "1.0"; "1.5" ]
+          ; "bit_order", One_of [ "lsb-first"; "msb-first" ]
+          ; "format", One_of [ "ascii"; "dec"; "hex"; "oct"; "bin" ]
+          ; "invert_rx", yes_no
+          ; "invert_tx", yes_no
+          ]
+        (fun bound -> List.map bound ~f:(fun c -> c ^ "-data") |> String.concat ~sep:":")
+    ; d
+        "spi"
+        [ "clk"; "mosi"; "miso"; "cs" ]
+        ~required:[ "clk" ]
+        ~options:
+          [ "cs_polarity", One_of [ "active-low"; "active-high" ]
+          ; "cpol", One_of [ "0"; "1" ]
+          ; "cpha", One_of [ "0"; "1" ]
+          ; "bitorder", One_of [ "msb-first"; "lsb-first" ]
+          ; "wordsize", Range (1, 32)
+          ]
+        (fun bound ->
+          List.filter_map bound ~f:(fun c ->
+            Option.some_if (String.equal c "mosi" || String.equal c "miso") (c ^ "-data"))
+          |> String.concat ~sep:":")
+    ; d
+        "i2c"
+        [ "scl"; "sda" ]
+        ~required:[ "scl"; "sda" ]
+        ~options:[ "address_format", One_of [ "shifted"; "unshifted" ] ]
+        (rows "addr-data")
+    ; d "rgb_led_ws281x" [ "din" ] ~required:[ "din" ] (rows "rgb:reset")
+    ; d "ir_nec" [ "ir" ] ~required:[ "ir" ] ~options:[ polarity ] (rows "fields")
+    ; d
+        "ir_rc5"
+        [ "ir" ]
+        ~required:[ "ir" ]
+        ~options:[ polarity; "protocol", One_of [ "standard"; "extended" ] ]
+        (rows "fields")
+    ; d
+        "onewire_link"
+        [ "owr" ]
+        ~required:[ "owr" ]
+        ~options:[ "overdrive", yes_no ]
+        (rows "bits")
+    ; d
+        "can"
+        [ "can_rx" ]
+        ~required:[ "can_rx" ]
+        ~options:
+          [ "nominal_bitrate", Range (1_000, 1_000_000); "sample_point", Range (50, 90) ]
+        (rows "fields")
+    ; d "pwm" [ "data" ] ~required:[ "data" ] ~options:[ polarity ] (rows "duty-cycle")
+    ; d "dcf77" [ "data" ] ~required:[ "data" ] (rows "fields")
+    ; d "ps2" [ "clk"; "data" ] ~required:[ "clk"; "data" ] (rows "fields")
+    ; d "dali" [ "dali" ] ~required:[ "dali" ] ~options:[ polarity ] (rows "fields")
+    ; d
+        "caliper"
+        [ "clk"; "data" ]
+        ~required:[ "clk"; "data" ]
+        ~options:
+          [ "timeout_ms", Range (0, 1000)
+          ; "unit", One_of [ "keep"; "mm"; "inch" ]
+          ; "changes", yes_no
+          ]
+        (rows "measurements")
+    ; d "lfast" [ "data" ] ~required:[ "data" ] (rows "fields")
+    ; d "snorble" [ "sig" ] ~required:[ "sig" ] (rows "bytes")
+    ; d "plinkoo" [ "stb"; "dat" ] ~required:[ "stb"; "dat" ] (rows "bytes")
+    ; d
+        "i2c_timing"
+        [ "scl"; "sda" ]
+        ~required:[ "scl"; "sda" ]
+        ~options:[ "mode", One_of [ "standard"; "fast"; "fastplus" ] ]
+        (rows "fails:unsures")
+    ]
+  ;;
+
   type t =
     | Off
-    | Uart of int
-    | Ws281x
-  [@@deriving sexp_of, equal]
+    | On of
+        { decoder : Decoder.t
+        ; channels : (string * int) list (** channel, pin *)
+        ; options : (string * string) list
+        }
+
+  let max_length = 256
+  let find id = List.find decoders ~f:(fun (d : Decoder.t) -> String.equal d.id id)
 
   let of_string s =
-    match String.lsplit2 s ~on:':' with
-    | None when String.equal s "none" -> Ok Off
-    | None when String.equal s "ws281x" -> Ok Ws281x
-    | Some ("uart", baud) ->
-      (match Int.of_string_opt baud with
-       | Some b when b >= 300 && b <= 4_000_000 && String.for_all baud ~f:Char.is_digit ->
-         Ok (Uart b)
-       | _ -> Or_error.error_s [%message "uart's baud is 300 to 4000000" baud])
-    | _ ->
-      Or_error.error_s
-        [%message "decode is none, ws281x or uart:BAUD" ~decode:(s : string)]
+    let open Or_error.Let_syntax in
+    let%bind () =
+      if String.length s > max_length
+      then Or_error.error_s [%message "a decode is at most" (max_length : int) "bytes"]
+      else Ok ()
+    in
+    match String.split s ~on:':' with
+    | [ "none" ] -> Ok Off
+    | [] | [ "" ] -> Ok Off
+    | id :: pairs ->
+      (* the short forms the lab page writes *)
+      let id, pairs =
+        match id, pairs with
+        | "ws281x", _ -> "rgb_led_ws281x", pairs
+        | "uart", [ baud ] when String.for_all baud ~f:Char.is_digit ->
+          "uart", [ "baudrate=" ^ baud ]
+        | _ -> id, pairs
+      in
+      let%bind decoder =
+        match find id with
+        | Some d -> Ok d
+        | None ->
+          Or_error.error_s
+            [%message
+              "no such decoder"
+                ~decode:(String.prefix s 64 : string)
+                ~decoders:(List.map decoders ~f:(fun d -> d.id) : string list)]
+      in
+      let%bind pairs =
+        List.map pairs ~f:(fun pair ->
+          match String.lsplit2 pair ~on:'=' with
+          | Some (key, value) -> Ok (key, value)
+          | None -> Or_error.error_s [%message "a decoder option is KEY=VALUE" pair])
+        |> Or_error.all
+      in
+      let%bind () =
+        if List.contains_dup (List.map pairs ~f:fst) ~compare:String.compare
+        then Or_error.error_s [%message "a decoder option is given twice"]
+        else Ok ()
+      in
+      let channel_pairs, option_pairs =
+        List.partition_tf pairs ~f:(fun (key, _) ->
+          List.mem decoder.channels key ~equal:String.equal)
+      in
+      let%bind channels =
+        List.map channel_pairs ~f:(fun (key, value) ->
+          match
+            List.find (List.range Isa.first_output_pin Isa.num_pins) ~f:(fun pin ->
+              String.equal (pin_name pin) value)
+          with
+          | Some pin -> Ok (key, pin)
+          | None ->
+            Or_error.error_s [%message "a decoder channel is a pin, as OUT0" key value])
+        |> Or_error.all
+      in
+      let%map () =
+        List.map option_pairs ~f:(fun (key, value) ->
+          match List.Assoc.find decoder.options key ~equal:String.equal with
+          | Some rule -> Value_rule.check rule ~key value
+          | None ->
+            Or_error.error_s
+              [%message
+                "the decoder has no such option"
+                  ~decoder:decoder.id
+                  key
+                  ~options:
+                    (List.map decoder.options ~f:fst @ decoder.channels : string list)])
+        |> Or_error.all_unit
+      in
+      On { decoder; channels; options = option_pairs }
   ;;
 
   let to_string = function
     | Off -> "none"
-    | Ws281x -> "ws281x"
-    | Uart b -> sprintf "uart:%d" b
+    | On { decoder; channels; options } ->
+      String.concat
+        ~sep:":"
+        ((decoder.id :: List.map channels ~f:(fun (c, pin) -> c ^ "=" ^ pin_name pin))
+         @ List.map options ~f:(fun (k, v) -> k ^ "=" ^ v))
   ;;
 
-  let sigrok_args t ~channel =
-    match t with
-    | Off -> []
-    | Uart b -> [ "-P"; sprintf "uart:rx=%s:baudrate=%d" channel b; "-A"; "uart=rx-data" ]
-    | Ws281x ->
-      [ "-P"; "rgb_led_ws281x:din=" ^ channel; "-A"; "rgb_led_ws281x=rgb:reset" ]
+  let sexp_of_t t = Sexp.Atom (to_string t)
+  let ids = List.map decoders ~f:(fun d -> d.id)
+end
+
+module Firmware = struct
+  type t =
+    { source : string
+    ; config : (string * int) list
+    ; certificate : int list
+    ; tx : int list
+    ; cycles : int
+    ; period : int option
+    ; period_floor : int option
+    ; single_capture_edge : bool
+    }
+  [@@deriving sexp_of]
+
+  let max_source = 8_192
+  let max_tx = 64
+
+  (* Program_config's fields as firmware.json names them. Side-set count and wrap come
+     from the source, and line_code and route need host setup the lab doesn't do. *)
+  let config_fields : (string * (Program_config.t -> int -> Program_config.t)) list =
+    let bool v = v <> 0 in
+    let shift v : Program_config.Shift_direction.t = if v <> 0 then Right else Left in
+    [ ("side_set_base", fun c v -> { c with side_set_base = v })
+    ; ("side_set_pindirs", fun c v -> { c with side_set_pindirs = bool v })
+    ; ("in_base", fun c v -> { c with in_base = v })
+    ; ("in_count", fun c v -> { c with in_count = v })
+    ; ("out_base", fun c v -> { c with out_base = v })
+    ; ("out_count", fun c v -> { c with out_count = v })
+    ; ("set_base", fun c v -> { c with set_base = v })
+    ; ("set_count", fun c v -> { c with set_count = v })
+    ; ("jmp_pin", fun c v -> { c with jmp_pin = v })
+    ; ("capture_pin", fun c v -> { c with capture_pin = v })
+    ; ("capture_rising", fun c v -> { c with capture_rising = bool v })
+    ; ("in_shift_right", fun c v -> { c with in_shift = shift v })
+    ; ("out_shift_right", fun c v -> { c with out_shift = shift v })
+    ; ("autopush", fun c v -> { c with autopush = bool v })
+    ; ("push_threshold", fun c v -> { c with push_threshold = v })
+    ; ("autopull", fun c v -> { c with autopull = bool v })
+    ; ("pull_threshold", fun c v -> { c with pull_threshold = v })
+    ; ("crc_width", fun c v -> { c with crc_width = v })
+    ; ("crc_poly", fun c v -> { c with crc_poly = v })
+    ; ("crc_init", fun c v -> { c with crc_init = v })
+    ; ("crc_reflect", fun c v -> { c with crc_reflect = bool v })
+    ; ("crc_complement", fun c v -> { c with crc_complement = bool v })
+    ; ("stuff_threshold", fun c v -> { c with stuff_threshold = v })
+    ; ("stuff_level", fun c v -> { c with stuff_level = bool v })
+    ; ("period_fraction", fun c v -> { c with period_fraction = v })
+    ; ("autopull_data", fun c v -> { c with autopull_data = bool v })
+    ; ("manchester", fun c v -> { c with manchester = bool v })
+    ]
+  ;;
+
+  let config t =
+    List.fold t.config ~init:Program_config.default ~f:(fun c (key, v) ->
+      (List.Assoc.find_exn config_fields key ~equal:String.equal) c v)
   ;;
 end
 
 module Job = struct
+  type program =
+    | Diagram of
+        { diagram : string
+        ; frames : string
+        }
+    | Firmware of Firmware.t
+  [@@deriving sexp_of]
+
   type t =
-    { diagram : string
-    ; frames : string
+    { program : program
     ; decode : Decode.t
     }
   [@@deriving sexp_of]
@@ -110,6 +366,144 @@ module Job = struct
       || (Char.to_int c >= 0x20 && Char.to_int c < 0x7f))
   ;;
 
+  let keys = function
+    | `Diagram -> [ "lab"; "diagram"; "frames"; "decode" ]
+    | `Firmware ->
+      [ "lab"
+      ; "firmware"
+      ; "config"
+      ; "certificate"
+      ; "tx"
+      ; "cycles"
+      ; "period"
+      ; "period_floor"
+      ; "single_capture_edge"
+      ; "decode"
+      ]
+  ;;
+
+  let natural ~what ~most (v : Value.t) =
+    match v with
+    | Number f
+      when Float.is_integer f && Float.( >= ) f 0. && Float.( <= ) f (Float.of_int most)
+      -> Ok (Float.to_int f)
+    | _ ->
+      Or_error.error_s
+        [%message "a job's number is a whole number in range" what (most : int)]
+  ;;
+
+  let naturals ~what ~most ~longest (v : Value.t) =
+    match v with
+    | List l when List.length l <= longest ->
+      List.map l ~f:(natural ~what ~most) |> Or_error.all
+    | List _ ->
+      Or_error.error_s [%message "a job's list is at most" what (longest : int) "long"]
+    | _ -> Or_error.error_s [%message "a job's key is a list" what]
+  ;;
+
+  let diagram_of ~string =
+    let open Or_error.Let_syntax in
+    let%bind diagram = string "diagram" in
+    let%bind frames = string "frames" in
+    let frames = tidy frames in
+    let%map () =
+      if String.length diagram > max_diagram
+      then Or_error.error_s [%message "a diagram is at most" (max_diagram : int) "bytes"]
+      else if List.length frames > max_frames
+      then Or_error.error_s [%message "a job has at most" (max_frames : int) "frames"]
+      else if List.exists frames ~f:(fun f -> String.length f > max_frame_bits)
+      then Or_error.error_s [%message "a frame is at most" (max_frame_bits : int) "bits"]
+      else if List.exists frames ~f:(String.exists ~f:(fun c -> not (String.mem "01" c)))
+      then Or_error.error_s [%message "a frame is 0s and 1s"]
+      else Ok ()
+    in
+    Diagram { diagram = String.rstrip diagram; frames = String.concat ~sep:"\n" frames }
+  ;;
+
+  let firmware_of fields ~string =
+    let open Or_error.Let_syntax in
+    let field k = List.Assoc.find fields k ~equal:String.equal in
+    let%bind source = string "firmware" in
+    let%bind () =
+      if String.length source > Firmware.max_source
+      then
+        Or_error.error_s
+          [%message "a firmware is at most" (Firmware.max_source : int) "bytes"]
+      else Ok ()
+    in
+    let%bind config =
+      match field "config" with
+      | None -> Ok []
+      | Some (Value.Object kv) ->
+        (* in the browser an int has 32 bits and 0xffff_ffff reads as -1 *)
+        let most = if Int.num_bits > 32 then 0xffff_ffff else Int.max_value in
+        List.map kv ~f:(fun (key, v) ->
+          if List.Assoc.mem Firmware.config_fields key ~equal:String.equal
+          then natural ~what:key ~most v >>| fun v -> key, v
+          else
+            Or_error.error_s
+              [%message
+                "a firmware's config has no such key"
+                  key
+                  ~keys:(List.map Firmware.config_fields ~f:fst : string list)])
+        |> Or_error.all
+      | Some _ -> Or_error.error_s [%message "a firmware's config is an object"]
+    in
+    let%bind () =
+      if List.contains_dup (List.map config ~f:fst) ~compare:String.compare
+      then Or_error.error_s [%message "a firmware's config gives a key twice"]
+      else Ok ()
+    in
+    let%bind certificate =
+      match field "certificate" with
+      | None -> Or_error.error_s [%message "a firmware job carries its certificate"]
+      | Some v ->
+        naturals ~what:"certificate" ~most:0xffff ~longest:(1 lsl Isa.data_addr_bits) v
+    in
+    let%bind tx =
+      match field "tx" with
+      | None -> Ok []
+      | Some v -> naturals ~what:"tx" ~most:0xffff ~longest:Firmware.max_tx v
+    in
+    let%bind cycles =
+      match field "cycles" with
+      | None -> Ok max_cycles
+      | Some v ->
+        let%bind c = natural ~what:"cycles" ~most:max_cycles v in
+        if c = 0
+        then Or_error.error_s [%message "a firmware runs at least a cycle"]
+        else Ok c
+    in
+    let optional k =
+      match field k with
+      | None -> Ok None
+      | Some v -> natural ~what:k ~most:((1 lsl Isa.timer_bits) - 1) v >>| Option.some
+    in
+    let%bind period = optional "period" in
+    let%bind period_floor = optional "period_floor" in
+    let%bind () =
+      if Option.is_some period && Option.is_some period_floor
+      then Or_error.error_s [%message "a firmware gives period or period_floor, not both"]
+      else Ok ()
+    in
+    let%map single_capture_edge =
+      match field "single_capture_edge" with
+      | None | Some (Value.Bool false) -> Ok false
+      | Some (Bool true) -> Ok true
+      | Some _ -> Or_error.error_s [%message "single_capture_edge is true or false"]
+    in
+    Firmware
+      { source = String.rstrip source
+      ; config
+      ; certificate
+      ; tx
+      ; cycles
+      ; period
+      ; period_floor
+      ; single_capture_edge
+      }
+  ;;
+
   let of_string s =
     let open Or_error.Let_syntax in
     let%bind () =
@@ -124,13 +518,21 @@ module Job = struct
       | Object fields -> Ok fields
       | _ -> Or_error.error_s [%message "a job is an object"]
     in
+    let kind =
+      if List.Assoc.mem fields "firmware" ~equal:String.equal then `Firmware else `Diagram
+    in
     let%bind () =
       match
         List.find fields ~f:(fun (k, _) ->
-          not (List.mem [ "lab"; "diagram"; "frames"; "decode" ] k ~equal:String.equal))
+          not (List.mem (keys kind) k ~equal:String.equal))
       with
       | Some (key, _) -> Or_error.error_s [%message "a job has no such key" key]
       | None -> Ok ()
+    in
+    let%bind () =
+      if List.contains_dup (List.map fields ~f:fst) ~compare:String.compare
+      then Or_error.error_s [%message "a job gives a key twice"]
+      else Ok ()
     in
     let field k = List.Assoc.find fields k ~equal:String.equal in
     let string k =
@@ -143,44 +545,73 @@ module Job = struct
       | Some (Number 1.) -> Ok ()
       | _ -> Or_error.error_s [%message "a job says \"lab\": 1"]
     in
-    let%bind diagram = string "diagram" in
-    let%bind frames = string "frames" in
     let%bind decode =
       match field "decode" with
       | None -> Ok Decode.Off
       | Some _ -> string "decode" >>= Decode.of_string
     in
-    let frames = tidy frames in
-    let%bind () =
-      if String.length diagram > max_diagram
-      then Or_error.error_s [%message "a diagram is at most" (max_diagram : int) "bytes"]
-      else if List.length frames > max_frames
-      then Or_error.error_s [%message "a job has at most" (max_frames : int) "frames"]
-      else if List.exists frames ~f:(fun f -> String.length f > max_frame_bits)
-      then Or_error.error_s [%message "a frame is at most" (max_frame_bits : int) "bits"]
-      else if List.exists frames ~f:(String.exists ~f:(fun c -> not (String.mem "01" c)))
-      then Or_error.error_s [%message "a frame is 0s and 1s"]
-      else Ok ()
+    let%map program =
+      match kind with
+      | `Diagram -> diagram_of ~string
+      | `Firmware -> firmware_of fields ~string
     in
-    Ok
-      { diagram = String.rstrip diagram; frames = String.concat ~sep:"\n" frames; decode }
+    { program; decode }
   ;;
 
   let to_string t =
+    let fields =
+      match t.program with
+      | Diagram { diagram; frames } ->
+        [ "diagram", Value.String diagram; "frames", String frames ]
+      | Firmware f ->
+        [ "firmware", Value.String f.source
+        ; "config", Object (List.map f.config ~f:(fun (k, v) -> k, int v))
+        ; "certificate", ints f.certificate
+        ; "tx", ints f.tx
+        ; "cycles", int f.cycles
+        ]
+        @ List.filter_map
+            [ "period", f.period; "period_floor", f.period_floor ]
+            ~f:(fun (k, v) -> Option.map v ~f:(fun v -> k, int v))
+        @ [ "single_capture_edge", Bool f.single_capture_edge ]
+    in
     json
       (Object
-         [ "lab", int 1
-         ; "diagram", String t.diagram
-         ; "frames", String t.frames
-         ; "decode", String (Decode.to_string t.decode)
-         ])
+         ((("lab", int 1) :: fields) @ [ "decode", String (Decode.to_string t.decode) ]))
     ^ "\n"
   ;;
 
-  let bits t =
-    tidy t.frames
-    |> List.map ~f:(fun f -> String.to_list f |> List.map ~f:(Char.equal '1'))
+  let bits frames =
+    tidy frames |> List.map ~f:(fun f -> String.to_list f |> List.map ~f:(Char.equal '1'))
   ;;
+end
+
+module Pads = struct
+  (* From demo/carrier_netlist.csv, which test/test_lab_pins.py checks. SWCLK is safe only
+     because no job drives SWDIO: R13 holds it high, so no SWD request can end in its 0
+     stop bit. *)
+  let safety pin =
+    match pin - Isa.first_output_pin with
+    | 0 -> Ok "UART_B, Pico B GP1 through R8 (1k)"
+    | 1 -> Ok "CAN_TX, CAN board A's CTX input through R9"
+    | 2 -> Ok "SWCLK, Pico B's SWCLK input through R11 (220R)"
+    | 3 -> Ok "NEO_3V3, the 74AHCT125's input, R3 (10k) to GND"
+    | 4 -> Error "FLASH_DI, which the flash drives in dual and quad reads"
+    | 5 -> Error "FLASH_CLK, which clocks commands into the flash, and it keeps them"
+    | 6 -> Error "FLASH_CS_N, which selects the flash"
+    | 7 -> Error "USB_MIR0, Pico A GP6 with no series resistor"
+    | 8 -> Error "USB_MIR1, Pico A GP7 with no series resistor"
+    | 9 -> Error "I2C_SCL, Pico B GP3 and the EEPROM with no series resistor"
+    | 10 -> Error "I2C_SDA, Pico B GP2 and the EEPROM with no series resistor"
+    | 11 -> Error "DQ, which the DS18B20 pulls low with no series resistor"
+    | 12 -> Error "SWDIO, which with SWCLK reaches Pico B's debug port"
+    | 13 -> Error "ETH_TXP, the Ethernet jack"
+    | 14 -> Error "ETH_TXN, the Ethernet jack"
+    | _ -> Error "not a pad"
+  ;;
+
+  let all = List.range Isa.first_output_pin Isa.num_pins
+  let drivable = List.filter all ~f:(fun pin -> Result.is_ok (safety pin))
 end
 
 module Lane = struct
@@ -191,13 +622,33 @@ module Lane = struct
     }
 end
 
+module Probe = struct
+  type t =
+    { lane : string
+    ; wiring : Bench_wiring.t
+    }
+end
+
 module Bench = struct
   type t =
     | Takes of
-        { probe : Bench_wiring.t
+        { probes : Probe.t list
         ; run_ms : int
+        ; decode : (Bench_wiring.Analyser.t * string list) option
         }
     | Declines of string
+end
+
+module Image = struct
+  type t =
+    { config : Program_config.t
+    ; words : int list
+    ; certificate : int list
+    ; loaded : int option
+    ; floor : bool
+    ; single_edge : bool
+    ; data : int list
+    }
 end
 
 type t =
@@ -207,23 +658,16 @@ type t =
       }
   | Certified of
       { job : Job.t
-      ; diagram : Wavedrom.t
       ; certificate : string
       ; lanes : Lane.t list
+      ; input : (string * int array) option
       ; host_words : int list
       ; cycles : int
       ; levels : int array
       ; faults : Machine.Fault.t
+      ; image : Image.t option
       ; bench : Bench.t
       }
-
-let pin_name pin =
-  if pin < Isa.first_output_pin
-  then sprintf "IN%d" pin
-  else if pin < Isa.first_bidir_pin
-  then sprintf "OUT%d" (pin - Isa.first_output_pin)
-  else sprintf "IO%d" (pin - Isa.first_bidir_pin)
-;;
 
 let channel (w : Bench_wiring.t) =
   sprintf
@@ -240,42 +684,388 @@ let fault_bits (f : Machine.Fault.t) =
     ~f:(fun (set, bit) -> if set then bit else 0)
 ;;
 
-let bench_for (t : Wavedrom.t) (lanes : Lane.t list) ~host_words ~wanted =
-  let declines why = Bench.Declines why in
-  match Option.is_some t.input, lanes with
-  | true, _ ->
-    declines
-      [%string
-        "it reads %{pin_name t.table.wiring.in_base}, which no peer drives on the bench"]
-  | false, [] -> declines "it has no output lane"
-  | false, lanes ->
-    (match
-       List.find lanes ~f:(fun l -> not (List.mem bench_pins l.pin ~equal:Int.equal))
-     with
-     | Some { name; pin; wiring } ->
-       declines
-         [%string
-           "lane %{name} lands on %{pin_name pin}, %{match wiring with None -> \"which \
-            no analyser channel sees\" | Some _ -> \"which the lab does not capture\"}"]
-     | None ->
-       if List.length host_words > Machine.fifo_depth
-       then
-         declines
-           [%string
-             "%{List.length host_words#Int} host words, past the \
-              %{Machine.fifo_depth#Int} the tx fifo holds before the start"]
-       else if wanted > max_cycles
-       then declines [%string "it runs past %{max_cycles#Int} cycles"]
-       else (
-         let probe = Option.value_exn (List.hd_exn lanes).wiring in
-         (* whole milliseconds, plus one for the start *)
-         let run_ms = (((wanted * 1000) + clock_hz - 1) / clock_hz) + 1 in
-         Takes { probe; run_ms }))
+let analyser_name (a : Bench_wiring.Analyser.t) =
+  Sexp.to_string (Bench_wiring.Analyser.sexp_of_t a)
 ;;
 
-let check (job : Job.t) =
+let lane_safety (l : Lane.t) =
+  match Pads.safety l.pin with
+  | Ok _ -> None
+  | Error why -> Some [%string "lane %{l.name} lands on %{pin_name l.pin}, %{why}"]
+;;
+
+(* whole milliseconds, plus one for the start *)
+let run_ms cycles = (((cycles * 1000) + clock_hz - 1) / clock_hz) + 1
+
+(* sigrok-cli's [-P] and [-A] for the decode, on the one analyser that sees all its pins *)
+let decode_args (decode : Decode.t) ~(probes : Probe.t list) =
   let open Or_error.Let_syntax in
-  let%bind parsed = Wavejson.parse job.diagram in
+  match decode with
+  | Off -> Ok None
+  | On { decoder; channels; options } ->
+    (* a decoder of one line reads the first probe unless told otherwise *)
+    let channels =
+      match channels, decoder.channels, probes with
+      | [], first :: _, probe :: _
+        when List.length decoder.channels = 1 || List.is_empty decoder.required ->
+        [ Option.value (List.hd decoder.required) ~default:first, probe.wiring.pin ]
+      | _ -> channels
+    in
+    let%bind () =
+      match
+        List.find decoder.required ~f:(fun c ->
+          not (List.Assoc.mem channels c ~equal:String.equal))
+      with
+      | Some channel ->
+        Or_error.error_s
+          [%message
+            "the decoder needs a pin, as CHANNEL=OUT0" ~decoder:decoder.id channel]
+      | None -> Ok ()
+    in
+    let%bind bound =
+      List.map channels ~f:(fun (channel, pin) ->
+        match List.find probes ~f:(fun p -> p.wiring.pin = pin) with
+        | Some p -> Ok (channel, p.wiring)
+        | None ->
+          Or_error.error_s
+            [%message
+              "the decoder reads a pin no analyser captures in this job"
+                channel
+                ~pin:(pin_name pin)])
+      |> Or_error.all
+    in
+    let%map analyser =
+      match
+        List.map bound ~f:(fun (_, w) -> w.analyser)
+        |> List.dedup_and_sort ~compare:Bench_wiring.Analyser.compare
+      with
+      | [ analyser ] -> Ok analyser
+      | _ -> Or_error.error_s [%message "the decoder's pins are on both analysers"]
+    in
+    let p =
+      String.concat
+        ((decoder.id :: List.map bound ~f:(fun (c, w) -> sprintf ":%s=D%d" c w.channel))
+         @ List.map options ~f:(fun (k, v) -> sprintf ":%s=%s" k v))
+    in
+    let rows = decoder.rows (List.map bound ~f:fst) in
+    Some
+      ( analyser
+      , [ "-P"; p ]
+        @ if String.is_empty rows then [] else [ "-A"; decoder.id ^ "=" ^ rows ] )
+;;
+
+let bench_for (lanes : Lane.t list) ~host_words ~wanted ~decode =
+  let declines why = Ok (Bench.Declines why) in
+  match lanes, List.find_map lanes ~f:lane_safety with
+  | [], _ -> declines "it drives no pin"
+  | _, Some why -> declines why
+  | lanes, None ->
+    let probes =
+      List.filter_map lanes ~f:(fun l ->
+        Option.map l.wiring ~f:(fun wiring -> { Probe.lane = l.name; wiring }))
+    in
+    if List.is_empty probes
+    then declines "no analyser sees any pin it drives"
+    else if List.length host_words > Machine.fifo_depth
+    then
+      declines
+        [%string
+          "%{List.length host_words#Int} host words, past the %{Machine.fifo_depth#Int} \
+           the tx fifo holds before the start"]
+    else if wanted > max_cycles
+    then declines [%string "it runs past %{max_cycles#Int} cycles"]
+    else (
+      let%map.Or_error decode = decode_args decode ~probes in
+      Bench.Takes { probes; run_ms = run_ms wanted; decode })
+;;
+
+let bench_line = function
+  | Bench.Takes { probes; run_ms; decode } ->
+    let seen =
+      List.map probes ~f:(fun p -> channel p.wiring) |> String.concat ~sep:" and "
+    in
+    [%string "bench: takes it, %{seen}, the engine stopped after %{run_ms#Int} ms"]
+    :: Option.to_list
+         (Option.map decode ~f:(fun (analyser, args) ->
+            [%string
+              "decode: sigrok-cli on analyser %{analyser_name analyser}'s capture, \
+               %{String.concat ~sep:\" \" args}"]))
+  | Declines why -> [ [%string "bench: declines it, %{why}, the trace is the model's"] ]
+;;
+
+let lane_line (l : Lane.t) =
+  let wiring =
+    match l.wiring with
+    | None -> ""
+    | Some w -> ", " ^ w.net ^ ", " ^ channel w
+  in
+  [%string "lane %{l.name}: %{pin_name l.pin}%{wiring}"]
+;;
+
+let image_of_timed timed ~(chip : Chip_verdict.t) ~data =
+  match chip with
+  | Refused _ | No_certificate _ -> None
+  | Accepted { certificate } ->
+    Some
+      { Image.config = Timed_program.config timed
+      ; words = Timed_program.words timed
+      ; certificate
+      ; loaded =
+          Option.first_some
+            (Timed_program.period_floor timed)
+            (Timed_program.period timed)
+      ; floor = Option.is_some (Timed_program.period_floor timed)
+      ; single_edge = Timed_program.single_capture_edge timed
+      ; data
+      }
+;;
+
+(* the whole data memory, so the walk reads zeros past the certificate on the chip too *)
+let padded certificate =
+  certificate
+  @ List.init ((1 lsl Isa.data_addr_bits) - List.length certificate) ~f:(Fn.const 0)
+;;
+
+module Reach = struct
+  type t =
+    { driven : int list (** outputs it writes, and bidirectional pins it can turn out *)
+    ; dirs : int list
+    ; reads : bool
+    }
+
+  let range ~base ~count = List.init count ~f:(fun j -> (base + j) % Isa.pin_space)
+
+  let pads l =
+    List.dedup_and_sort l ~compare:Int.compare
+    |> List.filter ~f:(List.mem Pads.all ~equal:Int.equal)
+  ;;
+
+  (* Every pin a word could write, level or direction, as machine.ml writes them: side-set
+     on every non-jmp, out, mov and set, and a pair from out_base for Manchester and the
+     line code. Word 0 stands for the zero fill past the program. *)
+  let of_words (c : Program_config.t) words =
+    let instructions =
+      List.filter_map (0 :: words) ~f:(fun w ->
+        Isa.of_word ~side_set_count:c.side_set_count w |> Or_error.ok)
+    in
+    let pairs = c.manchester || c.line_code in
+    let writes (i : Isa.t) =
+      match i with
+      | Jmp _ -> []
+      | Op { op; _ } ->
+        let side =
+          if c.side_set_count = 0
+          then []
+          else [ c.side_set_pindirs, range ~base:c.side_set_base ~count:c.side_set_count ]
+        in
+        side
+        @
+          (match op with
+          | Out { dest = Pins; count } ->
+            [ ( false
+              , range ~base:c.out_base ~count:(if pairs then Int.max count 2 else count) )
+            ]
+          | Out { dest = Pindirs; count } -> [ true, range ~base:c.out_base ~count ]
+          | Mov { dest = Pins; _ } -> [ false, range ~base:c.out_base ~count:c.out_count ]
+          | Mov { dest = Pindirs; _ } ->
+            [ true, range ~base:c.out_base ~count:c.out_count ]
+          | Set { dest = Pins; _ } -> [ false, range ~base:c.set_base ~count:c.set_count ]
+          | Set { dest = Pindirs; _ } ->
+            [ true, range ~base:c.set_base ~count:c.set_count ]
+          | _ -> [])
+    in
+    let reads (i : Isa.t) =
+      match i with
+      | Jmp { cond = Pin | Not_pin; _ }
+      | Op
+          { op =
+              ( Wait (Pin_level _ | Pin_edge _)
+              | In { source = Pins | Capture; _ }
+              | Mov { source = Pins | Capture; _ }
+              | Sys Capture_arm )
+          ; _
+          } -> true
+      | Jmp _ | Op _ -> false
+    in
+    let all = List.concat_map instructions ~f:writes in
+    let side dirs =
+      List.concat_map all ~f:(fun (d, l) -> if Bool.equal d dirs then l else [])
+    in
+    let dirs =
+      List.filter (pads (side true)) ~f:(fun pin -> pin >= Isa.first_bidir_pin)
+    in
+    { driven =
+        List.filter (pads (side false)) ~f:(fun pin -> pin < Isa.first_bidir_pin) @ dirs
+        |> pads
+    ; dirs
+    ; reads = List.exists instructions ~f:reads
+    }
+  ;;
+end
+
+let output_mask =
+  ((1 lsl Isa.first_bidir_pin) - 1) land lnot ((1 lsl Isa.first_output_pin) - 1)
+;;
+
+(* the model as the bench runs it: the tx words in the fifo before the start, inputs low
+   and the rx fifo never read *)
+let run_firmware (image : Image.t) ~tx ~cycles ~lanes =
+  let open Or_error.Let_syntax in
+  let%bind machine = Machine.create ~config:image.config ~program:image.words in
+  let%map machine = Machine.load_data machine image.data in
+  let rec fill (m : Machine.t) = function
+    | w :: rest when List.length m.tx_fifo < Machine.fifo_depth ->
+      (match Machine.write_tx m w with
+       | Ok m -> fill m rest
+       | Error _ -> m, w :: rest)
+    | pending -> m, pending
+  in
+  let levels = Array.create ~len:cycles 0 in
+  let rec go m pending c =
+    if c = cycles
+    then m
+    else (
+      let m, pending = fill m pending in
+      let m = Machine.step m ~inputs:0 in
+      levels.(c)
+      <- List.foldi lanes ~init:0 ~f:(fun i acc pin ->
+           acc lor ((((m.pin_out land (m.pin_dir lor output_mask)) lsr pin) land 1) lsl i));
+      go m pending (c + 1))
+  in
+  let m = go machine tx 0 in
+  levels, m.fault
+;;
+
+let check_firmware (job : Job.t) (f : Firmware.t) =
+  let open Or_error.Let_syntax in
+  let refused lines = Ok (Refused { job; certificate = String.concat ~sep:"\n" lines }) in
+  match
+    Timed_program.check
+      ?period:f.period
+      ?period_floor:f.period_floor
+      ~single_capture_edge:f.single_capture_edge
+      ~config:(Firmware.config f)
+      f.source
+  with
+  | Error { faults; verdict; error } ->
+    refused
+      ([ (match verdict with
+          | None -> "refused by the analyser"
+          | Some v -> "refused by the kernel: " ^ Analyser.Verdict.to_string v)
+       ; Error.to_string_hum error
+       ]
+       @ List.map faults ~f:(fun (fault : Timed_program.Fault.t) ->
+         [%string "line %{fault.line#Int}: %{fault.reason}"]))
+  | Ok timed ->
+    let config = Timed_program.config timed in
+    let words = Timed_program.words timed in
+    let loaded =
+      Option.first_some (Timed_program.period_floor timed) (Timed_program.period timed)
+    in
+    let floor = Option.is_some (Timed_program.period_floor timed) in
+    let single_edge = Timed_program.single_capture_edge timed in
+    let memory = Array.of_list (padded f.certificate) in
+    let ours =
+      match Chip_verdict.of_timed timed with
+      | Accepted { certificate } ->
+        "a certificate the chip accepts: "
+        ^ (List.map certificate ~f:Int.to_string |> String.concat ~sep:",")
+      | (Refused _ | No_certificate _) as chip -> Chip_verdict.to_string chip
+    in
+    (match
+       Load_check.walk
+         ?loaded
+         ~floor
+         ~single_capture_edge:single_edge
+         ~config
+         ~words
+         ~memory:(fun at -> memory.(at % Array.length memory))
+         ~base:0
+         ()
+     with
+     | Error { pc; reason } ->
+       refused
+         [ "kernel: accepted"
+         ; [%string
+             "chip: its load check refuses the job's certificate at pc %{pc#Int} \
+              (%{reason}), so the chip won't start it"]
+         ; ours
+         ]
+     | Ok _ ->
+       let image =
+         { Image.config
+         ; words
+         ; certificate = f.certificate
+         ; loaded
+         ; floor
+         ; single_edge
+         ; data = padded f.certificate
+         }
+       in
+       let reach = Reach.of_words config words in
+       let lanes =
+         List.map reach.driven ~f:(fun pin ->
+           { Lane.name = pin_name pin; pin; wiring = Bench_wiring.find ~pin })
+       in
+       let%bind levels, faults =
+         run_firmware
+           image
+           ~tx:f.tx
+           ~cycles:f.cycles
+           ~lanes:(List.map lanes ~f:(fun l -> l.pin))
+       in
+       let%map bench =
+         match reach.dirs, reach.reads with
+         | pin :: _, _ ->
+           Ok
+             (Bench.Declines
+                [%string
+                  "it can drive %{pin_name pin}, %{Result.error (Pads.safety pin) |> \
+                   Option.value ~default:\"\"}"])
+         | [], true ->
+           Ok (Bench.Declines "it reads pins, which no peer drives on the bench")
+         | [], false ->
+           bench_for lanes ~host_words:f.tx ~wanted:f.cycles ~decode:job.decode
+       in
+       let names l =
+         if List.is_empty l
+         then "none"
+         else List.map l ~f:pin_name |> String.concat ~sep:" "
+       in
+       let lines =
+         [ [%string "firmware: %{List.length words#Int} words"]
+         ; Analyser.Verdict.to_string (Timed_program.verdict timed)
+         ; "kernel: accepted, so no deadline is missed by the step lemma"
+         ; [%string
+             "chip: its load check accepts the job's %{List.length \
+              f.certificate#Int}-word certificate"]
+         ; "pins it can drive: " ^ names reach.driven
+         ; ("it reads pins: " ^ if reach.reads then "yes" else "no")
+         ; "host words: " ^ (List.map f.tx ~f:(sprintf "0x%04x") |> String.concat ~sep:" ")
+         ; [%string
+             "model: %{f.cycles#Int} cycles at %{Wavedrom.clock_name clock_hz}, faults \
+              %{Sexp.to_string (Machine.Fault.sexp_of_t faults)}"]
+         ]
+         @ List.map lanes ~f:lane_line
+         @ bench_line bench
+       in
+       Certified
+         { job
+         ; certificate = String.concat ~sep:"\n" lines ^ "\n"
+         ; lanes
+         ; input = None
+         ; host_words = f.tx
+         ; cycles = f.cycles
+         ; levels
+         ; faults
+         ; image = Some image
+         ; bench
+         })
+;;
+
+let check_diagram (job : Job.t) ~diagram ~frames =
+  let open Or_error.Let_syntax in
+  let%bind parsed = Wavejson.parse diagram in
   match Wavedrom.compile ~clock_hz parsed with
   | Error e ->
     let certificate =
@@ -284,7 +1074,7 @@ let check (job : Job.t) =
     in
     Ok (Refused { job; certificate })
   | Ok t ->
-    let frames = Job.bits job in
+    let frames = Job.bits frames in
     let%bind host_words =
       if t.starts_on_edge
       then Ok []
@@ -305,13 +1095,31 @@ let check (job : Job.t) =
       then 0
       else Bool.to_int line.(Int.min c (Array.length line - 1))
     in
-    let%map levels, _, faults = Wavedrom.simulate t ~host_words ~inputs ~cycles in
+    let%bind levels, _, faults = Wavedrom.simulate t ~host_words ~inputs ~cycles in
+    let%bind data = Tables.words t.table in
     let lanes =
       List.mapi t.outputs ~f:(fun i name ->
         let pin = t.table.wiring.out_base + i in
         { Lane.name; pin; wiring = Bench_wiring.find ~pin })
     in
-    let bench = bench_for t lanes ~host_words ~wanted in
+    let chip = Chip_verdict.of_timed interpreter in
+    let image = image_of_timed interpreter ~chip ~data in
+    let%map bench =
+      match t.input, image with
+      | _, None -> Ok (Bench.Declines "the chip's load check refuses the interpreter")
+      | Some _, _ ->
+        Ok
+          (Bench.Declines
+             [%string
+               "it reads %{pin_name t.table.wiring.in_base}, which no peer drives on the \
+                bench"])
+      | None, Some _ -> bench_for lanes ~host_words ~wanted ~decode:job.decode
+    in
+    let input =
+      match t.input with
+      | Some name when t.starts_on_edge -> Some (name, Array.map line ~f:Bool.to_int)
+      | _ -> None
+    in
     let last = t.table.wiring.out_base + Tables.output_bits - 1 in
     let first_free = t.table.wiring.out_base + List.length lanes in
     let lines =
@@ -320,43 +1128,41 @@ let check (job : Job.t) =
       ; "interpreter: "
         ^ Analyser.Verdict.to_string (Timed_program.verdict interpreter)
         ^ ", certified once with the data memory free"
+      ; Chip_verdict.to_string chip
       ; "host words: "
         ^ (List.map host_words ~f:(sprintf "0x%04x") |> String.concat ~sep:" ")
       ; [%string
           "model: %{cycles#Int} cycles at %{Wavedrom.clock_name clock_hz}, faults \
            %{Sexp.to_string (Machine.Fault.sexp_of_t faults)}"]
       ]
-      @ List.map lanes ~f:(fun l ->
-        [%string
-          "lane %{l.name}: %{pin_name l.pin}%{match l.wiring with None -> \"\" | Some w \
-           -> \", \" ^ w.net ^ \", \" ^ channel w}"])
+      @ List.map lanes ~f:lane_line
       @ (if first_free <= last
          then
            [ [%string "the table holds %{pin_name first_free} to %{pin_name last} low"] ]
          else [])
-      @ [ (match bench with
-           | Takes { probe; run_ms } ->
-             [%string
-               "bench: takes it, %{channel probe}, the engine stopped after \
-                %{run_ms#Int} ms"]
-           | Declines why ->
-             [%string "bench: declines it, %{why}; the trace is the model's"])
-        ]
+      @ bench_line bench
     in
     Certified
       { job
-      ; diagram = t
       ; certificate = String.concat ~sep:"\n" lines ^ "\n"
       ; lanes
+      ; input
       ; host_words
       ; cycles
       ; levels
       ; faults
+      ; image
       ; bench
       }
 ;;
 
 (* each change of [bit] of [levels], starting from cycle 0's level *)
+let check (job : Job.t) =
+  match job.program with
+  | Diagram { diagram; frames } -> check_diagram job ~diagram ~frames
+  | Firmware f -> check_firmware job f
+;;
+
 let edges levels ~bit =
   let level c = (levels.(c) lsr bit) land 1 in
   if Array.is_empty levels
@@ -379,6 +1185,50 @@ let lane_json (l : Lane.t) =
      | Some w -> [ "net", String w.net; "channel", String (channel w) ])
 ;;
 
+let probe_json (p : Probe.t) =
+  Value.Object
+    [ "lane", String p.lane
+    ; "pin", String p.wiring.name
+    ; "analyser", String (analyser_name p.wiring.analyser)
+    ; "channel", String (sprintf "D%d" p.wiring.channel)
+    ]
+;;
+
+let analysers probes =
+  List.map probes ~f:(fun (p : Probe.t) -> p.wiring.analyser)
+  |> List.dedup_and_sort ~compare:Bench_wiring.Analyser.compare
+;;
+
+let firmware_json (image : Image.t) ~probes ~host_words ~run_ms ~faults =
+  let fields =
+    Engine.Config.map2
+      Engine.Config.port_names
+      (Engine.Config.of_program_config image.config)
+      ~f:(fun name value -> name, int (Bits.to_unsigned_int value))
+    |> Engine.Config.to_list
+  in
+  Value.Object
+    [ "config", Object fields
+    ; "words", ints image.words
+    ; "certificate", ints (padded image.certificate)
+    ; "loaded", Option.value_map image.loaded ~default:Value.Null ~f:int
+    ; "floor", int (Bool.to_int image.floor)
+    ; "single_edge", int (Bool.to_int image.single_edge)
+    ; "data", ints image.data
+    ; "tx", ints host_words
+    ; "run_ms", int run_ms
+    ; "faults", int (fault_bits faults)
+    ; ( "probes"
+      , List
+          (List.map probes ~f:(fun (p : Probe.t) ->
+             Value.Object
+               [ "pin", int p.wiring.pin
+               ; "analyser", String (analyser_name p.wiring.analyser)
+               ; "channel", int p.wiring.channel
+               ])) )
+    ]
+;;
+
 let files t =
   let file name v = name, json v ^ "\n" in
   match t with
@@ -394,38 +1244,37 @@ let files t =
            ])
     ]
   | Certified
-      { job; diagram; certificate; lanes; host_words; cycles; levels; faults; bench } ->
+      { job; certificate; lanes; input; host_words; cycles; levels; faults; image; bench }
+    ->
     let bench_json =
       match bench with
-      | Takes { probe; run_ms } ->
+      | Takes { probes; run_ms; decode } ->
+        let decode =
+          match decode with
+          | None -> Value.Null
+          | Some (analyser, args) ->
+            Object
+              [ "analyser", String (analyser_name analyser)
+              ; "args", List (List.map args ~f:(fun a -> Value.String a))
+              ]
+        in
         Value.Object
           [ "takes", Bool true
-          ; "pin", String probe.name
-          ; ( "analyser"
-            , String (Sexp.to_string (Bench_wiring.Analyser.sexp_of_t probe.analyser)) )
-          ; "channel", String (sprintf "D%d" probe.channel)
-          ; "run_ms", int run_ms
-          ; ( "decode"
+          ; "probes", List (List.map probes ~f:probe_json)
+          ; ( "analysers"
             , List
-                (List.map
-                   (Decode.sigrok_args job.decode ~channel:(sprintf "D%d" probe.channel))
-                   ~f:(fun a -> Value.String a)) )
+                (List.map (analysers probes) ~f:(fun a -> Value.String (analyser_name a)))
+            )
+          ; "run_ms", int run_ms
+          ; "decode", decode
           ]
       | Declines why -> Object [ "takes", Bool false; "why", String why ]
     in
     let input =
-      match diagram.input with
-      | Some name when diagram.starts_on_edge ->
-        let line = Wavedrom.line diagram (Job.bits job) |> Or_error.ok in
-        Value.Object
-          [ "name", String name
-          ; ( "edges"
-            , edge_list
-                (edges
-                   (Option.value_map line ~default:[||] ~f:(Array.map ~f:Bool.to_int))
-                   ~bit:0) )
-          ]
-      | _ -> Null
+      match input with
+      | None -> Value.Null
+      | Some (name, line) ->
+        Object [ "name", String name; "edges", edge_list (edges line ~bit:0) ]
     in
     [ "job.json", Job.to_string job
     ; "certificate.txt", certificate
@@ -452,37 +1301,17 @@ let files t =
                     Value.Object
                       [ "name", String l.name
                       ; "pin", String (pin_name l.pin)
-                      ; "edges", edge_list (edges levels ~bit:i)
+                      ; "edges", edge_list (List.take (edges levels ~bit:i) max_edges)
                       ])) )
            ; "input", input
            ; "faults", int (fault_bits faults)
            ])
     ]
     @
-      (match bench with
-      | Declines _ -> []
-      | Takes { probe = _; run_ms } ->
-        (match Wavedrom.image diagram with
-         | Error _ -> []
-         | Ok (config, program, data) ->
-           let fields =
-             Engine.Config.map2
-               Engine.Config.port_names
-               (Engine.Config.of_program_config config)
-               ~f:(fun name value -> name, int (Bits.to_unsigned_int value))
-             |> Engine.Config.to_list
-           in
-           [ file
-               "firmware.json"
-               (Object
-                  [ "config", Object fields
-                  ; "words", ints program
-                  ; "data", ints data
-                  ; "tx", ints host_words
-                  ; "run_ms", int run_ms
-                  ; "faults", int (fault_bits faults)
-                  ])
-           ]))
+      (match bench, image with
+      | Declines _, _ | _, None -> []
+      | Takes { probes; run_ms; decode = _ }, Some image ->
+        [ file "firmware.json" (firmware_json image ~probes ~host_words ~run_ms ~faults) ])
 ;;
 
 let malformed e =

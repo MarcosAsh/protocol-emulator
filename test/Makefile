@@ -40,7 +40,7 @@ COMPILE_ARGS    += -DGL_TEST
 COMPILE_ARGS    += -DSIM
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_io/verilog/sg13cmos5l_io.v
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v
-VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v
+VERILOG_SOURCES += $(CURDIR)/sim_build/cells/sg13cmos5l_stdcell.v
 VERILOG_SOURCES += models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 
 ifeq ($(SDF),)
@@ -78,6 +78,15 @@ endif
 COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame,test_ethernet_rx
 GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
+# on the Icepi's netlist they come near a runner's six hours, so CI runs them as
+# HALF=slow and HALF=rest
+comma := ,
+SLOW_TEST_MODULES = test_two_engines,test_board_blame
+ifeq ($(HALF),slow)
+COCOTB_TEST_MODULES := $(SLOW_TEST_MODULES)
+else ifeq ($(HALF),rest)
+COCOTB_TEST_MODULES := $(subst $(comma)$(SLOW_TEST_MODULES),,$(COCOTB_TEST_MODULES))
+endif
 # the bench demo rehearsals simulate milliseconds, so they only run on the RTL
 ifeq ($(GATES)$(ICEPI),)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board,test_pyocd,test_usb_fs
@@ -93,6 +102,18 @@ endif
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+# The PDK's cells with every flop held 0 through its first two clock edges, the first of
+# which may meet the inputs still X, so the gates start from a known state. Icarus would
+# keep a flop X whose clear the gates feed its own X back into, though either value
+# clears. netlist_anystate proves no power-up state outlasts reset.
+CELLS_SRC = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v
+$(CURDIR)/sim_build/cells/sg13cmos5l_stdcell.v: $(CELLS_SRC)
+	mkdir -p $(@D)
+	sed '/^[[:space:]]*ihp_dff[a-z0-9_]* (int_fwire_IQ,/a\
+	initial begin force int_fwire_IQ = 1'\''b0; repeat (2) @(posedge CLK); #0.01 release int_fwire_IQ; end' \
+	  $< > $@
+	test "$$(grep -c 'force int_fwire_IQ' $@)" = "$$(grep -c 'ihp_dff[a-z0-9_]* (int_fwire_IQ,' $<)"
 
 # The Icepi Zero's netlist, synthesised by its own flow in ../icepi.
 icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/icepi_top.v
@@ -161,27 +182,33 @@ replay:
 # sdf_fast) or all three (sdf), using the flow's SDF in SDF_DIR at the chip's 50 MHz. Each
 # is one run because annotating takes minutes. Icarus has no timing checks, so a violation
 # only shows up as a wrong value. GROUP picks a subset of the tests by module and name:
-# CI runs each corner in sixteen jobs, runners vary 2x in speed and a job gets five hours,
+# CI runs each corner in eighteen jobs, runners vary 2x in speed and a job gets five hours,
 # so no group should take much more than two on a fast runner.
 SDF_DIR ?= ../runs/wokwi/final/sdf
 GROUP ?= all
-comma := ,
 space := $(subst ,, )
 SDF_MODULES_all = $(GATE_TEST_MODULES),test_replay
-# the replays sorted by their slow-corner time (dmx512 alone takes over two hours).
+# the replays sorted by their slow-corner time (dmx512 and avr_isp each take over two
+# hours alone).
 # replay_rest takes every trace the others don't name, so a new one always runs somewhere.
 # cocotb puts the filter unquoted in its shell line, so it's quoted here and ends on \Z
 # rather than $
 SDF_REPLAYS_dmx512 = dmx512
+SDF_REPLAYS_avr_isp = avr_isp
 SDF_REPLAYS_wiegand = wiegand|ir_nec
+SDF_REPLAYS_modbus = modbus_rtu|midi
 SDF_REPLAYS_bridge = bridge|usb_power_delivery|snorble
 SDF_REPLAYS_c = caliper|dali|fifo_poll|frumbleglide|i2c_logger|lfast|lin
 SDF_REPLAYS_m = microwire|plinkoo|spdif|spi_master|swd_blind
-SDF_REPLAYS_named = $(foreach g,dmx512 wiegand bridge c m,$(SDF_REPLAYS_$(g)))
+SDF_REPLAYS_named = $(foreach g,dmx512 avr_isp wiegand modbus bridge c m,$(SDF_REPLAYS_$(g)))
 SDF_MODULES_replay_dmx512 = test_replay
 SDF_FILTER_replay_dmx512 = [.]replay_($(SDF_REPLAYS_dmx512))\Z
+SDF_MODULES_replay_avr_isp = test_replay
+SDF_FILTER_replay_avr_isp = [.]replay_($(SDF_REPLAYS_avr_isp))\Z
 SDF_MODULES_replay_wiegand = test_replay
 SDF_FILTER_replay_wiegand = [.]replay_($(SDF_REPLAYS_wiegand))\Z
+SDF_MODULES_replay_modbus = test_replay
+SDF_FILTER_replay_modbus = [.]replay_($(SDF_REPLAYS_modbus))\Z
 SDF_MODULES_replay_bridge = test_replay
 SDF_FILTER_replay_bridge = [.]replay_($(SDF_REPLAYS_bridge))\Z
 SDF_MODULES_replay_c = test_replay

@@ -1,0 +1,21 @@
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/runs/dune-land-8x4-bits/icepi/build/v1.3-fs-probe.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [==========                                        ] 19.65%
+Loading: [====================                              ] 39.30%
+Loading: [==============================                    ] 58.95%
+Loading: [========================================          ] 78.60%
+Loading: [==================================================] 98.25%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ CAPTURES=/home/marcos/video/ledger-usb/2026-11-11/ledger/usb_fs_device PICO=id:e66548545717552e demo/usb_fs_device.sh > /home/marcos/video/ledger-usb/2026-11-11/ledger/usb_fs_device/outside.txt
+Pico A says PASS, every step ran

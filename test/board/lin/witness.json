@@ -1,7 +1,7 @@
 {
   "demo": "lin",
   "time": "2026-11-07T19:32:26",
-  "result": "PASS",
+  "result": "PARTIAL",
   "commit": "87f76069e5f9268687fdc3e39366d9d3ebc77a06",
   "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "-",

@@ -130,6 +130,10 @@ let%expect_test "every firmware against the chip's walk" =
     wiegand                       32     37  accepted
     swd_blind                     22     29  accepted
     ir_nec                       107    123  accepted
+    tlc5620                       27     22  accepted
+    modbus_rtu                    28     31  accepted
+    avr_isp                       47     23  accepted
+    midi                          17     15  accepted
     asm/blink                      4      5  accepted
     asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
@@ -138,6 +142,7 @@ let%expect_test "every firmware against the chip's walk" =
     asm/ethernet                  38     42  accepted
     asm/ethernet_rx                9      5  accepted
     asm/fault_release              7      2  accepted
+    asm/fault_release_low          6      2  accepted
     asm/i2c_master_marked         84     66  accepted
     asm/i2c_start_watch           10      7  accepted
     asm/quiet_watch               23     18  refused at 8: in time
@@ -192,6 +197,10 @@ let%expect_test "every firmware against the chip's walk" =
     bench/wiegand                 32     37  accepted
     bench/swd_blind               22     29  accepted
     bench/ir_nec                 107    123  accepted
+    bench/tlc5620                 27     22  accepted
+    bench/modbus_rtu              28     31  accepted
+    bench/avr_isp                 47     23  accepted
+    bench/midi                    17     15  accepted
     |}]
 ;;
 

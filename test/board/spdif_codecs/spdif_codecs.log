@@ -1,0 +1,8 @@
+stream at SPI(0, baudrate=1714285, polarity=0, phase=0, bits=8, sck=2, mosi=3, miso=4)
+ac3: 4 bursts
+mp3: 7 bursts
+aac: 7 bursts
+dts: 12 bursts
+faults 0x0
+latest push 0 us after its place
+PASS

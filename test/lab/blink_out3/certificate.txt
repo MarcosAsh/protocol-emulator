@@ -1,0 +1,10 @@
+firmware: 4 words
+4 words, 0 deadline waits
+kernel: accepted, so no deadline is missed by the step lemma
+chip: its load check accepts the job's 5-word certificate
+pins it can drive: OUT3
+it reads pins: no
+host words: 
+model: 4000 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_deadline false)(decode false)(assumption false))
+lane OUT3: OUT3, SK6812 level shifter, 10k to GND, analyser B D4
+bench: takes it, analyser B D4, the engine stopped after 2 ms

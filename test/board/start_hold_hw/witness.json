@@ -1,0 +1,76 @@
+{
+  "demo": "start_hold_hw",
+  "time": "2026-11-11T13:22:47",
+  "result": "PASS",
+  "commit": "77f3c19441f9e2ae2c7269da10c107a8dac61de5",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "netlist_sha256": "0b4fe7d34201a4260512298c968f4f50e4bd4bbbb252e91c9485b2ed2e467ad7",
+  "sums_sha256": "aee4d70541826b152b9eed240c34622195a5ab75b75dbea06c49b2f23f259d2b",
+  "capture": {
+    "file": "start_hold.sr",
+    "sha256": "37fdfef90ba404ef7882cf08f5a531725d779561b4e8dd9ae8e3b9cbd7e97daa",
+    "rate_hz": 24000000,
+    "seconds": 3.0,
+    "analyser": "B",
+    "channels": {
+      "D6": "SDA, IO3, 2k2 pull-up",
+      "D7": "SCL, IO2, 2k2 pull-up"
+    }
+  },
+  "decode": {
+    "arguments": "-P i2c:sda=D6:scl=D7 -A i2c=start:repeat-start",
+    "sha256": "93b5b7eb5cd2472e567154e205f1f0274e19943aeffec00230782f2a046a7d52"
+  },
+  "timing": [
+    {
+      "parameter": "THD:STA",
+      "limit": ">= 4000 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "spec",
+      "spans": 288,
+      "measured": "4375 ns to 4500 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "THD:STA as the chip stamped it",
+      "limit": ">= 192 cycles",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "source": "own",
+      "spans": 64,
+      "measured": "213 to 214 cycles",
+      "verdict": "proved"
+    }
+  ],
+  "proved": {
+    "spec": 1,
+    "own": 1,
+    "decoder": 0,
+    "derived": 0
+  },
+  "partial": null,
+  "teeth": [
+    "SDA held high throughout",
+    "the first START's SCL fall moved to 3 us"
+  ],
+  "bitstream_source": "main 32267ee8 by the bench's nightly job (icepi/build/v1.3.bit)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "START_HOLD": "f6132e93e4d11a65912cdb2673d2e40ef267a4e2865fa32d22c5cd4062ae2b9e",
+    "SK6812": "b3cc3a26e99ecc5c271fdcfe1d43f6d10d349230b26e5454521a8e13868fa8d0"
+  },
+  "host_scripts": {
+    "python/demo_start_hold.py": "0ffa5eb1689944f3c0d785bb43a2b4b8979395ff100f6054f9e128dfd6ff25ec",
+    "python/demo_neopixel.py": "ae3cb7507119b16425adee22c97e106af517a422e4ac15ef8e4380eec838c546"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico B as the I2C master of a 24LC256, through the RP2040's I2C block, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of start_hold_hw, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main 32267ee8 by the bench's nightly job (icepi/build/v1.3.bit) by the bench's notes, which CI does not rebuild",
+    "the chip drives neither line and only stamps them, and the stick's colour is not captured",
+    "Pico B runs start_hold_hw.uf2, built from demo/start_hold_master, which the run names but does not hash",
+    "the holds are from one fall to another, so no rise time comes off"
+  ]
+}

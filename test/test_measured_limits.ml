@@ -235,6 +235,20 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    27008  ir_nec             Burst, repeat code >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
     run    108454  ir_nec             Repeat code space >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
     run    27008  ir_nec             Repeat code burst >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    60  tlc5620            CLK frequency, at most 1 MHz >=     1000 ns  measured 30 (1250.0 ns)       Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    kernel 40  tlc5620            Setup time, data input, tsu(DATA-CLK) >=       50 ns  measured 20 (833.3 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    kernel 20  tlc5620            Valid time, data input valid after CLK falls, tv(DATA-CLK) >=       50 ns  measured 10 (416.7 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    kernel 20  tlc5620            Setup time, CLK eleventh falling edge to LOAD, tsu(CLK-LOAD) >=       50 ns  measured 10 (416.7 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    kernel 69  tlc5620            Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK) >=       50 ns  measured 34 (1416.7 ns)       Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    kernel 20  tlc5620            Pulse duration, LOAD, tw(LOAD) >=      250 ns  measured 10 (416.7 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    kernel 20  tlc5620            Pulse duration, LDAC, tw(LDAC) >=      250 ns  measured 10 (416.7 ns)        Pass            Texas Instruments, TLC5620C, TLC5620I Quadruple 8-Bit Digital-to-Analog Converters, SLAS081E, November 2001, p.6, recommended operating conditions
+    run    97511  modbus_rtu         silent interval between frames, t3,5 >= 2.00521e+06 ns  measured 48756 (2031500.0 ns) Pass            Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006, 2.5.1.1, p.13
+    run    5  modbus_rtu         silent interval between characters of a frame, t1,5 <=   859375 ns  measured 3 (125.0 ns)         Pass            Modbus.org, MODBUS over Serial Line Specification and Implementation Guide V1.02, 20 December 2006, 2.5.1.1, p.13
+    kernel 149  avr_isp            SCK high, more than 2 CPU clock cycles >=     2000 ns  measured 75 (3125.0 ns)       Pass            Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016, section 32.8, p.378
+    kernel 151  avr_isp            SCK low, more than 2 CPU clock cycles >=     2000 ns  measured 75 (3125.0 ns)       Pass            Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016, section 32.8, p.378
+    run    983230  avr_isp            wait after power-up, RESET and SCK low, before programming enable >=    2e+07 ns  measured 491615 (20483958.3 ns) Pass            Atmel, ATmega48/V / 88/V / 168/V datasheet complete, Atmel-2545W, November 2016, section 32.8.2 step 2, p.379
+    kernel 1536  midi               bit at 31.25 kbaud +1% >=  31683.2 ns  measured 768 (32000.0 ns)     Pass            MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014, page 2, Hardware
+    run    1536  midi               bit at 31.25 kbaud -1% <=  32323.2 ns  measured 768 (32000.0 ns)     Pass            MMA, CA-033 MIDI 1.0 Electrical Specification Update, issued 1 August 2014, page 2, Hardware
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -459,5 +473,19 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     ir_nec         Burst, repeat code   1 pairs, as measured
     ir_nec         Repeat code space   1 pairs, as measured
     ir_nec         Repeat code burst   1 pairs, as measured
+    tlc5620        CLK frequency, at most 1 MHz  43 pairs, as measured
+    tlc5620        Setup time, data input, tsu(DATA-CLK)  41 pairs, as measured
+    tlc5620        Valid time, data input valid after CLK falls, tv(DATA-CLK)  11 pairs, as measured
+    tlc5620        Setup time, CLK eleventh falling edge to LOAD, tsu(CLK-LOAD)   4 pairs, as measured
+    tlc5620        Setup time, LOAD rises to CLK falls, tsu(LOAD-CLK)  33 pairs, as measured
+    tlc5620        Pulse duration, LOAD, tw(LOAD)   4 pairs, as measured
+    tlc5620        Pulse duration, LDAC, tw(LDAC)   1 pairs, as measured
+    modbus_rtu     silent interval between frames, t3,5   0 pairs, as measured
+    modbus_rtu     silent interval between characters of a frame, t1,5   0 pairs, as measured
+    avr_isp        SCK high, more than 2 CPU clock cycles 160 pairs, as measured
+    avr_isp        SCK low, more than 2 CPU clock cycles 159 pairs, as measured
+    avr_isp        wait after power-up, RESET and SCK low, before programming enable   0 pairs, none, measured 983230
+    midi           bit at 31.25 kbaud +1%  10 pairs, as measured
+    midi           bit at 31.25 kbaud -1%  10 pairs, as measured
     |}]
 ;;

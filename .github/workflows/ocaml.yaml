@@ -23,13 +23,18 @@ concurrency:
 
 jobs:
   # works out which jobs a branch's changes reach (.github/changed.sh). The rest are
-  # skipped, which counts as a pass
+  # skipped, which counts as a pass. A nightly on a commit whose push run is green is a
+  # repeat, and runs phase_spacing alone
   changes:
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
     outputs:
       tests: ${{ steps.changed.outputs.tests }}
       proofs: ${{ steps.changed.outputs.proofs }}
       fpga: ${{ steps.changed.outputs.fpga }}
+      repeat: ${{ steps.changed.outputs.repeat }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -38,7 +43,9 @@ jobs:
 
       - name: List what changed
         id: changed
-        run: .github/changed.sh tests proofs fpga | tee -a "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/changed.sh tests proofs fpga repeat | tee -a "$GITHUB_OUTPUT"
 
   # builds the Verilog and certificates the proof jobs read, so they don't wait for the tests
   generate:
@@ -103,8 +110,9 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_gated.v
           opam exec -- dune exec -- bin/generate.exe load-check-step > formal/load_check_step.v
 
-      # every inductive certificate (the stamped one and the ones with data claims too) is
-      # proved in its own job below
+      # the inductive certificates go to the jobs below a few at a time, the stamped one and
+      # the ones with data claims in jobs of their own, as test/results.py tells them apart
+      # by job
       - name: Write the certificates
         id: certificates
         run: |
@@ -118,7 +126,11 @@ jobs:
             opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -data $name > formal/certificate_data_$name.sv
             data="$data data_$name"
           done
-          echo "names=$(echo $names stamped $data | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+          plain=$(echo $names | jq -Rc --argjson n 6 'split(" ") as $a
+            | [range(0; $n) as $i
+               | {shard: "plain \($i + 1)", names: ([$a[range($i; $a | length; $n)]] | join(" "))}]')
+          rest=$(jq -nc --arg data "${data# }" '[{shard: "data", names: $data}, {shard: "stamped", names: "stamped"}]')
+          echo "names=$(jq -nc --argjson plain "$plain" --argjson rest "$rest" '$plain + $rest')" >> "$GITHUB_OUTPUT"
 
       - name: List the parts of the pair's spacing
         id: phase_spacing
@@ -301,15 +313,18 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe line-stuff > formal/line_stuff.v
           opam exec -- dune exec -- bin/generate.exe frame-rx > formal/frame_rx.v
           opam exec -- dune build test/translation/check_translation.exe
-          make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv sync_rtl sync_rtl_teeth powerup offset_axioms gate certify usb_roundtrip_proof line_stuff_proof frame_roundtrip_proof
+          make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv tied_proof sync_rtl sync_rtl_teeth powerup offset_axioms gate certify usb_roundtrip_proof line_stuff_proof frame_roundtrip_proof
 
   # Hardcaml's cyclesim coverage of src/ over every test. It reruns them, so it runs
-  # beside the test job. Every point the tests leave open is listed with a reason in
-  # test/coverage_triage.txt, and a new one fails (test/check_coverage.py).
+  # beside the test job, in four shards as one runner comes near its six hours.
   coverage:
     needs: changes
     if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -353,10 +368,36 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
+      - name: Run the shard's tests
+        run: COVERAGE_SHARD=${{ matrix.shard }}/4 opam exec -- dune build @test/coverage_reports
+
+      - name: Upload the shard's reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: _build/default/test/coverage/
+
+  # Every point the tests leave open is listed with a reason in test/coverage_triage.txt,
+  # and a new one fails (test/check_coverage.py).
+  coverage_check:
+    needs: coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the shards' reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage
+          merge-multiple: true
+
       - name: Check coverage
         run: |
           status=0
-          opam exec -- dune build @test/coverage > coverage_check.txt 2>&1 || status=$?
+          python3 test/check_coverage.py test/coverage_triage.txt coverage > coverage_check.txt 2>&1 || status=$?
           cat coverage_check.txt
           { echo '```'; cat coverage_check.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit $status
@@ -367,7 +408,7 @@ jobs:
         with:
           name: coverage
           path: |
-            _build/default/test/coverage/
+            coverage/
             coverage_check.txt
 
   # judges the pin traces with sigrok's protocol decoders, which we didn't write. Each
@@ -427,9 +468,18 @@ jobs:
       - name: Carrier self-test, on a model of the board
         run: python3 test/test_carrier_check.py
 
+      - name: Lab pins, from the carrier netlist
+        run: python3 test/test_lab_pins.py
+
+      - name: Lab worker, against stand-ins for the bench's tools
+        run: python3 test/test_lab_worker.py
+
+      - name: Lab decoders, each with every option, through sigrok
+        run: python3 test/test_lab_decoders.py
+
   # simulates the netlists of both boards. The firmware words they load are the committed
-  # ones, and the test job checks those are current. On the 8x4 chip the replays alone
-  # come near a runner's six hours, so they run in two halves
+  # ones, and the test job checks those are current. On the 8x4 chip the tests and the
+  # replays each come near a runner's six hours, so each runs in two halves
   fpga:
     needs: changes
     if: needs.changes.outputs.fpga == 'true'
@@ -439,6 +489,9 @@ jobs:
       matrix:
         include:
           - part: tests
+            half: slow
+          - part: tests
+            half: rest
           - part: replay
             traces: traces/[a-o]*.trace
           - part: replay
@@ -488,7 +541,7 @@ jobs:
           cd test
           make icepi_netlist.v
           if [ "${{ matrix.part }}" = tests ]; then
-            make ICEPI=yes
+            make ICEPI=yes HALF=${{ matrix.half }}
             ! grep failure results.xml
           else
             REPLAY_TRACES='${{ matrix.traces }}' make replay ICEPI=yes
@@ -500,7 +553,9 @@ jobs:
   # or 20 with the teeth
   icepi_equiv:
     needs: changes
-    if: needs.changes.outputs.fpga == 'true' || needs.changes.outputs.proofs == 'true'
+    if: >-
+      needs.changes.outputs.repeat != 'true'
+      && (needs.changes.outputs.fpga == 'true' || needs.changes.outputs.proofs == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     strategy:
@@ -540,13 +595,15 @@ jobs:
             icepi/build/*.sha256
 
   inductive_certificate:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
+    name: inductive_certificate (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        name: ${{ fromJSON(needs.generate.outputs.certificates) }}
+        include: ${{ fromJSON(needs.generate.outputs.certificates) }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -564,19 +621,27 @@ jobs:
           tar xzf "$RUNNER_TEMP/oss-cad-suite.tgz" -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
-      # proves the invariant by induction, then runs the teeth, which have to fail
+      # proves each invariant by induction, then runs its teeth, which have to fail. A
+      # failure doesn't stop the rest.
       - name: Prove
         run: |
-          case ${{ matrix.name }} in
-            stamped) make -C formal stamped_proof ;;
-            data_*) make -C formal data_proof NAME=$(echo ${{ matrix.name }} | sed 's/^data_//') ;;
-            *) make -C formal inductive_proof NAME=${{ matrix.name }} ;;
-          esac
+          failed=""
+          for name in ${{ matrix.names }}; do
+            echo "::group::$name"
+            case $name in
+              stamped) make -C formal stamped_proof ;;
+              data_*) make -C formal data_proof NAME=${name#data_} ;;
+              *) make -C formal inductive_proof NAME=$name ;;
+            esac || failed="$failed $name"
+            echo "::endgroup::"
+          done
+          [ -z "$failed" ] || { echo "failed:$failed"; exit 1; }
 
   # proves the step lemma and the kernel's check in one run, then runs the teeth, which have
   # to fail
   phase_table:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -602,7 +667,8 @@ jobs:
   # the same on each engine inside the two-engine chip, with the fail-safe as a corollary,
   # plus the teeth, which have to fail
   fail_safe_table:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -627,7 +693,8 @@ jobs:
 
   # the same for rows that bound the offset too, using row_step's lemma, plus the teeth
   phase_table_affine:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -683,7 +750,8 @@ jobs:
 
   # the step lemma on the narrow core, where a timer that stops at its top must fail
   saturating:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -709,7 +777,8 @@ jobs:
   # proves the self-check checker against its contract from the clear, with covers and
   # teeth, and by induction for all time until a break
   self_check:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -735,7 +804,8 @@ jobs:
   # proves the uart link between two engines and the bridge across both, by induction,
   # with covers and teeth
   link:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -761,7 +831,8 @@ jobs:
   # proves by induction that the load checker's verdict is the load check's walk's, with
   # covers and teeth
   complete:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -788,7 +859,8 @@ jobs:
   # check's LRAT proof with cake_lpr, and runs the teeth, whose models must fail.
   # phase_table's is too big for a hosted runner
   witness:
-    needs: generate
+    needs: [changes, generate]
+    if: needs.changes.outputs.repeat != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:

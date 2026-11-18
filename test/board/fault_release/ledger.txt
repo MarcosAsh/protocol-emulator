@@ -1,7 +1,12 @@
 demo: fault_release
 result: PASS
-time: 2026-11-07T20:02:20
-commit: 87f76069e5f9268687fdc3e39366d9d3ebc77a06
-bitstream: /home/marcos/frozen-8x4/bit/frozen-67386afb.bit
+pico_a_says: PASS
+expected: PASS
+time: 2026-11-11T13:41:16
+commit: 67c070de34fab5a0083c7bd777e039b9404709db
+bitstream: /home/marcos/pe-bench/runs/2026-11-10-2319-32267ee8/v1.3.bit
 bitstream_sha256: 012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009
+netlist_sha256: 0b4fe7d34201a4260512298c968f4f50e4bd4bbbb252e91c9485b2ed2e467ad7
 pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 micropython
+rate: 24M

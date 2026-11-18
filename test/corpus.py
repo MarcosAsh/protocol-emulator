@@ -221,7 +221,7 @@ def witness_table(rows):
              esc(proved(w) if "timing" in w else "-"),
              esc("; ".join(w["teeth"]))] for d, w in rows]
     return table(["test/board", "time", "demo", "result", "commit", "windows proved",
-                  "teeth"], body, lambda r: "bad" if r[3] != "PASS" else None)
+                  "teeth"], body, lambda r: "bad" if r[3] not in ("PASS", "PARTIAL") else None)
 
 
 def ledger_table(rows):
@@ -275,8 +275,8 @@ def protocol_page(inp, name, out):
     items = []
     for n in names:
         if n in inp.matrix:
-            items.append(f"<li><code>{esc(n)}</code>: proved in CI by inductive_certificate "
-                         f"({esc(n)}), {link}</li>")
+            items.append(f"<li><code>{esc(n)}</code>: proved in CI by inductive_certificate, "
+                         f"{link}</li>")
         else:
             items.append(f"<li><code>{esc(n)}</code>: not in CI's certificate matrix</li>")
     body = "<ul>" + "".join(items) + "</ul>"
