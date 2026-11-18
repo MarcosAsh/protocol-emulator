@@ -229,7 +229,7 @@ jobs:
 
   # reruns the gate-level tests and replays with the router's delays, one corner per job
   # (test/Makefile sdf_*), beside gl_test so the run takes no longer.
-  # Each corner is split into sixteen groups of tests (test/Makefile's GROUP), because a
+  # Each corner is split into eighteen groups of tests (test/Makefile's GROUP), because a
   # whole corner on the 8x4 chip would take a runner past six hours, and a third of it
   # still takes past five
   gl_sdf:
@@ -241,9 +241,10 @@ jobs:
       matrix:
         corner: [slow, typ, fast]
         group:
-          [replay_dmx512, replay_wiegand, replay_bridge, replay_c, replay_m, replay_rest,
-           two_engines_fault, two_engines_one, two_engines_uart, two_engines_chip, blame_a,
-           blame_b, core_a, core_b, boards, boards_usb]
+          [replay_dmx512, replay_avr_isp, replay_wiegand, replay_modbus, replay_bridge,
+           replay_c, replay_m, replay_rest, two_engines_fault, two_engines_one,
+           two_engines_uart, two_engines_chip, blame_a, blame_b, core_a, core_b, boards,
+           boards_usb]
     steps:
       - name: checkout repo
         uses: actions/checkout@v6
