@@ -58,7 +58,7 @@
     <text x="545" y="310" font-size="11">program SRAM 512 x 16</text>
     <text x="545" y="346" font-weight="600">engine 1</text>
     <text x="545" y="366" font-size="11" fill="#52606d">the same, its own program</text>
-    <text x="545" y="382" font-size="11" fill="#52606d">and its own pins</text>
+    <text x="545" y="382" font-size="11" fill="#52606d">on the same pins</text>
     <line x1="545" y1="258" x2="545" y2="288" stroke="#4a6fa5" stroke-width="1.5" marker-start="url(#c)" marker-end="url(#b)"/>
     <rect x="700" y="172" width="124" height="84" rx="6" fill="#ffffff" stroke="#4a6fa5" stroke-width="1.5"/>
     <text x="762" y="204" font-size="11">data SRAM</text>

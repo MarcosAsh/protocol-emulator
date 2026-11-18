@@ -62,7 +62,8 @@ The pins form one flat index space for firmware: 0 to 4 are `IN0` to `IN4`, 5 to
 `OUT0` to `OUT6`, and 12 to 19 are `IO0` to `IO7`, whose directions firmware sets. 20 to
 27 are wires that stay inside the chip: firmware drives and reads them like pins, and
 the two cores talk to each other over them. A pin or wire both cores drive carries the OR
-of the two.
+of the two. 28 to 31 are read only: the receivers' status, finished, good, receiving
+and error.
 
 The host port is an SPI slave on `ui[0]` (SCK), `ui[1]` (MOSI), `ui[2]` (CS_N) and
 `uo[0]` (MISO), SCK at most one eighth of the clock. A frame is a command byte, write
@@ -121,5 +122,7 @@ and against the hardware.
 
 ## External hardware
 
-None required. A USB serial adapter on `OUT0` shows the UART demo, and an I2C sensor or an
-SPI flash on the `IO` pins serves the other firmware.
+None for the UART demo beyond a USB serial adapter on `OUT0`. The other firmware needs its
+peer part and what its bus asks for: pull-ups for I2C, 1-Wire and SWD, a transceiver for
+CAN, a 5 V buffer for an LED stick, and a 1.5 k pull-up for USB. 10BASE-T needs magnetics to send
+and a line receiver with squelch to receive.
