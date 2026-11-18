@@ -485,28 +485,28 @@ def spec_ids(tsv):
 BOARD = sorted(p.parent.name for p in (ROOT / "test/board").glob("*/witness.json"))
 HELD_OUT = spec_ids("demo/heldout_specs.tsv")
 LEARNED = [n for n in BOARD if n.startswith("learn_")]
-NO_LINE_CODE = " (programs with no line code or route)"
 
 CLAIMS = [
     ("The theorem", [
         Claim("For any program, and any table of intervals the kernel accepts, the core never "
-              "misses a deadline: step lemma and kernel check in one run" + NO_LINE_CODE,
+              "misses a deadline: step lemma and kernel check in one run",
               "ocaml", exactly("phase_table"), "phase_table_proof", sby("phase_table_")),
         Claim("The same for rows that also bound the phase less a multiple of the loop "
-              "counter, with the kernel's check of one step proved per opcode" + NO_LINE_CODE,
+              "counter, with the kernel's check of one step proved per opcode",
               "ocaml", exactly("phase_table_affine"), "phase_table_affine_proof",
               sby("row_step_", "phase_table_affine_")),
         Claim("For any program, the core moves between entries as the kernel's step says, "
               "and a deadline wait entered in time never faults (k-induction on the RTL). "
-              "A timer that stops at its top instead of wrapping has to fail it" + NO_LINE_CODE,
+              "A timer that stops at its top instead of wrapping has to fail it",
               "ocaml", lambda job: job in ("test", "saturating"), "phase_step saturating_proof",
               sby("phase_step_"), step="Prove"),
         Claim("For any program and any table of intervals the kernel accepts with a spacing, "
-              "each counted edge of a watched pair is spaced" + NO_LINE_CODE, "ocaml",
+              "each counted edge of a watched pair is spaced (programs with at most two side-set "
+              "pins and no line code or route)", "ocaml",
               matrix("phase_spacing"), "phase_spacing_part", sby("pair_step_", "phase_spacing_")),
         Claim("Inside the two-engine chip, each engine running a table the kernel accepts never "
               "misses a deadline, and each edge it drives comes the cycle after an entry inside "
-              "its row, or is the release when it faults" + NO_LINE_CODE, "ocaml",
+              "its row, or is the release when it faults", "ocaml",
               exactly("fail_safe_table"), "fail_safe_table_proof", sby("fail_safe_table_")),
         Claim("An accepted table is closed under the kernel's step, over every instruction "
               "word and row; every UNSAT is cadical's, checked by cake_lpr",
