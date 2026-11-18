@@ -679,7 +679,7 @@ CLAIMS = [
               exactly("decode"), "demo/witness.py check test/board/*/", board(BOARD),
               step="Board witnesses", status="on the board"),
         Claim("The eight sealed held-out protocols, written blind from their specs, on the "
-              "board (LIN, DMX512 and S/PDIF only in part, see docs/flexibility.md)", "ocaml",
+              "board (LIN only in part, see docs/flexibility.md)", "ocaml",
               exactly("decode"), "demo/witness.py check test/board/*/", board(HELD_OUT),
               step="Board witnesses", status="on the board"),
         Claim("Delay variants of the swept firmware through the chip's own check: none it "
