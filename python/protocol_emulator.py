@@ -147,13 +147,18 @@ class Host:
         self.load_data(certificate, base)
         self.check(base, loaded, single_edge, floor)
 
-    def check(self, base=0, loaded=None, single_edge=False, floor=False, polls=1000):
+    def check(self, base=0, loaded=None, single_edge=False, floor=False, polls=2000):
         """Like certify, but against a certificate the data memory already holds, e.g. after
         a patch while another core runs and no data write can land. Raises OSError if the
-        check still reads busy after polls reads, as it does with MISO stuck high."""
+        selected core is running, since the chip drops that check and keeps its last
+        verdict, or if the check still reads busy after polls reads, as it does with MISO
+        stuck high."""
+        if not self.status()["halted"]:
+            raise OSError("the core is running, so the chip drops the check")
         for reg, words in check_writes(base, loaded, single_edge, floor):
             self.write(reg, words)
-        # the longest walk (usb_device, 30545 cycles) is under 200 reads at the fastest SCK
+        # up to a turn's wait (131072 cycles with two engines) and the longest walk
+        # (usb_device, 30545 cycles) are under 1100 reads at the fastest SCK
         for _ in range(polls):
             status = self.read(CHECK_STATUS)[0]
             if not status & 1:
