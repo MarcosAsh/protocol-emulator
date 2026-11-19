@@ -177,8 +177,7 @@ let%expect_test "a write lands only while both engines are halted" =
   [%expect {| (words (16'h1111 16'h2222)) |}]
 ;;
 
-(* A received frame's word lands where both pointers are parked, in either engine's
-   turn. *)
+(* A received frame's word lands where both pointers are parked, in either engine's turn. *)
 let%expect_test "a write to the word an engine keeps shows the cycle after" =
   List.iter [ 0; 1 ] ~f:(fun turn ->
     Harness.run
@@ -216,6 +215,88 @@ let%expect_test "a write to the word an engine keeps shows the cycle after" =
     ((turn 1)
      (seen ((16'h2222 16'h2222) (16'h2222 16'h2222) (16'h2222 16'h2222))))
     |}]
+;;
+
+(* Random pointers, host writes while both are halted, and a receiver's writes as
+   [Engines] lets them in. A pointer that has stayed four cycles shows what a plain memory
+   holds there. *)
+let%expect_test "settled pointers read what a plain memory holds, under random writes" =
+  let words_in_play = 8 in
+  let checked = ref 0 in
+  let wrong = ref 0 in
+  List.iter (List.range 0 20) ~f:(fun seed ->
+    Harness.run
+      ~random_initial_state:`All
+      ~create:(Two.hierarchical ~memory:Flops)
+      (fun (h @ local) ~inputs:i ~outputs ->
+         let open Hardcaml in
+         let outputs = Before_and_after_edge.after_edge outputs in
+         let random = Random.State.make [| seed |] in
+         let owner = Random.State.int random 2 in
+         let memory = Array.create ~len:words_in_play 0 in
+         let reads = Array.create ~len:2 0 in
+         let settled = Array.create ~len:2 0 in
+         let since_owner_written = ref 0 in
+         let halted = ref true in
+         let host = List.hd_exn i.writes in
+         let step ?write () =
+           host.valid := Bits.gnd;
+           i.dma.valid := Bits.gnd;
+           Option.iter write ~f:(fun (port, addr, data) ->
+             let (port : _ Engine.Program_write.t) =
+               match port with
+               | `Host -> host
+               | `Receiver -> i.dma
+             in
+             port.valid := Bits.vdd;
+             Bits.(port.addr <--. addr);
+             Bits.(port.data <--. data));
+           List.iter i.halted ~f:(fun r -> r := Bits.of_bool !halted);
+           List.iteri i.reads ~f:(fun n r -> Bits.(r <--. reads.(n)));
+           Hardcaml_lws.Lws.cycle h;
+           Option.iter write ~f:(fun (_, addr, data) ->
+             memory.(addr) <- data;
+             if addr = reads.(owner) then since_owner_written := 0);
+           incr since_owner_written;
+           List.iteri outputs.words ~f:(fun n word ->
+             settled.(n) <- (if !halted then 0 else settled.(n) + 1);
+             if settled.(n) >= 4
+             then (
+               incr checked;
+               if Bits.to_unsigned_int !word <> memory.(reads.(n)) then incr wrong))
+         in
+         let any_write port =
+           port, Random.State.int random words_in_play, Random.State.int random 0x10000
+         in
+         i.clocking.clear := Bits.vdd;
+         Hardcaml_lws.Lws.cycle h;
+         i.clocking.clear := Bits.gnd;
+         List.iter (List.range 0 words_in_play) ~f:(fun addr ->
+           step ~write:(`Host, addr, Random.State.int random 0x10000) ())
+         [@nontail];
+         List.iter (List.range 0 2000) ~f:(fun _ ->
+           if Random.State.int random 40 = 0 then halted := not !halted;
+           Array.iteri reads ~f:(fun n _ ->
+             if Random.State.int random 6 = 0
+             then (
+               reads.(n) <- Random.State.int random words_in_play;
+               settled.(n) <- 0));
+           let owners_turn = Bits.to_unsigned_int !(outputs.whose_turn) = owner in
+           if !halted
+           then
+             if Random.State.bool random
+             then step ~write:(any_write `Host) ()
+             else step ()
+           else if owners_turn
+                   && settled.(owner) >= 4
+                   && !since_owner_written > 3
+                   && Random.State.bool random
+           then step ~write:(any_write `Receiver) ()
+           else step ())
+         [@nontail])
+    [@nontail]);
+  print_s [%message "" ~checked:(!checked : int) ~wrong:(!wrong : int)];
+  [%expect {| ((checked 20827) (wrong 0)) |}]
 ;;
 
 (* Each engine's word moves on its own cycle, every other one, and holds between. *)
