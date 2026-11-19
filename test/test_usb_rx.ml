@@ -387,6 +387,69 @@ let%expect_test "good follows the packet's type" =
     |}]
 ;;
 
+(* One bit time's state swapped between J and K, or the packet cut short at any bit time.
+   Only a swap in SYNC's first three bit times still reads good, where the receiver locks
+   on the rest. *)
+let%expect_test "no packet with one line fault past SYNC is good" =
+  let module Harness =
+    Hardcaml_test_harness.Lws_harness.Make (Usb_frame_rx.I) (Usb_frame_rx.O)
+  in
+  let random = Random.State.make [| 5 |] in
+  let packets =
+    [ "token", Usb.token ~address:5 ~pid:in_ ~endpoint:1
+    ; "data", Usb.data ~pid:Usb.data0 [ 0x12; 0x34 ]
+    ; "stuffed data", Usb.data ~pid:Usb.data1 [ 0xff; 0xff; 0x3c; 0x7e; 0x01 ]
+    ]
+  in
+  let end_ = [ Usb_ls.Line.Se0; Se0; J ] in
+  let swap n states =
+    List.mapi states ~f:(fun m (state : Usb_ls.Line.t) ->
+      match state with
+      | J when m = n -> Usb_ls.Line.K
+      | K when m = n -> J
+      | state -> state)
+  in
+  let cut n states = List.take states n @ end_ in
+  Harness.run ~create:Usb_frame_rx.hierarchical (fun (h @ local) ~inputs ~outputs ->
+    let outputs = Before_and_after_edge.after_edge outputs in
+    inputs.clocking.clear := Bits.vdd;
+    Lws.step h;
+    inputs.clocking.clear := Bits.gnd;
+    inputs.may_write := Bits.vdd;
+    let good packet ~corrupt =
+      inputs.control.arm := Bits.vdd;
+      Lws.step h;
+      inputs.control.arm := Bits.gnd;
+      line ~corrupt ~random ~ppm:0. ~jitter:0. ~skew:0. ~gap:12 [ packet ]
+      |> sample ~random ~per_bit:8 ~per_cycle:2
+      |> List.iter ~f:(fun (dp, dm) ->
+        inputs.dp := Bits.of_bit_list (List.rev dp);
+        inputs.dm := Bits.of_bit_list (List.rev dm);
+        Lws.step h);
+      Bits.to_bool !(outputs.status.good)
+    in
+    List.iter packets ~f:(fun (name, packet) ->
+      let bits = List.length (Usb_ls.encode packet) - List.length end_ in
+      let faults fault =
+        List.filter (List.range 0 bits) ~f:(fun n -> good packet ~corrupt:(fault n))
+        [@nontail]
+      in
+      print_s
+        [%message
+          name
+            (bits : int)
+            ~intact:(good packet ~corrupt:Fn.id : bool)
+            ~good_swapped:(faults swap : int list)
+            ~good_cut:(faults cut : int list)])
+    [@nontail]);
+  [%expect
+    {|
+    (token (bits 32) (intact true) (good_swapped (0 1 2)) (good_cut ()))
+    (data (bits 48) (intact true) (good_swapped (0 1 2)) (good_cut ()))
+    ("stuffed data" (bits 75) (intact true) (good_swapped (0 1 2)) (good_cut ()))
+    |}]
+;;
+
 (* A data packet of 1100 bytes from 0x40, past the data memory's end, then a token. The
    words past the end are dropped but still counted, and the token's count starts again. *)
 let%expect_test "a packet past the data memory's end, then a token" =
