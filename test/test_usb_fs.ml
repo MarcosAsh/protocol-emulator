@@ -162,10 +162,16 @@ let pins_of : Line.t -> int * int = function
    shows it and each packet's words as the receiver ends it. Prints each transaction, the
    device's turnarounds in bit times from the EOP's J to its SOP, and the first cycle
    where the model and the RTL part, if any. *)
-let control_reads ?(board_latency = 100) ?(rearm = true) requests =
+let control_reads
+  ?(board_latency = 100)
+  ?(rearm = true)
+  ?(source = Usb_fs.device)
+  ?(quiet = false)
+  requests
+  =
   let replies = List.concat_map requests ~f:(fun (_, payload) -> chunks payload) in
   let layout = Usb_fs.Layout.create (zero_length :: replies) in
-  let program = Asm.assemble Usb_fs.device |> ok_exn in
+  let program = Asm.assemble source |> ok_exn in
   let program_words = Asm.Program.words program |> ok_exn in
   let config = Asm.Program.configure program Usb_fs.config in
   Chip.run
@@ -414,7 +420,7 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
          Queue.enqueue
            log
            [%message "OUT" (reply : Int.Hex.t list option) (words : Int.Hex.t list)]);
-       Queue.iter log ~f:print_s;
+       if not quiet then Queue.iter log ~f:print_s;
        print_s
          [%message
            ""
@@ -462,6 +468,23 @@ let%expect_test "control reads on the chip, in lockstep with the model" =
     (OUT (reply ((0xd2))) (words (0x2)))
     ((turnaround_bits (4)) (lockstep_parts_at ()) (faulted 0) (halted 0))
     |}]
+;;
+
+(* The device reads a handshake's word the cycle after [finished] shows, with the settle
+   after it taken out. *)
+let%expect_test "a word read the cycle after finished is the packet's" =
+  let source =
+    String.substr_replace_first
+      Usb_fs.device
+      ~pattern:"    nop [1]\n    out x, 4"
+      ~with_:"    out x, 4"
+  in
+  assert (not (String.equal source Usb_fs.device));
+  control_reads
+    ~source
+    ~quiet:true
+    [ [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ], device_descriptor ];
+  [%expect {| ((turnaround_bits (4)) (lockstep_parts_at ()) (faulted 0) (halted 0)) |}]
 ;;
 
 (* Without the re-arm the receiver takes the SETUP token and nothing after it. The DATA0
