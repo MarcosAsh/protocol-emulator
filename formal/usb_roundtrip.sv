@@ -229,6 +229,7 @@ module usb_roundtrip (input clk);
   wire [15:0] write_data;
   wire [9:0] words;
   wire finished, crc5_ok, crc16_ok, half, aligned, stuff_error, dropped, receiving, armed;
+  wire good;
   // the receiver's state, which the lemmas below tie to the encoder's
   wire [2:0] rx_phase, rx_ones, pid_bits;
   wire [1:0] rx_sm, rx_zeros;
@@ -244,7 +245,7 @@ module usb_roundtrip (input clk);
     .may_write(may_write),
     .write$valid(write_valid), .write$addr(write_addr), .write$data(write_data),
     .status$words(words), .status$finished(finished), .status$crc5_ok(crc5_ok),
-    .status$crc16_ok(crc16_ok), .status$half(half), .status$aligned(aligned),
+    .status$crc16_ok(crc16_ok), .status$good(good), .status$half(half), .status$aligned(aligned),
     .status$stuff_error(stuff_error), .status$dropped(dropped),
     .status$receiving(receiving), .status$armed(armed),
     .rx_phase(rx_phase), .rx_last_dp(rx_last_dp), .rx_was_low(rx_was_low), .rx_sm(rx_sm),
@@ -292,7 +293,7 @@ module usb_roundtrip (input clk);
 `endif
 `else
     // seven 1s in a row is a stuffing error, never a good packet
-    if (finished && seven) assert(stuff_error);
+    if (finished && seven) assert(stuff_error && !good);
     if (idle >= 2 && seven) assert(finished && stuff_error);
 `endif
   end

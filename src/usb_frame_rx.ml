@@ -133,10 +133,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw finished = ended &: ~:pending in
   let%hw crc5_ok = latch (crc5 ==:. crc5_residue) in
   let%hw crc16_ok = latch (crc16 ==:. crc16_residue) in
-  let%hw good = mux2 data_pid crc16_ok crc5_ok in
   let%hw half = latch rx.word.valid in
   let%hw aligned = latch rx.aligned in
   let%hw stuff_error = latch rx.stuff_error in
+  (* a packet cut short by a stuffing error can still land on a CRC-5 residue *)
+  let%hw good = mux2 data_pid crc16_ok crc5_ok &: ~:stuff_error in
   { O.write =
       { valid = writes
       ; addr = sel_bottom addr ~width:Isa.data_addr_bits

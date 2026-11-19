@@ -1,7 +1,7 @@
 (** USB full speed receive into the data memory, like [Frame_rx] does for 10BASE-T:
     [Usb_rx] at 8 samples a bit on both clock edges, then the CRC-5 and CRC-16 after the
     PID, each checked against its residue at the packet's end. A token is good if
-    [crc5_ok], a data packet if [crc16_ok].
+    [crc5_ok], a data packet if [crc16_ok], and neither after a stuffing error.
 
     [arm] (re)starts it: the next packet's words land from [base] up, with the PID in the
     first low half, and the packet's end disarms it with [finished]. With [rearm] it stays
@@ -38,7 +38,8 @@ module Status : sig
     ; finished : 'a
     ; crc5_ok : 'a
     ; crc16_ok : 'a
-    ; good : 'a (** [crc16_ok] after a data PID, else [crc5_ok]. *)
+    ; good : 'a
+    (** [crc16_ok] after a data PID, else [crc5_ok], and never after a [stuff_error]. *)
     ; half : 'a
     ; aligned : 'a
     ; stuff_error : 'a
