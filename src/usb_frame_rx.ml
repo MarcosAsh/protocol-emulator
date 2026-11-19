@@ -113,6 +113,16 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       mux2 starts vdd
       @@ mux2 (packet_bit &: ~:past_pid &: (pid_bits <:. 2)) (d &: rx.bit.value) d)
   in
+  (* the PID's last four bits are its first four inverted (USB 2.0 8.3.1) *)
+  let%hw pid_bit = packet_bit &: ~:past_pid in
+  let%hw pid_first =
+    reg_fb spec ~enable:pid_bit ~width:4 ~f:(fun d -> rx.bit.value @: d.:[3, 1])
+  in
+  let%hw pid_ok =
+    reg_fb spec ~width:1 ~f:(fun ok ->
+      mux2 starts vdd
+      @@ mux2 (pid_bit &: pid_bits.:(2)) (ok &: (rx.bit.value <>: pid_first.:(0))) ok)
+  in
   let crc ~width ~poly =
     let crc = wire width in
     let next =
@@ -137,7 +147,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw aligned = latch rx.aligned in
   let%hw stuff_error = latch rx.stuff_error in
   (* a packet cut short by a stuffing error can still land on a CRC-5 residue *)
-  let%hw good = mux2 data_pid crc16_ok crc5_ok &: ~:stuff_error in
+  let%hw good = mux2 data_pid crc16_ok crc5_ok &: ~:stuff_error &: pid_ok in
   { O.write =
       { valid = writes
       ; addr = sel_bottom addr ~width:Isa.data_addr_bits
