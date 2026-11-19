@@ -1,0 +1,6 @@
+presence
+ROM 28 f0 f3 b7 11 00 00 72: family 28, CRC good
+CONVERT T: 331 polls busy, then done
+scratchpad 80 01 4b 46 7f ff 10 10 c6: CRC good, configuration 7f, 384/16 = 24.0000 C
+faults 0x0
+PASS
