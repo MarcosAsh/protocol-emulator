@@ -86,7 +86,8 @@ let%expect_test "the wire is USB's stuffing of the stream, packet after packet" 
   let most = ref 0 in
   Quickcheck.test
     ~trials:300
-    ~examples:[ List.init 96 ~f:(Fn.const 1), [ 1; 0 ] ]
+    ~examples:
+      [ List.init 96 ~f:(Fn.const 1), [ 1; 0 ]; List.init 100 ~f:(Fn.const 1), [ 1; 0 ] ]
     (Quickcheck.Generator.both stream stream)
     ~sexp_of:[%sexp_of: int list * int list]
     ~f:(fun (first, second) ->
@@ -103,5 +104,5 @@ let%expect_test "the wire is USB's stuffing of the stream, packet after packet" 
              [%test_result: int list] wire ~expect:(reference stream))
            [@nontail]));
   print_s [%message "the most owed" (!most : int)];
-  [%expect {| ("the most owed" (!most 13)) |}]
+  [%expect {| ("the most owed" (!most 14)) |}]
 ;;
