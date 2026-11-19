@@ -412,7 +412,7 @@ complete_proof:
 # the core's last write that held it free, and never right after the checker held its
 # ports. A walk takes thousands of cycles, so the short covers and the teeth end it at pc 1,
 # which no claim depends on. There a cover reaches a certified start, and each of these
-# teeth has to fail: certified never cleared, an engine lent while not free, no abort, no
+# teeth has to fail: certified never cleared, a check begun on a busy engine, no abort, no
 # abort on a write where the walk has read, the frame receiver ungated, the premises live.
 # Each engine's turn at the checker lasts 65,536 cycles, so the covers shorten it to 32
 # (SHORT_TURN). The teeth give engine 0 every turn, with a walk beginning once the checker
@@ -420,7 +420,7 @@ complete_proof:
 # to fail.
 SHORT_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000001;/
 STICKY = /^module engines /,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)signal_or[_0-9]* ? gnd : /\1/
-LEND_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign lent\$$[01] = \)\(signal_and[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
+ASK_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign asks\$$[01] = \)\(signal_or[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
 NO_ABORT = /^module engines /,/^endmodule/s/^\(\s*assign abort = \).*;/\11'b0;/
 # a write landing where the walk has read leaves it running
 OVERWRITE = /^module load_checker /,/^endmodule/s/^\(\s*assign overwritten = \).*;/\11'b0;/
@@ -445,7 +445,7 @@ gate_proof:
 	! cmp -s gate_teeth/turn.v gate_teeth/short.v
 	test $$(grep -c 'turn_cycle\[4:0\]' gate_teeth/turn.v) = 2
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(STICKY)" engines_gated.v > gate_teeth/sticky.v
-	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(LEND_BUSY)" engines_gated.v > gate_teeth/lend_busy.v
+	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(ASK_BUSY)" engines_gated.v > gate_teeth/ask_busy.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(NO_ABORT)" engines_gated.v > gate_teeth/no_abort.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(OVERWRITE)" engines_gated.v > gate_teeth/overwrite.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(FRAME_UNGATED)" -e "$(FRAME_EVERY_CYCLE)" \
@@ -457,10 +457,10 @@ gate_proof:
 	sed -e "$(SHORT_TURN)" -e "$(OVERRUN)" engines_gated.v > gate_teeth/overrun.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" engines_gated.v > gate_teeth/one_turn.v
 	test $$(diff gate_teeth/short.v gate_teeth/one_turn.v | grep -c '^>') = 2
-	for t in sticky lend_busy no_abort overwrite frame_ungated frame_any_turn premises_live; do \
+	for t in sticky ask_busy no_abort overwrite frame_ungated frame_any_turn premises_live; do \
 	  ! cmp -s gate_teeth/one_turn.v gate_teeth/$$t.v || exit 1; done
 	! cmp -s gate_teeth/turn.v gate_teeth/overrun.v
-	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort overwrite overrun frame_ungated \
+	sby -f gate.sby prove cover short_cover sticky ask_busy no_abort overwrite overrun frame_ungated \
 	  frame_any_turn premises_live
 
 isolation_proof:

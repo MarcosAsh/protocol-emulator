@@ -9,7 +9,8 @@
 //   (d) the frame receivers write only in their owner's data turn, while it is free, does
 //       not pull data or keeps its word, and never beside a host write.
 //   (e) a walk of n checks under the setup it began with, and n's core, while certified,
-//       watches the premises of that setup.
+//       watches the premises of that setup. A walk of n begins only while n is free, so
+//       a running core's premises never move.
 //   (f) a walk of n runs only in n's turn at the checker.
 // Every host field is free every cycle, and so is each memory's output.
 
@@ -116,6 +117,7 @@ module gate (input clk);
         if (frame_write && owner == n) assert (free[n] || !autopull_data[n] || keeps[n]);
         if (walking) assert (walk_setup == begun_with);
         if (certified[n] || walking) assert (premises[n] == begun_with);
+        if (begins) assert (free[n]);
 `ifndef NO_INVARIANT
         // a walk of n runs fresh and quiet (a write, or n leaving free, ends that) and
         // holds n uncertified and not yet good; a good walk leaves n fresh

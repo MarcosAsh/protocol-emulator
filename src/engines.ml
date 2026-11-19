@@ -102,11 +102,11 @@ module Make (Config : Config) = struct
     in
     let%hw turn_starts = if engines = 1 then ~:checking else turn_cycle ==:. 0 in
     (* a check asked between its engine's turns waits for the next turn, while the engine
-       stays halted *)
+       stays free. One begun as it starts would move the premises under its run *)
     let%hw_list waiting = List.init engines ~f:(fun _ -> wire 1) in
     let%hw_list asks =
       List.map3_exn i.hosts outs waiting ~f:(fun (h : _ Engine.Host.t) e waiting ->
-        h.check |: waiting &: e.halted)
+        h.check |: waiting &: e.free)
     in
     let%hw go = turn_starts &: mux chosen asks in
     let checks_begin n = go &: (chosen ==:. n) in

@@ -3,7 +3,7 @@ prove
 cover
 short_cover
 sticky teeth
-lend_busy teeth
+ask_busy teeth
 no_abort teeth
 overwrite teeth
 overrun teeth
@@ -20,7 +20,7 @@ short_cover: mode cover
 short_cover: depth 48
 teeth: mode bmc
 teeth: depth 40
-lend_busy: depth 64
+ask_busy: depth 64
 overrun: depth 40
 teeth: expect fail
 
@@ -33,7 +33,7 @@ prove: read_verilog engines_gated.v
 cover: read_verilog turn.v
 short_cover: read_verilog short.v
 sticky: read_verilog sticky.v
-lend_busy: read_verilog lend_busy.v
+ask_busy: read_verilog ask_busy.v
 no_abort: read_verilog no_abort.v
 overwrite: read_verilog overwrite.v
 overrun: read_verilog overrun.v
@@ -110,7 +110,7 @@ engines_gated.v
 gate_teeth/turn.v
 gate_teeth/short.v
 gate_teeth/sticky.v
-gate_teeth/lend_busy.v
+gate_teeth/ask_busy.v
 gate_teeth/no_abort.v
 gate_teeth/overwrite.v
 gate_teeth/overrun.v
