@@ -4,8 +4,9 @@
     why a data pull is refused after a pull or seek. [writes] land only while all engines
     are halted, and write [n] only while the checker walks no engine but [n]. [dma] lands
     whenever valid, unless a host write takes the cycle, and takes that cycle's read; the
-    caller keeps it off any read an engine or the checker needs, as [keeps] tells. At most
-    two engines. *)
+    caller keeps it off any read an engine or the checker needs, as [keeps] tells. A write
+    to the address an engine last read shows in its word the cycle after. At most two
+    engines. *)
 
 open! Core
 open! Hardcaml

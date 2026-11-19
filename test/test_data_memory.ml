@@ -177,6 +177,47 @@ let%expect_test "a write lands only while both engines are halted" =
   [%expect {| (words (16'h1111 16'h2222)) |}]
 ;;
 
+(* A received frame's word lands where both pointers are parked, in either engine's
+   turn. *)
+let%expect_test "a write to the word an engine keeps shows the cycle after" =
+  List.iter [ 0; 1 ] ~f:(fun turn ->
+    Harness.run
+      ~random_initial_state:`All
+      ~create:(Two.hierarchical ~memory:Flops)
+      (fun (h @ local) ~inputs:i ~outputs ->
+         let open Hardcaml in
+         let words = (Before_and_after_edge.after_edge outputs).words in
+         let write = List.hd_exn i.writes in
+         i.clocking.clear := Bits.vdd;
+         Hardcaml_lws.Lws.cycle h;
+         i.clocking.clear := Bits.gnd;
+         List.iter i.halted ~f:(fun r -> r := Bits.vdd);
+         write.valid := Bits.vdd;
+         Bits.(write.addr <--. 5);
+         Bits.(write.data <--. 0x1111);
+         Hardcaml_lws.Lws.cycle h;
+         write.valid := Bits.gnd;
+         List.iter i.halted ~f:(fun r -> r := Bits.gnd);
+         List.iter i.reads ~f:(fun r -> Bits.(r <--. 5));
+         Hardcaml_lws.Lws.cycle ~n:(4 + turn) h;
+         i.dma.valid := Bits.vdd;
+         Bits.(i.dma.addr <--. 5);
+         Bits.(i.dma.data <--. 0x2222);
+         let seen = ref [] in
+         List.iter (List.range 0 3) ~f:(fun _ ->
+           Hardcaml_lws.Lws.cycle h;
+           i.dma.valid := Bits.gnd;
+           seen := List.map words ~f:( ! ) :: !seen);
+         print_s [%message (turn : int) ~seen:(List.rev !seen : Bits.Hex.t list list)]));
+  [%expect
+    {|
+    ((turn 0)
+     (seen ((16'h2222 16'h2222) (16'h2222 16'h2222) (16'h2222 16'h2222))))
+    ((turn 1)
+     (seen ((16'h2222 16'h2222) (16'h2222 16'h2222) (16'h2222 16'h2222))))
+    |}]
+;;
+
 (* Each engine's word moves on its own cycle, every other one, and holds between. *)
 let%expect_test "waveform of two engines reading the shared memory" =
   let open Hardcaml_waveterm in
@@ -243,12 +284,12 @@ let%expect_test "waveform of two engines reading the shared memory" =
     │             ││────────────────────────┬─────────────────┬────────────────────│
     │reads_1      ││ 000                    │001              │002                 │
     │             ││────────────────────────┴─────────────────┴────────────────────│
-    │             ││────────────────────────────────────┬───────────┬──────────────│
-    │words_0      ││ 0000                               │1111       │2222          │
-    │             ││────────────────────────────────────┴───────────┴──────────────│
-    │             ││──────────────────────────────┬───────────────────────┬────────│
-    │words_1      ││ 0000                         │2222                   │3333    │
-    │             ││──────────────────────────────┴───────────────────────┴────────│
+    │             ││────────────┬───────────────────────────────────┬──────────────│
+    │words_0      ││ 0000       │1111                               │2222          │
+    │             ││────────────┴───────────────────────────────────┴──────────────│
+    │             ││────────────┬─────────────────┬───────────────────────┬────────│
+    │words_1      ││ 0000       │1111             │2222                   │3333    │
+    │             ││────────────┴─────────────────┴───────────────────────┴────────│
     └─────────────┘└───────────────────────────────────────────────────────────────┘
     |}]
 ;;

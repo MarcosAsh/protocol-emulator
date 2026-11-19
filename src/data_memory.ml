@@ -63,13 +63,14 @@ module Make (Config : Config) = struct
     let%hw turn = wire 1 in
     turn <-- if engines = 1 then gnd else reg spec ~:turn;
     let%hw read_addr = mux turn i.reads in
+    let%hw din = mux2 host_write (written ~f:(fun w -> w.data)) i.dma.data in
     let memory_in =
       { Program_memory.I.clock = i.clocking.clock
       ; men = vdd
       ; wen = write
       ; ren = vdd
       ; addr = mux2 write write_addr read_addr
-      ; din = mux2 host_write (written ~f:(fun w -> w.data)) i.dma.data
+      ; din
       ; bm = ones Isa.data_bits
       }
     in
@@ -100,10 +101,12 @@ module Make (Config : Config) = struct
         ~f:(fun read (held, valid) halted -> valid &: ~:halted &: (read ==: held))
     in
     let words =
-      List.mapi (List.zip_exn i.reads keeps) ~f:(fun n (_, keeps) ->
+      List.mapi (List.zip_exn held keeps) ~f:(fun n (held, keeps) ->
         (* reads where the pointer will be, so next cycle's output is the word at it *)
         let%hw mine = reg spec (turn ==:. n &: ~:write &: ~:keeps) in
-        let%hw last = reg spec ~enable:mine dout in
+        (* a write to the kept word shows the cycle after, before the refetch *)
+        let%hw rewritten = write &: (write_addr ==: held) in
+        let%hw last = reg spec ~enable:(mine |: rewritten) (mux2 rewritten din dout) in
         mux2 mine dout last)
     in
     { O.words
