@@ -14415,142 +14415,160 @@ module usb_frame_rx (
     wire signal_mux_5;
     wire signal_wire_2;
     reg half;
-    wire signal_select_1;
-    wire signal_mux_6;
-    wire signal_mux_7;
-    wire signal_wire_3;
-    reg stuff_error;
+    wire [3:0] signal_const_4;
+    wire [2:0] signal_select_1;
+    wire [3:0] signal_cat;
+    wire [3:0] signal_wire_3;
+    reg [3:0] pid_first;
+    wire signal_select_2;
+    wire signal_eq;
     wire signal_not_2;
     wire signal_and_3;
-    wire [2:0] signal_const_5;
-    wire signal_lt;
+    wire signal_select_3;
     wire signal_not_3;
+    wire pid_bit;
     wire signal_and_4;
-    wire signal_and_5;
+    wire signal_mux_6;
+    wire signal_mux_7;
+    wire signal_wire_4;
+    reg pid_ok;
+    wire signal_select_4;
     wire signal_mux_8;
     wire signal_mux_9;
-    wire signal_wire_4;
-    reg data_pid;
+    wire signal_wire_5;
+    reg stuff_error;
+    wire signal_not_4;
+    wire signal_and_5;
+    wire [2:0] signal_const_7;
+    wire signal_lt;
+    wire signal_not_5;
+    wire signal_and_6;
+    wire signal_and_7;
     wire signal_mux_10;
+    wire signal_mux_11;
+    wire signal_wire_6;
+    reg data_pid;
+    wire signal_mux_12;
+    wire signal_and_8;
     wire good;
-    wire [15:0] signal_const_7;
-    wire [15:0] signal_const_8;
     wire [15:0] signal_const_9;
     wire [15:0] signal_const_10;
+    wire [15:0] signal_const_11;
+    wire [15:0] signal_const_12;
     wire [15:0] signal_xor;
-    wire [14:0] signal_select_2;
-    wire [15:0] signal_cat;
-    wire signal_select_3;
+    wire [14:0] signal_select_5;
+    wire [15:0] signal_cat_1;
+    wire signal_select_6;
     wire signal_xor_1;
-    wire [15:0] signal_mux_11;
-    wire signal_and_6;
-    wire [15:0] signal_mux_12;
     wire [15:0] signal_mux_13;
+    wire signal_and_9;
+    wire [15:0] signal_mux_14;
+    wire [15:0] signal_mux_15;
     reg [15:0] signal_reg;
     wire [15:0] crc16;
-    wire signal_eq;
-    wire signal_mux_14;
-    wire signal_mux_15;
-    wire signal_wire_5;
+    wire signal_eq_1;
+    wire signal_mux_16;
+    wire signal_mux_17;
+    wire signal_wire_7;
     reg crc16_ok;
-    wire [4:0] signal_const_13;
-    wire [4:0] signal_const_14;
     wire [4:0] signal_const_15;
     wire [4:0] signal_const_16;
+    wire [4:0] signal_const_17;
+    wire [4:0] signal_const_18;
     wire [4:0] signal_xor_2;
-    wire [3:0] signal_select_4;
-    wire [4:0] signal_cat_1;
-    wire signal_select_5;
-    wire signal_select_6;
+    wire [3:0] signal_select_7;
+    wire [4:0] signal_cat_2;
+    wire signal_select_8;
+    wire signal_select_9;
     wire signal_xor_3;
-    wire [4:0] signal_mux_16;
-    wire [2:0] signal_const_19;
-    wire [2:0] signal_const_20;
+    wire [4:0] signal_mux_18;
+    wire [2:0] signal_const_21;
     wire [2:0] signal_const_22;
+    wire [2:0] signal_const_24;
     wire [2:0] signal_add;
-    wire [2:0] signal_mux_17;
-    wire [2:0] signal_mux_18;
+    wire [2:0] signal_mux_19;
+    wire [2:0] signal_mux_20;
     reg [2:0] signal_reg_1;
     wire [2:0] pid_bits;
-    wire signal_eq_1;
-    wire signal_and_7;
-    wire signal_mux_19;
-    wire signal_mux_20;
+    wire signal_eq_2;
+    wire signal_and_10;
+    wire signal_mux_21;
+    wire signal_mux_22;
     reg signal_reg_2;
     wire past_pid;
-    wire signal_select_7;
+    wire signal_select_10;
     wire packet_bit;
-    wire signal_and_8;
-    wire [4:0] signal_mux_21;
-    wire [4:0] signal_mux_22;
+    wire signal_and_11;
+    wire [4:0] signal_mux_23;
+    wire [4:0] signal_mux_24;
     reg [4:0] signal_reg_3;
     wire [4:0] crc5;
-    wire signal_eq_2;
-    wire signal_mux_23;
-    wire signal_mux_24;
-    wire signal_wire_6;
-    reg crc5_ok;
-    wire signal_not_4;
+    wire signal_eq_3;
     wire signal_mux_25;
     wire signal_mux_26;
-    wire signal_wire_7;
+    wire signal_wire_8;
+    reg crc5_ok;
+    wire signal_not_6;
+    wire signal_mux_27;
+    wire signal_mux_28;
+    wire signal_wire_9;
     reg ended;
     wire finished;
-    wire [15:0] signal_select_8;
+    wire [15:0] signal_select_11;
     reg [15:0] signal_reg_4;
-    wire [8:0] signal_select_9;
-    wire [10:0] signal_const_25;
-    wire [9:0] signal_const_26;
-    wire [9:0] signal_const_29;
+    wire [8:0] signal_select_12;
+    wire [10:0] signal_const_27;
+    wire [9:0] signal_const_28;
+    wire [9:0] signal_const_31;
     wire [9:0] signal_add_1;
-    wire [9:0] signal_const_30;
+    wire [9:0] signal_const_32;
     wire full;
-    wire signal_not_5;
-    wire signal_and_9;
-    wire [9:0] signal_mux_27;
+    wire signal_not_7;
+    wire signal_and_12;
+    wire [9:0] signal_mux_29;
     wire signal_or_1;
-    wire [9:0] signal_mux_28;
+    wire [9:0] signal_mux_30;
     reg [9:0] signal_reg_5;
     wire [9:0] words;
     reg [9:0] index;
-    wire [10:0] signal_cat_2;
-    wire [8:0] signal_wire_8;
-    wire [1:0] signal_const_31;
     wire [10:0] signal_cat_3;
+    wire [8:0] signal_wire_10;
+    wire [1:0] signal_const_33;
+    wire [10:0] signal_cat_4;
     wire [10:0] addr;
     wire fits;
-    wire signal_wire_9;
+    wire signal_wire_11;
     wire leaves;
-    wire signal_mux_29;
-    wire signal_select_10;
+    wire signal_mux_31;
+    wire signal_select_13;
     wire takes;
-    wire signal_mux_30;
-    wire signal_select_11;
-    wire signal_wire_10;
-    wire signal_not_6;
-    wire [1:0] signal_wire_11;
-    wire [1:0] signal_wire_12;
+    wire signal_mux_32;
+    wire signal_select_14;
+    wire signal_wire_12;
+    wire signal_not_8;
+    wire [1:0] signal_wire_13;
+    wire [1:0] signal_wire_14;
     wire [23:0] signal_inst;
-    wire signal_select_12;
-    wire signal_wire_13;
-    wire signal_wire_14;
+    wire signal_select_15;
+    wire signal_wire_15;
+    wire signal_wire_16;
     wire vdd;
     wire gnd;
-    wire signal_mux_31;
-    wire signal_mux_32;
     wire signal_mux_33;
+    wire signal_mux_34;
+    wire signal_mux_35;
     reg signal_reg_6;
     wire receiving;
     wire ends;
-    wire signal_and_10;
-    wire signal_mux_34;
-    wire signal_mux_35;
+    wire signal_and_13;
+    wire signal_mux_36;
+    wire signal_mux_37;
     reg signal_reg_7;
     wire armed;
     wire starts;
-    wire signal_wire_15;
+    wire signal_wire_17;
     wire signal_or_2;
-    wire signal_mux_36;
+    wire signal_mux_38;
     reg signal_reg_8;
     wire pending;
     wire ready_0;
@@ -14565,8 +14583,8 @@ module usb_frame_rx (
     assign signal_mux = signal_or ? vdd : dropped;
     assign signal_mux_1 = signal_or_2 ? gnd : signal_mux;
     assign signal_wire = signal_mux_1;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             dropped <= signal_const;
         else
             dropped <= signal_wire;
@@ -14575,208 +14593,238 @@ module usb_frame_rx (
     assign signal_mux_2 = ends ? signal_select : aligned;
     assign signal_mux_3 = signal_or_2 ? gnd : signal_mux_2;
     assign signal_wire_1 = signal_mux_3;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             aligned <= signal_const;
         else
             aligned <= signal_wire_1;
     end
-    assign signal_mux_4 = ends ? signal_select_10 : half;
+    assign signal_mux_4 = ends ? signal_select_13 : half;
     assign signal_mux_5 = signal_or_2 ? gnd : signal_mux_4;
     assign signal_wire_2 = signal_mux_5;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             half <= signal_const;
         else
             half <= signal_wire_2;
     end
-    assign signal_select_1 = signal_inst[5:5];
-    assign signal_mux_6 = ends ? signal_select_1 : stuff_error;
-    assign signal_mux_7 = signal_or_2 ? gnd : signal_mux_6;
-    assign signal_wire_3 = signal_mux_7;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_const_4 = 4'b0000;
+    assign signal_select_1 = pid_first[3:1];
+    assign signal_cat = { signal_select_8,
+                          signal_select_1 };
+    assign signal_wire_3 = signal_cat;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            pid_first <= signal_const_4;
+        else
+            if (pid_bit)
+                pid_first <= signal_wire_3;
+    end
+    assign signal_select_2 = pid_first[0:0];
+    assign signal_eq = signal_select_8 == signal_select_2;
+    assign signal_not_2 = ~ signal_eq;
+    assign signal_and_3 = pid_ok & signal_not_2;
+    assign signal_select_3 = pid_bits[2:2];
+    assign signal_not_3 = ~ past_pid;
+    assign pid_bit = packet_bit & signal_not_3;
+    assign signal_and_4 = pid_bit & signal_select_3;
+    assign signal_mux_6 = signal_and_4 ? signal_and_3 : pid_ok;
+    assign signal_mux_7 = starts ? vdd : signal_mux_6;
+    assign signal_wire_4 = signal_mux_7;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            pid_ok <= signal_const;
+        else
+            pid_ok <= signal_wire_4;
+    end
+    assign signal_select_4 = signal_inst[5:5];
+    assign signal_mux_8 = ends ? signal_select_4 : stuff_error;
+    assign signal_mux_9 = signal_or_2 ? gnd : signal_mux_8;
+    assign signal_wire_5 = signal_mux_9;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             stuff_error <= signal_const;
         else
-            stuff_error <= signal_wire_3;
+            stuff_error <= signal_wire_5;
     end
-    assign signal_not_2 = ~ stuff_error;
-    assign signal_and_3 = data_pid & signal_select_5;
-    assign signal_const_5 = 3'b010;
-    assign signal_lt = pid_bits < signal_const_5;
-    assign signal_not_3 = ~ past_pid;
-    assign signal_and_4 = packet_bit & signal_not_3;
-    assign signal_and_5 = signal_and_4 & signal_lt;
-    assign signal_mux_8 = signal_and_5 ? signal_and_3 : data_pid;
-    assign signal_mux_9 = starts ? vdd : signal_mux_8;
-    assign signal_wire_4 = signal_mux_9;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_not_4 = ~ stuff_error;
+    assign signal_and_5 = data_pid & signal_select_8;
+    assign signal_const_7 = 3'b010;
+    assign signal_lt = pid_bits < signal_const_7;
+    assign signal_not_5 = ~ past_pid;
+    assign signal_and_6 = packet_bit & signal_not_5;
+    assign signal_and_7 = signal_and_6 & signal_lt;
+    assign signal_mux_10 = signal_and_7 ? signal_and_5 : data_pid;
+    assign signal_mux_11 = starts ? vdd : signal_mux_10;
+    assign signal_wire_6 = signal_mux_11;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             data_pid <= signal_const;
         else
-            data_pid <= signal_wire_4;
+            data_pid <= signal_wire_6;
     end
-    assign signal_mux_10 = data_pid ? crc16_ok : crc5_ok;
-    assign good = signal_mux_10 & signal_not_2;
-    assign signal_const_7 = 16'b1011000000000001;
-    assign signal_const_8 = 16'b0000000000000000;
-    assign signal_const_9 = 16'b1111111111111111;
-    assign signal_const_10 = 16'b1010000000000001;
-    assign signal_xor = signal_cat ^ signal_const_10;
-    assign signal_select_2 = crc16[15:1];
-    assign signal_cat = { signal_const,
-                          signal_select_2 };
-    assign signal_select_3 = crc16[0:0];
-    assign signal_xor_1 = signal_select_3 ^ signal_select_5;
-    assign signal_mux_11 = signal_xor_1 ? signal_xor : signal_cat;
-    assign signal_and_6 = packet_bit & past_pid;
-    assign signal_mux_12 = signal_and_6 ? signal_mux_11 : crc16;
-    assign signal_mux_13 = starts ? signal_const_9 : signal_mux_12;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
-            signal_reg <= signal_const_8;
+    assign signal_mux_12 = data_pid ? crc16_ok : crc5_ok;
+    assign signal_and_8 = signal_mux_12 & signal_not_4;
+    assign good = signal_and_8 & pid_ok;
+    assign signal_const_9 = 16'b1011000000000001;
+    assign signal_const_10 = 16'b0000000000000000;
+    assign signal_const_11 = 16'b1111111111111111;
+    assign signal_const_12 = 16'b1010000000000001;
+    assign signal_xor = signal_cat_1 ^ signal_const_12;
+    assign signal_select_5 = crc16[15:1];
+    assign signal_cat_1 = { signal_const,
+                            signal_select_5 };
+    assign signal_select_6 = crc16[0:0];
+    assign signal_xor_1 = signal_select_6 ^ signal_select_8;
+    assign signal_mux_13 = signal_xor_1 ? signal_xor : signal_cat_1;
+    assign signal_and_9 = packet_bit & past_pid;
+    assign signal_mux_14 = signal_and_9 ? signal_mux_13 : crc16;
+    assign signal_mux_15 = starts ? signal_const_11 : signal_mux_14;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            signal_reg <= signal_const_10;
         else
-            signal_reg <= signal_mux_13;
+            signal_reg <= signal_mux_15;
     end
     assign crc16 = signal_reg;
-    assign signal_eq = crc16 == signal_const_7;
-    assign signal_mux_14 = ends ? signal_eq : crc16_ok;
-    assign signal_mux_15 = signal_or_2 ? gnd : signal_mux_14;
-    assign signal_wire_5 = signal_mux_15;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_eq_1 = crc16 == signal_const_9;
+    assign signal_mux_16 = ends ? signal_eq_1 : crc16_ok;
+    assign signal_mux_17 = signal_or_2 ? gnd : signal_mux_16;
+    assign signal_wire_7 = signal_mux_17;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             crc16_ok <= signal_const;
         else
-            crc16_ok <= signal_wire_5;
+            crc16_ok <= signal_wire_7;
     end
-    assign signal_const_13 = 5'b00110;
-    assign signal_const_14 = 5'b00000;
-    assign signal_const_15 = 5'b11111;
-    assign signal_const_16 = 5'b10100;
-    assign signal_xor_2 = signal_cat_1 ^ signal_const_16;
-    assign signal_select_4 = crc5[4:1];
-    assign signal_cat_1 = { signal_const,
-                            signal_select_4 };
-    assign signal_select_5 = signal_inst[1:1];
-    assign signal_select_6 = crc5[0:0];
-    assign signal_xor_3 = signal_select_6 ^ signal_select_5;
-    assign signal_mux_16 = signal_xor_3 ? signal_xor_2 : signal_cat_1;
-    assign signal_const_19 = 3'b111;
-    assign signal_const_20 = 3'b000;
-    assign signal_const_22 = 3'b001;
-    assign signal_add = pid_bits + signal_const_22;
-    assign signal_mux_17 = packet_bit ? signal_add : pid_bits;
-    assign signal_mux_18 = starts ? signal_const_20 : signal_mux_17;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
-            signal_reg_1 <= signal_const_20;
+    assign signal_const_15 = 5'b00110;
+    assign signal_const_16 = 5'b00000;
+    assign signal_const_17 = 5'b11111;
+    assign signal_const_18 = 5'b10100;
+    assign signal_xor_2 = signal_cat_2 ^ signal_const_18;
+    assign signal_select_7 = crc5[4:1];
+    assign signal_cat_2 = { signal_const,
+                            signal_select_7 };
+    assign signal_select_8 = signal_inst[1:1];
+    assign signal_select_9 = crc5[0:0];
+    assign signal_xor_3 = signal_select_9 ^ signal_select_8;
+    assign signal_mux_18 = signal_xor_3 ? signal_xor_2 : signal_cat_2;
+    assign signal_const_21 = 3'b111;
+    assign signal_const_22 = 3'b000;
+    assign signal_const_24 = 3'b001;
+    assign signal_add = pid_bits + signal_const_24;
+    assign signal_mux_19 = packet_bit ? signal_add : pid_bits;
+    assign signal_mux_20 = starts ? signal_const_22 : signal_mux_19;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            signal_reg_1 <= signal_const_22;
         else
-            signal_reg_1 <= signal_mux_18;
+            signal_reg_1 <= signal_mux_20;
     end
     assign pid_bits = signal_reg_1;
-    assign signal_eq_1 = pid_bits == signal_const_19;
-    assign signal_and_7 = packet_bit & signal_eq_1;
-    assign signal_mux_19 = signal_and_7 ? vdd : past_pid;
-    assign signal_mux_20 = starts ? gnd : signal_mux_19;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_eq_2 = pid_bits == signal_const_21;
+    assign signal_and_10 = packet_bit & signal_eq_2;
+    assign signal_mux_21 = signal_and_10 ? vdd : past_pid;
+    assign signal_mux_22 = starts ? gnd : signal_mux_21;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             signal_reg_2 <= signal_const;
         else
-            signal_reg_2 <= signal_mux_20;
+            signal_reg_2 <= signal_mux_22;
     end
     assign past_pid = signal_reg_2;
-    assign signal_select_7 = signal_inst[0:0];
-    assign packet_bit = receiving & signal_select_7;
-    assign signal_and_8 = packet_bit & past_pid;
-    assign signal_mux_21 = signal_and_8 ? signal_mux_16 : crc5;
-    assign signal_mux_22 = starts ? signal_const_15 : signal_mux_21;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
-            signal_reg_3 <= signal_const_14;
+    assign signal_select_10 = signal_inst[0:0];
+    assign packet_bit = receiving & signal_select_10;
+    assign signal_and_11 = packet_bit & past_pid;
+    assign signal_mux_23 = signal_and_11 ? signal_mux_18 : crc5;
+    assign signal_mux_24 = starts ? signal_const_17 : signal_mux_23;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            signal_reg_3 <= signal_const_16;
         else
-            signal_reg_3 <= signal_mux_22;
+            signal_reg_3 <= signal_mux_24;
     end
     assign crc5 = signal_reg_3;
-    assign signal_eq_2 = crc5 == signal_const_13;
-    assign signal_mux_23 = ends ? signal_eq_2 : crc5_ok;
-    assign signal_mux_24 = signal_or_2 ? gnd : signal_mux_23;
-    assign signal_wire_6 = signal_mux_24;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_eq_3 = crc5 == signal_const_15;
+    assign signal_mux_25 = ends ? signal_eq_3 : crc5_ok;
+    assign signal_mux_26 = signal_or_2 ? gnd : signal_mux_25;
+    assign signal_wire_8 = signal_mux_26;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             crc5_ok <= signal_const;
         else
-            crc5_ok <= signal_wire_6;
+            crc5_ok <= signal_wire_8;
     end
-    assign signal_not_4 = ~ pending;
-    assign signal_mux_25 = ends ? vdd : ended;
-    assign signal_mux_26 = signal_or_2 ? gnd : signal_mux_25;
-    assign signal_wire_7 = signal_mux_26;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_not_6 = ~ pending;
+    assign signal_mux_27 = ends ? vdd : ended;
+    assign signal_mux_28 = signal_or_2 ? gnd : signal_mux_27;
+    assign signal_wire_9 = signal_mux_28;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             ended <= signal_const;
         else
-            ended <= signal_wire_7;
+            ended <= signal_wire_9;
     end
-    assign finished = ended & signal_not_4;
-    assign signal_select_8 = signal_inst[23:8];
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
-            signal_reg_4 <= signal_const_8;
+    assign finished = ended & signal_not_6;
+    assign signal_select_11 = signal_inst[23:8];
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            signal_reg_4 <= signal_const_10;
         else
             if (takes)
-                signal_reg_4 <= signal_select_8;
+                signal_reg_4 <= signal_select_11;
     end
-    assign signal_select_9 = addr[8:0];
-    assign signal_const_25 = 11'b01000000000;
-    assign signal_const_26 = 10'b0000000000;
-    assign signal_const_29 = 10'b0000000001;
-    assign signal_add_1 = words + signal_const_29;
-    assign signal_const_30 = 10'b1111111111;
-    assign full = words == signal_const_30;
-    assign signal_not_5 = ~ full;
-    assign signal_and_9 = takes & signal_not_5;
-    assign signal_mux_27 = signal_and_9 ? signal_add_1 : words;
-    assign signal_or_1 = signal_wire_15 | starts;
-    assign signal_mux_28 = signal_or_1 ? signal_const_26 : signal_mux_27;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
-            signal_reg_5 <= signal_const_26;
+    assign signal_select_12 = addr[8:0];
+    assign signal_const_27 = 11'b01000000000;
+    assign signal_const_28 = 10'b0000000000;
+    assign signal_const_31 = 10'b0000000001;
+    assign signal_add_1 = words + signal_const_31;
+    assign signal_const_32 = 10'b1111111111;
+    assign full = words == signal_const_32;
+    assign signal_not_7 = ~ full;
+    assign signal_and_12 = takes & signal_not_7;
+    assign signal_mux_29 = signal_and_12 ? signal_add_1 : words;
+    assign signal_or_1 = signal_wire_17 | starts;
+    assign signal_mux_30 = signal_or_1 ? signal_const_28 : signal_mux_29;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            signal_reg_5 <= signal_const_28;
         else
-            signal_reg_5 <= signal_mux_28;
+            signal_reg_5 <= signal_mux_30;
     end
     assign words = signal_reg_5;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
-            index <= signal_const_26;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
+            index <= signal_const_28;
         else
             if (takes)
                 index <= words;
     end
-    assign signal_cat_2 = { gnd,
+    assign signal_cat_3 = { gnd,
                             index };
-    assign signal_wire_8 = control$base;
-    assign signal_const_31 = 2'b00;
-    assign signal_cat_3 = { signal_const_31,
-                            signal_wire_8 };
-    assign addr = signal_cat_3 + signal_cat_2;
-    assign fits = addr < signal_const_25;
-    assign signal_wire_9 = may_write;
-    assign leaves = pending & signal_wire_9;
-    assign signal_mux_29 = leaves ? gnd : pending;
-    assign signal_select_10 = signal_inst[7:7];
-    assign takes = receiving & signal_select_10;
-    assign signal_mux_30 = takes ? vdd : signal_mux_29;
-    assign signal_select_11 = signal_inst[3:3];
-    assign signal_wire_10 = control$rearm;
-    assign signal_not_6 = ~ signal_wire_10;
-    assign signal_wire_11 = dm;
-    assign signal_wire_12 = dp;
+    assign signal_wire_10 = control$base;
+    assign signal_const_33 = 2'b00;
+    assign signal_cat_4 = { signal_const_33,
+                            signal_wire_10 };
+    assign addr = signal_cat_4 + signal_cat_3;
+    assign fits = addr < signal_const_27;
+    assign signal_wire_11 = may_write;
+    assign leaves = pending & signal_wire_11;
+    assign signal_mux_31 = leaves ? gnd : pending;
+    assign signal_select_13 = signal_inst[7:7];
+    assign takes = receiving & signal_select_13;
+    assign signal_mux_32 = takes ? vdd : signal_mux_31;
+    assign signal_select_14 = signal_inst[3:3];
+    assign signal_wire_12 = control$rearm;
+    assign signal_not_8 = ~ signal_wire_12;
+    assign signal_wire_13 = dm;
+    assign signal_wire_14 = dp;
     usb_rx
         usb_rx
-        ( .clock(signal_wire_14),
-          .clear(signal_wire_13),
-          .dp(signal_wire_12),
-          .dm(signal_wire_11),
+        ( .clock(signal_wire_16),
+          .clear(signal_wire_15),
+          .dp(signal_wire_14),
+          .dm(signal_wire_13),
           .bit$valid(signal_inst[0:0]),
           .bit$value(signal_inst[1:1]),
           .packet_active(signal_inst[2:2]),
@@ -14786,47 +14834,47 @@ module usb_frame_rx (
           .aligned(signal_inst[6:6]),
           .word$valid(signal_inst[7:7]),
           .word$value(signal_inst[23:8]) );
-    assign signal_select_12 = signal_inst[4:4];
-    assign signal_wire_13 = clear;
-    assign signal_wire_14 = clock;
+    assign signal_select_15 = signal_inst[4:4];
+    assign signal_wire_15 = clear;
+    assign signal_wire_16 = clock;
     assign vdd = 1'b1;
     assign gnd = 1'b0;
-    assign signal_mux_31 = ends ? gnd : receiving;
-    assign signal_mux_32 = starts ? vdd : signal_mux_31;
-    assign signal_mux_33 = signal_wire_15 ? gnd : signal_mux_32;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign signal_mux_33 = ends ? gnd : receiving;
+    assign signal_mux_34 = starts ? vdd : signal_mux_33;
+    assign signal_mux_35 = signal_wire_17 ? gnd : signal_mux_34;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             signal_reg_6 <= signal_const;
         else
-            signal_reg_6 <= signal_mux_33;
+            signal_reg_6 <= signal_mux_35;
     end
     assign receiving = signal_reg_6;
-    assign ends = receiving & signal_select_12;
-    assign signal_and_10 = ends & signal_not_6;
-    assign signal_mux_34 = signal_and_10 ? gnd : armed;
-    assign signal_mux_35 = signal_wire_15 ? vdd : signal_mux_34;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign ends = receiving & signal_select_15;
+    assign signal_and_13 = ends & signal_not_8;
+    assign signal_mux_36 = signal_and_13 ? gnd : armed;
+    assign signal_mux_37 = signal_wire_17 ? vdd : signal_mux_36;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             signal_reg_7 <= signal_const;
         else
-            signal_reg_7 <= signal_mux_35;
+            signal_reg_7 <= signal_mux_37;
     end
     assign armed = signal_reg_7;
-    assign starts = armed & signal_select_11;
-    assign signal_wire_15 = control$arm;
-    assign signal_or_2 = signal_wire_15 | starts;
-    assign signal_mux_36 = signal_or_2 ? gnd : signal_mux_30;
-    always @(posedge signal_wire_14) begin
-        if (signal_wire_13)
+    assign starts = armed & signal_select_14;
+    assign signal_wire_17 = control$arm;
+    assign signal_or_2 = signal_wire_17 | starts;
+    assign signal_mux_38 = signal_or_2 ? gnd : signal_mux_32;
+    always @(posedge signal_wire_16) begin
+        if (signal_wire_15)
             signal_reg_8 <= signal_const;
         else
-            signal_reg_8 <= signal_mux_36;
+            signal_reg_8 <= signal_mux_38;
     end
     assign pending = signal_reg_8;
     assign ready_0 = pending & fits;
-    assign writes = ready_0 & signal_wire_9;
+    assign writes = ready_0 & signal_wire_11;
     assign write$valid = writes;
-    assign write$addr = signal_select_9;
+    assign write$addr = signal_select_12;
     assign write$data = signal_reg_4;
     assign ready = ready_0;
     assign status$words = words;
