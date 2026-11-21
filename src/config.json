@@ -66,6 +66,10 @@
   "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",
   "DESIGN_REPAIR_MAX_WIRE_LENGTH": 500,
 
+  "//": "GRT_DESIGN_REPAIR_MAX_WIRE_LENGTH - unset, the repair on the global routes splits no wire.",
+  "//": "A nor2_1 then drove 731 um in 1.88 ns and detailed routing ran past CI's 6 h.",
+  "GRT_DESIGN_REPAIR_MAX_WIRE_LENGTH": 500,
+
   "//": "MAX_TRANSITION_CONSTRAINT - unset, routed _1 gates on the load checker's reject path",
   "//": "switched in up to 2 ns and the slow corner missed by 0.18 ns, though the resizer saw it",
   "//": "met on the global routes. 1.5 still missed by 1.54 ns; 1.0 met it by 1.25 ns.",
@@ -77,8 +81,9 @@
   "RUN_POST_GRT_DESIGN_REPAIR": true,
 
   "//": "GRT_DESIGN_REPAIR_MAX_SLEW_PCT - at the default 10 the resizer left engine_0's A_DIN[8],",
-  "//": "[11] and [12] at 0.9 to 1.1 ns on buf_1 fanout nets even with LAYERS_RC; 30 repairs them.",
-  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 30,
+  "//": "[11] and [12] at 0.9 to 1.1 ns on buf_1 fanout nets even with LAYERS_RC. 30 repaired them",
+  "//": "and left 14 pins over at the slow corner, and 40 leaves 5.",
+  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 40,
   "RUN_POST_GRT_RESIZER_TIMING": true,
 
   "//": "LAYERS_RC - the tech LEF's wire caps are about half what RCX extracts (Metal3 0.092",
