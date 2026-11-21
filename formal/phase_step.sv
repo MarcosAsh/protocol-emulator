@@ -1,8 +1,9 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
 // to the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the
-// pc and, with Manchester off and edge_step.sv's lemma assumed, a watched pair's edges. A
-// deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^T, where T is
-// the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in a bounded run.
+// pc and, with Manchester and the line code off and edge_step.sv's lemma assumed, a watched
+// pair's edges. A deadline wait entered at phase <= 0 does not fault. Equalities are mod
+// 2^T, where T is the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in
+// a bounded run.
 // The engine is the chip's, with every input free except its premises (the kernel's), so
 // this holds for each engine of several. CHIP runs it on one engine inside the two-engine
 // chip instead. Program memories are the flop stand-in for the SRAM macro.
@@ -304,10 +305,6 @@ module phase_step (input clk);
   wire [15:0] kp = p;
 `endif
 
-`ifdef SPACING
-  // the spacing run and pair_step's lemma are proved only for these
-  always @(*) assume(side_set_count <= 2 && !line_code && !route);
-`endif
 `ifdef ONE_RUN
   // one of the runs above, so a failure in it is the lemma's: jmp 0 written at 0, then one
   // start and no stop. The wrap's tooth takes it to reach the timer's top in few choices.
@@ -1179,15 +1176,21 @@ module phase_step (input clk);
         spacing_b: assert(spaced_b);
       end
     end
+
+  // a counted edge of a routed core's third side-set pin, which side-set drives low
+  reg l_third_a = 0;
+  always @(posedge clk)
+    l_third_a <= entry && side_set_count == 3 && pin_a == side_set_base + 5'd2
+      && w_side[pin_a] && !w_set[pin_a] && !w_data[pin_a];
+  always @(posedge clk)
+    cover(c3_last_entry && spaced && plain && route && l_third_a && counts_a);
 `endif
 
   always @(posedge clk) begin
     cover(pending && entry && e_deadline_wait && e_phase == 0);
-`ifndef SPACING
     // the same with a line code, a route and three side-set pins
     cover(pending && entry && e_deadline_wait && e_phase == 0 && line_code && route
       && side_set_count == 3);
-`endif
 `ifdef AFFINE
     // a taken jmp x-- into a row of its slope with the full phase and a bounded offset,
     // and one falling through at x = 0 from such a row to a deadline wait whose bounded
