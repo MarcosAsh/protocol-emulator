@@ -501,8 +501,7 @@ CLAIMS = [
               "ocaml", lambda job: job in ("test", "saturating"), "phase_step saturating_proof",
               sby("phase_step_"), step="Prove"),
         Claim("For any program and any table of intervals the kernel accepts with a spacing, "
-              "each counted edge of a watched pair is spaced (programs with at most two side-set "
-              "pins and no line code or route)", "ocaml",
+              "each counted edge of a watched pair is spaced (no Manchester or line code)", "ocaml",
               matrix("phase_spacing"), "phase_spacing_part", sby("pair_step_", "phase_spacing_")),
         Claim("Inside the two-engine chip, each engine running a table the kernel accepts never "
               "misses a deadline, and each edge it drives comes the cycle after an entry inside "
