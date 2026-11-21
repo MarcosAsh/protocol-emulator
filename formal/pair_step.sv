@@ -86,9 +86,9 @@ module pair_step (
   wire unspaced_accepts;
   kernel_accepts check_unspaced (`STEP_CONFIG, .wrap_top(9'd0), .wrap_bottom(9'd0),
     `STEP_PAIR(1'b0), `STEP_NOW, .accepts(unspaced_accepts), .within());
-  wire hypothesis = within && unspaced_accepts && side_set_count <= 2;
+  wire hypothesis = within && unspaced_accepts;
 `else
-  wire hypothesis = within && accepts && side_set_count <= 2;
+  wire hypothesis = within && accepts;
 `endif
   // the core and the pair after the step lie inside each successor, with the kernel's own
   // inside it
@@ -119,7 +119,7 @@ module pair_step (
     && (period_known || !loads_period || period_after >= loaded_period)
     && (!x_known || x_after == next_x) && (!y_known || y_after == next_y);
 
-  assign inside = within && accepts && side_set_count <= 2;
+  assign inside = within && accepts;
   wire arrives = word[15:13] != 0 ? into_next
     : taken_known ? (taken ? into_target : into_next)
     : into_target && into_next;

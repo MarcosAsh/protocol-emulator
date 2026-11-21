@@ -3,7 +3,7 @@ name: ocaml
 on:
   push:
     branches: ['**']
-  # phase_spacing (nine jobs of up to 3.5 h) only runs nightly on main and on a dispatch.
+  # phase_spacing (eleven jobs of up to 3.5 h) only runs nightly on main and on a dispatch.
   # Before landing a branch: gh workflow run ocaml.yaml --ref BRANCH -f phase_spacing=true
   schedule:
     - cron: '0 1 * * *'

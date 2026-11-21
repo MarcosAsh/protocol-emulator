@@ -23,6 +23,7 @@ alu_t_2 prove
 alu_t_3 prove
 sys prove
 unspaced teeth
+unspaced_3 teeth
 
 [options]
 # the lemma is combinational over constants, so step 0 covers every input
@@ -61,6 +62,8 @@ alu_t_2: read -define OPCODE=6 ALU_DEST=3 ALU_OP=2
 alu_t_3: read -define OPCODE=6 ALU_DEST=3 ALU_OP=3
 sys: read -define OPCODE=7
 unspaced: read -define UNSPACED
+# and with three side-set pins
+unspaced_3: read -define UNSPACED SIDE_SET=3
 read_verilog kernel_step.v
 read_verilog kernel_accepts.v
 read_verilog -formal -sv pair_step.sv

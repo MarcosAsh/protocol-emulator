@@ -92,11 +92,11 @@ PAIR_STEP_TASKS = jmp wait_0 wait_1 wait_2_0 wait_2_1 wait_2_2 wait_2_3 wait_3 i
 
 phase_spacing_proof:
 	sby -f pair_step.sby $(PAIR_STEP_TASKS)
-	sby -f pair_step.sby unspaced
+	sby -f pair_step.sby unspaced unspaced_3
 	sby -f phase_spacing.sby prove cover no_spacing
 
-# The same in CI parts: the seven slowest tasks alone, the rest with the tooth, the run
-PAIR_STEP_ALONE = alu_t_0_1 alu_t_0_0 alu_t_0_2 wait_2_1 wait_2_2 wait_2_0 alu_t_1
+# The same in CI parts: the nine slowest tasks alone, the rest with the tooth, the run
+PAIR_STEP_ALONE = alu_t_0_1 alu_t_0_0 alu_t_0_2 alu_t_0_3 wait_2_1 wait_2_2 wait_2_0 wait_2_3 alu_t_1
 PAIR_STEP_REST = $(filter-out $(PAIR_STEP_ALONE),$(PAIR_STEP_TASKS))
 
 phase_spacing_parts:
@@ -107,7 +107,7 @@ ifeq ($(PART),run)
 	sby -f phase_spacing.sby prove cover no_spacing
 else ifeq ($(PART),rest)
 	sby -f pair_step.sby $(PAIR_STEP_REST)
-	sby -f pair_step.sby unspaced
+	sby -f pair_step.sby unspaced unspaced_3
 else ifneq ($(filter $(PART),$(PAIR_STEP_ALONE)),)
 	sby -f pair_step.sby $(PART)
 else
