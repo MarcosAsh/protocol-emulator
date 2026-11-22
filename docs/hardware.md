@@ -7,8 +7,8 @@ bench measures it there. What passed on the board is on
 ## Harden
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
-`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 43769514206, on
-this Verilog, signs off with setup slack +2.386 ns at the slow corner, at 65.3%
+`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 44894742833, on
+this Verilog, signs off with setup slack +2.640 ns at the slow corner, at 65.9%
 utilisation. That slack is against the harden's 20 ns clock, and the chip runs at 48 MHz,
 a 20.83 ns period. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
 `GDS_logs` artifact. 4,283 of 4,295 flops map by RTL line and net name. Each gate goes with

@@ -28,7 +28,7 @@ checked, and 10BASE-T frames when clocked at 40 or 50 MHz.
 | Clock | 48 MHz | `info.yaml` |
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
-| Hardened | 47,837 standard cells at 65.3% utilisation, setup slack +2.386 ns at the slow corner, hold slack +0.069 ns, precheck clean | gds run [43769514206](https://github.com/MarcosAsh/protocol-emulator/actions/runs/43769514206) |
+| Hardened | 48,469 standard cells at 65.9% utilisation, setup slack +2.640 ns at the slow corner, hold slack +0.067 ns, precheck clean | gds run [44894742833](https://github.com/MarcosAsh/protocol-emulator/actions/runs/44894742833) |
 | Firmware | 72 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
 | Board | the 8 x 4 RTL on an Icepi Zero (ECP5 FPGA): all 21 bench demos PASS, self-timing and USB keyboard included, witnesses recorded 2026-11-03, and 42 witnesses in all by 2026-11-18: 34 PASS, 6 learning runs that CI checks against the lines sigrok must decode, LIN in part, as nothing on the bench answers its header, and `start_hold_pio` a FAIL, as pico-examples' pio_i2c holds START 3.1 us where I2C needs 4.0. No silicon yet | `test/board/` |
