@@ -305,6 +305,10 @@ jobs:
         with:
           path: site
 
+      # the run's artifact list can lag the upload by a few seconds
+      - name: Wait for the site to be listed
+        run: sleep 20
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
