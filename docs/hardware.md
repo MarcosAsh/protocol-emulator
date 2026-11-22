@@ -11,7 +11,7 @@ To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt
 this Verilog, signs off with setup slack +2.640 ns at the slow corner, at 65.9%
 utilisation. That slack is against the harden's 20 ns clock, and the chip runs at 48 MHz,
 a 20.83 ns period. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
-`GDS_logs` artifact. 4,283 of 4,295 flops map by RTL line and net name. Each gate goes with
+`GDS_logs` artifact. 4,289 of 4,301 flops map by RTL line and net name. Each gate goes with
 the nearest flop it feeds, which gets 96.3% of gates right on the RTL synthesised a module at
 a time (`--check`).
 
