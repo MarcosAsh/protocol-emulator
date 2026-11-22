@@ -1,0 +1,5 @@
+sent address 0x04 command 0x08, 2 repeat codes
+sent address 0x00 command 0x45, 0 repeat codes
+sent address 0xff command 0x00, 0 repeat codes
+faults 0x0
+PASS
