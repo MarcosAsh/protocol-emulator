@@ -40,6 +40,10 @@ on:
         description: 'shards at a time; 6 leaves the other branches the rest of the shared runners'
         type: number
         default: 6
+      timeout:
+        description: 'seconds a mutant''s suite may run; under the unmutated suite''s time no mutant can survive'
+        type: number
+        default: 2700
 
 # the held-out sample depends only on this seed and the mutant, and is fixed before any run
 env:
@@ -47,6 +51,7 @@ env:
   IDS: ${{ inputs.ids }}
   UNTESTED: ${{ inputs.untested }}
   PROOFS: ${{ inputs.proofs }}
+  TIMEOUT: ${{ inputs.timeout || 2700 }}
   SEED: '20261002'
 
 # twelve shards a run. A push that a later push overtakes is cancelled, but a weekly or
@@ -167,7 +172,7 @@ jobs:
             if [ "$UNTESTED" = true ]; then prove=--prove-only; else prove=--prove; fi
             prove="$prove --proof-timeout $([ -n "$IDS" ] && echo 18000 || echo 5400) ${PROOFS:+--proofs $PROOFS}"
           fi
-          opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --jobs 4 --timeout 2700 $prove --json "shard_${{ matrix.shard }}.jsonl"
+          opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --jobs 4 --timeout "$TIMEOUT" $prove --json "shard_${{ matrix.shard }}.jsonl"
 
       - name: Upload the results
         if: always()
