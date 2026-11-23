@@ -1,0 +1,14 @@
+{
+ "commit": "218280ac8b5083b810a9c7961e1eb920610b13c8",
+ "reason": "tt_ci",
+ "started": 1795473421.1821501,
+ "rev": "v1.3",
+ "dir": "2026-11-23-2236-218280ac",
+ "commit_time": 1795449480,
+ "build_seconds": 1200.0026027560234,
+ "build_ok": false,
+ "seed": null,
+ "fmax_mhz": null,
+ "seconds": 1200.1230382919312,
+ "ok": false
+}
