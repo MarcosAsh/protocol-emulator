@@ -285,8 +285,9 @@ module Run = struct
 end
 
 (* Both engines against [System] every cycle. Engine 1 starts once the frame is in, or
-   with [early] before it comes, when its pulls hold the receiver off. *)
-let on_chip ~early frame =
+   with [early] before it comes, when its pulls hold the receiver off. Engine 0 owns the
+   receiver unless [owner] says engine 1. *)
+let on_chip ?(owner = 0) ~early frame =
   let random = Random.State.make [| 11 |] in
   let samples = line ~random ~fifty:true ~ppm:50. ~jitter:5. frame |> Array.of_list in
   let program0 = Firmware.assemble pulses in
@@ -324,6 +325,7 @@ let on_chip ~early frame =
        p.data_write.valid := Bits.gnd;
        i.frame.base <--. base;
        i.frame.fifty := Bits.vdd;
+       i.frame_owner <--. owner;
        i.frame.arm := Bits.vdd;
        cycle ();
        i.frame.arm := Bits.gnd;
@@ -411,36 +413,45 @@ let on_chip ~early frame =
 (* A frame lands while engine 0 runs in lockstep with the model. Then engine 1, whose
    model starts from the memory the frame should have left, hands it to the host word for
    word. With engine 1 pulling from the start, every word still lands (in turns, where the
-   engine keeps its word) and the engines stay in lockstep. *)
+   engine keeps its word) and the engines stay in lockstep. Last, engine 1 owns the
+   receiver and is halted, set to pull from data, as the frame lands. *)
 let%expect_test "a frame on the chip, beside running engines in lockstep" =
   let frame = with_fcs (List.init 23 ~f:(fun n -> ((n * 37) + 5) land 0xff)) in
   let expected = words frame in
-  List.iter [ false; true ] ~f:(fun early ->
-    let r = on_chip ~early frame in
-    let handed = List.take r.handed (List.length expected) in
-    print_s
-      [%message
-        ""
-          (early : bool)
-          ~lockstep:
-            (Option.map r.mismatch ~f:(fun (cycle, engine, _, _) -> cycle, engine)
-             : (int * int) option)
-          ~status:(r.status : int Frame_rx.Status.t)
-          ~handed_as_sent:([%equal: int list] handed expected : bool)
-          ~handed:(List.length r.handed : int)];
-    Option.iter r.mismatch ~f:(fun (_, _, e, a) ->
-      print_s [%message (e : Lockstep.State.t) (a : Lockstep.State.t)]));
+  List.iter
+    [ 0, false; 0, true; 1, false ]
+    ~f:(fun (owner, early) ->
+      let r = on_chip ~owner ~early frame in
+      let handed = List.take r.handed (List.length expected) in
+      print_s
+        [%message
+          ""
+            (owner : int)
+            (early : bool)
+            ~lockstep:
+              (Option.map r.mismatch ~f:(fun (cycle, engine, _, _) -> cycle, engine)
+               : (int * int) option)
+            ~status:(r.status : int Frame_rx.Status.t)
+            ~handed_as_sent:([%equal: int list] handed expected : bool)
+            ~handed:(List.length r.handed : int)];
+      Option.iter r.mismatch ~f:(fun (_, _, e, a) ->
+        print_s [%message (e : Lockstep.State.t) (a : Lockstep.State.t)]));
   [%expect
     {|
-    ((early false) (lockstep ())
+    ((owner 0) (early false) (lockstep ())
      (status
       ((words 14) (finished 1) (fcs_ok 1) (half 1) (dropped 0) (receiving 0)
        (armed 0)))
      (handed_as_sent true) (handed 119))
-    ((early true) (lockstep ())
+    ((owner 0) (early true) (lockstep ())
      (status
       ((words 14) (finished 1) (fcs_ok 1) (half 1) (dropped 0) (receiving 0)
        (armed 0)))
      (handed_as_sent false) (handed 419))
+    ((owner 1) (early false) (lockstep ())
+     (status
+      ((words 14) (finished 1) (fcs_ok 1) (half 1) (dropped 0) (receiving 0)
+       (armed 0)))
+     (handed_as_sent true) (handed 119))
     |}]
 ;;

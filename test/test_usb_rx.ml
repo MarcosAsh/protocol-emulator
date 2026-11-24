@@ -252,6 +252,20 @@ let%expect_test "packets intact with D- skewed against D+" =
     |}]
 ;;
 
+(* The first stuffed 0 is held at J: the line stays put for a seventh bit. *)
+let seventh_one states =
+  let rec go ~ones ~before = function
+    | [] -> []
+    | (state : Usb_ls.Line.t) :: rest ->
+      if ones = 6 && not (Usb_ls.Line.equal state before)
+      then before :: rest
+      else (
+        let ones = if Usb_ls.Line.equal state before then ones + 1 else 0 in
+        state :: go ~ones ~before:state rest)
+  in
+  go ~ones:0 ~before:J states
+;;
+
 (* A token, a data packet with a stuffed run and an odd length, and the data packet again
    with seven 1s on the line, from a random power-up state. We check the words, CRCs and
    stuffing error as the data memory and the status would see them. *)
@@ -262,19 +276,6 @@ let%expect_test "a token, a stuffed data packet and a stuffing error into the da
   in
   let token = Usb.token ~address:5 ~pid:in_ ~endpoint:1 in
   let data = Usb.data ~pid:Usb.data1 [ 0xff; 0xff; 0x3c; 0x7e; 0x01 ] in
-  (* The first stuffed 0 is held at J: the line stays put for a seventh bit. *)
-  let seventh_one states =
-    let rec go ~ones ~before = function
-      | [] -> []
-      | (state : Usb_ls.Line.t) :: rest ->
-        if ones = 6 && not (Usb_ls.Line.equal state before)
-        then before :: rest
-        else (
-          let ones = if Usb_ls.Line.equal state before then ones + 1 else 0 in
-          state :: go ~ones ~before:state rest)
-    in
-    go ~ones:0 ~before:J states
-  in
   let random = Random.State.make [| 9 |] in
   let cycles packet ~corrupt =
     line ~corrupt ~random ~ppm:2500. ~jitter:2. ~skew:0. ~gap:3 [ packet ]
@@ -977,14 +978,12 @@ loop:
 (* Both engines against [System] every cycle, with the status pins the chip shows given to
    the model's owner and the packet's words given to its memory once they are in. The
    owner sees finished and good as it leaves the wait, and engine 0 reads 0 on every
-   status pin. *)
-let%expect_test "the receivers' owner waits on its status pin for a packet" =
+   status pin. A packet with a stuffing error lands no words, so only what the owner sees
+   on the pins is shown for it. *)
+let owner_waits ?corrupt packet =
   let random = Random.State.make [| 7 |] in
-  let packet =
-    Usb.data ~pid:Usb.data0 (List.init 20 ~f:(fun n -> ((n * 41) + 9) land 0xff))
-  in
   let cycles =
-    line ~random ~ppm:(-2500.) ~jitter:2. ~skew:0. ~gap:3 [ packet ]
+    line ?corrupt ~random ~ppm:(-2500.) ~jitter:2. ~skew:0. ~gap:3 [ packet ]
     |> sample ~random ~per_bit:8 ~per_cycle:2
   in
   let base = 24 in
@@ -1085,20 +1084,35 @@ let%expect_test "the receivers' owner waits on its status pin for a packet" =
        done;
        let handed = Array.map handed ~f:List.rev in
        let owner = handed.(1) in
-       print_s
-         [%message
-           ""
-             ~lockstep:(!mismatch : int option)
-             ~owner_saw:(List.hd owner : int option)
-             ~handed_as_sent:
-               ([%equal: int list] (List.take (List.drop owner 1) (List.length sent)) sent
-                : bool)
-             ~other_reads:(handed.(0) |> List.dedup_and_sort ~compare : int list)
-             ~other_pushes:(List.length handed.(0) : int)])
-  [@nontail];
+       if Option.is_some corrupt
+       then print_s [%message "" ~owner_saw:(List.hd owner : int option)]
+       else
+         print_s
+           [%message
+             ""
+               ~lockstep:(!mismatch : int option)
+               ~owner_saw:(List.hd owner : int option)
+               ~handed_as_sent:
+                 ([%equal: int list]
+                    (List.take (List.drop owner 1) (List.length sent))
+                    sent
+                  : bool)
+               ~other_reads:(handed.(0) |> List.dedup_and_sort ~compare : int list)
+               ~other_pushes:(List.length handed.(0) : int)])
+  [@nontail]
+;;
+
+let%expect_test "the receivers' owner waits on its status pin for a packet" =
+  owner_waits
+    (Usb.data ~pid:Usb.data0 (List.init 20 ~f:(fun n -> ((n * 41) + 9) land 0xff)));
   [%expect
     {|
     ((lockstep ()) (owner_saw (3)) (handed_as_sent true) (other_reads (0))
      (other_pushes 25))
-    |}]
+    |}];
+  (* finished and error, with good low *)
+  owner_waits
+    ~corrupt:seventh_one
+    (Usb.data ~pid:Usb.data1 [ 0xff; 0xff; 0x3c; 0x7e; 0x01 ]);
+  [%expect {| (owner_saw (9)) |}]
 ;;

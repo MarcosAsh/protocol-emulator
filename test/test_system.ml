@@ -611,6 +611,14 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
        in
        await 1;
        show ();
+       (* engine 1 is certified and engine 0 is not, so a start of both starts neither *)
+       pulse i.start_all;
+       cycle ();
+       print_s
+         [%message
+           "after start_all"
+             ~halted:
+               (List.map o.engines ~f:(fun e -> Bits.to_bool !(e.halted)) : bool list)];
        write_data corrupted;
        loaded 0;
        pulse (host 0).check;
@@ -641,6 +649,7 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
      (misordered "refused at 0: a table entry out of order"))
     ((engine 0) (accepted false) (reject_pc 510) (reason 29) (refused true))
     ((engine 1) (accepted true) (reject_pc 0) (reason 0) (refused false))
+    ("after start_all" (halted (true true)))
     ((engine 0) (accepted false) (reject_pc 1) (reason 3) (refused false))
     ((engine 1) (accepted false) (reject_pc 1) (reason 3) (refused false))
     ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
