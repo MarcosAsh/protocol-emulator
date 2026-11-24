@@ -455,3 +455,65 @@ let%expect_test "a frame on the chip, beside running engines in lockstep" =
      (handed_as_sent true) (handed 119))
     |}]
 ;;
+
+module One = Engines.Make (struct
+    let engines = 1
+  end)
+
+module Alone = Hardcaml_test_harness.Lws_harness.Make (One.I) (One.O)
+
+let wait_finished =
+  [%string
+    {|
+    wait 1 pin %{Isa.first_status_pin#Int}
+    in pins, 4
+    push
+halt:
+    jmp halt
+|}]
+;;
+
+(* A lone engine owns the receiver, so it leaves the wait with finished and FCS good. *)
+let%expect_test "a lone engine waits on its status pin for a frame" =
+  let random = Random.State.make [| 13 |] in
+  let frame = with_fcs (List.init 23 ~f:(fun n -> ((n * 37) + 5) land 0xff)) in
+  let samples = line ~random ~fifty:true ~ppm:50. ~jitter:5. frame in
+  let config =
+    { Program_config.default with in_base = Isa.first_status_pin; in_shift = Left }
+  in
+  Alone.run
+    ~random_initial_state:`All
+    ~create:(One.hierarchical ~gated:false ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       let o = Before_and_after_edge.after_edge outputs in
+       let int r = Bits.to_unsigned_int !r in
+       let p = List.hd_exn i.hosts in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       Engine.Config.iter2 p.config (Engine.Config.of_program_config config) ~f:( := );
+       List.iteri (Firmware.assemble wait_finished) ~f:(fun addr word ->
+         p.program_write.valid := Bits.vdd;
+         p.program_write.addr <--. addr;
+         p.program_write.data <--. word;
+         cycle ());
+       p.program_write.valid := Bits.gnd;
+       i.frame.base <--. base;
+       i.frame.fifty := Bits.vdd;
+       i.frame.arm := Bits.vdd;
+       cycle ();
+       i.frame.arm := Bits.gnd;
+       p.start := Bits.vdd;
+       cycle ();
+       p.start := Bits.gnd;
+       List.iter
+         (samples @ List.init 50 ~f:(fun _ -> [ 0; 0 ]))
+         ~f:(fun rd ->
+           i.rd := Bits.of_bit_list (List.rev rd);
+           cycle ());
+       let e = List.hd_exn o.engines in
+       print_s [%message "" ~pushed:(int e.rx_level : int) ~saw:(int e.rx_head : int)])
+  [@nontail];
+  [%expect {| ((pushed 1) (saw 3)) |}]
+;;
