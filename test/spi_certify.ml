@@ -29,15 +29,17 @@ let certify
   Spi_master.write m ~watch Reg.control [ 0x10 ];
   let status () = List.hd_exn (Spi_master.read m ~watch Reg.check_status ~count:1) in
   (* the check can wait two of the checker's turns for its engine's, so poll at leisure *)
-  let rec settle () =
+  let rec settle polls =
     let status = status () in
-    if status land 1 = 1
-    then (
+    if status land 1 = 0
+    then status
+    else if polls = 0
+    then raise_s [%message "the load checker is still busy"]
+    else (
       watch 4_096;
-      settle ())
-    else status
+      settle (polls - 1))
   in
-  let status = settle () in
+  let status = settle 256 in
   if status land 0b100 = 0
   then (
     let pc = Spi_master.read m ~watch Reg.reject_pc ~count:1 in
