@@ -1738,3 +1738,38 @@ let%expect_test "a wait on a pin or a capture from before the run bounds no phas
     ("List.take violations 2" ())
     |}]
 ;;
+
+(* The run from a [set x] to its loop shares the loop's slope, from word 0 too, and a run
+   from anything else keeps none. *)
+let%expect_test "only the run from a set x shares its loop's slope" =
+  let source =
+    {|
+    set x, 3
+    nop
+a:
+    add t, 5
+    jmp x--, a
+    set x, 3
+    mov t, now
+    nop
+b:
+    add t, 5
+    jmp x--, b
+    halt
+|}
+  in
+  print_rows (rows source) ~f:(fun r -> sprintf "slope %d" r.slope);
+  [%expect
+    {|
+    0  set x, 3                     slope 0
+    1  nop                          slope 2
+    2  add t, 5                     slope 2
+    3  jmp x--, 2                   slope 2
+    4  set x, 3                     slope 0
+    5  mov t, now                   slope 0
+    6  nop                          slope 0
+    7  add t, 5                     slope 2
+    8  jmp x--, 7                   slope 2
+    9  halt                         slope 0
+    |}]
+;;
