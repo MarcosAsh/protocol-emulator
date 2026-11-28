@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # A TDM audio transmitter on OUT3 (SCLK), OUT4 (FSYNC) and OUT6 (SDATA), which analyser B's
 # D4, D1 and D3 watch (MicroPython, Pico A): a frame of eight 16-bit samples, then silence
-# as SCLK runs on until the core is halted. demo/outside.sh tdm_audio runs it.
+# as SCLK runs on until the core is halted. OUT1, the library's FSYNC, reaches no channel.
+# OUT5, the flash's clock, stays still, so the flash takes none of it.
+# demo/outside.sh tdm_audio runs it, reading the analyser, the capture's length and
+# sigrok's decoders from the next line.
 # outside: analyser=B ms=2000 decode=-P tdm_audio:clock=D4:frame=D1:data=D3:bps=32:channels=8 -A tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7
 
 import bench

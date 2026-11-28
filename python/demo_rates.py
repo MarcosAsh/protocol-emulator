@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # The standard settings on the bench's parts (MicroPython, Pico A), each firmware held to
-# its sheet's limits. i2c: the EEPROM demo in Standard-mode and Fast-mode. spi: the flash's
-# JEDEC ID in modes 0 and 3, which a W25Q64 takes, and in modes 1 and 2, which it does not,
-# for the analyser alone. uart: four bytes on OUT0 at a rate. demo/rates.sh runs each.
+# its sheet's limits in its protocol's file. i2c: the EEPROM demo in Standard-mode and in
+# Fast-mode, on the master that holds START and STOP the quarters each mode needs. spi: the
+# flash's JEDEC ID in modes 0 and 3, which a W25Q64 takes, and the same frame in modes 1 and
+# 2, which it does not, for the analyser alone. uart: four bytes on OUT0 at a rate, for Pico
+# B and the analyser. demo/rates.sh runs each.
 
 import bench
 import bench_firmware

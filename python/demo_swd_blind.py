@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SWD host at 1 MHz: SWCLK on OUT2, SWDIO on IO5, the carrier's SWD pins to the RP2040.
-# Wakes it from dormant, selects core 0 and reads its DPIDR; the RP2040 should answer OK and
-# 0x0bc12477. demo/outside.sh swd_blind runs it.
+# Wakes it from dormant, selects core 0 and reads its DPIDR; the RP2040 should answer
+# OK and 0x0bc12477. demo/outside.sh swd_blind runs it and takes the analyser, capture
+# length and sigrok decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P swd:swclk=D6:swdio=D7 -A swd=reset:read:ack:data
 
 import bench

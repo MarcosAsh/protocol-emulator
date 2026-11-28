@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Self-timing on the host Pico (MicroPython): engine 0 sends UART frames over wire 20, engine 1
-# stamps every edge and echoes the wire on OUT0 for the listener Pico and the analyser. An
-# engine's set and out pins are one run from their base, so it cannot drive OUT0 and the
-# wire together: hence the echo.
+# stamps every edge and echoes the wire on OUT0 for the listener Pico and the analyser.
+# An engine's set and out pins are one run from their base, so it cannot drive OUT0 and
+# the wire together: hence the echo. Needs protocol_emulator.py, pico_board.py and the
+# two .hex and two .cert.hex files on the Pico.
 
 import protocol_emulator as pe
 

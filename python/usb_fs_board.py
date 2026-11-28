@@ -1,8 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The board's half of the full speed USB device. The chip receives every packet (Usb_frame_rx)
-and its engine answers within the turnaround time from records in the data memory. The board
-does the rest: SETUPs, descriptors, data toggles, the address. `Board` does no I/O: `memory`
-is what to load, `feed` takes the engine's words, `out` holds the tx fifo lists."""
+"""The board's half of the full speed USB device.
+
+The chip receives every packet itself (clock recovery, NRZI, unstuffing and both CRCs in
+Usb_frame_rx), and its engine answers within the turnaround time from records in the data
+memory: ACK and NAK at fixed places, plus each reply's PID and data, which the chip sends
+with its CRC-16, bit stuffing and NRZI. The board does the rest: SETUPs, descriptors,
+data toggles, the address, and which record answers the next IN on each endpoint.
+
+`Board` does no I/O. `memory` is what to load into the data memory, `feed` takes the
+words the engine pushes, and `out` holds the words for the tx fifo, each list whole and in
+order. `load`, `restart` and `service` do the I/O over a `protocol_emulator.Host`.
+"""
 
 import usb_fs_device_firmware as firmware
 from protocol_emulator import STATUS

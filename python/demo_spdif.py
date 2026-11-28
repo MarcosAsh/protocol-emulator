@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# S/PDIF on OUT0, watched by analyser A's D4 (MicroPython, Pico A). Sends
-# a frame of zeros, three stereo frames of 16-bit samples at 44.1 kHz, then silent frames
-# until the core is halted. sigrok starts at the second subframe, so it misses only a zero.
+# An S/PDIF transmitter on OUT0, watched by analyser A's D4 (MicroPython, Pico A). Sends
+# a frame of zeros, three stereo frames of 16-bit samples at 44.1 kHz, biphase mark, then
+# silent frames until the core is halted. sigrok starts reading at the second subframe, so
+# it misses only a zero.
+# demo/outside.sh spdif runs it and takes the analyser, capture length and sigrok decoders
+# from the next line.
 # outside: analyser=A ms=2000 decode=-P spdif:data=D4 -A spdif=samples
 
 import bench

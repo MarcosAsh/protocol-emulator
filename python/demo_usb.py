@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# Engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0], D-
-# uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
-# pico_board's pins, and keeps the board detached (GP8 -> header 15) until engine 0 serves.
-# Engine 1 sends each key the laptop took out of OUT0 at 115200 baud. Untested on a board.
+# Engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
+# D- uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
+# pico_board's pins, watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7, and from
+# GP8 -> header 15 keeps the board detached until engine 0 serves, and a press on GP9 (the
+# carrier's REPLUG) detaches it again; the TT demo board reads uio_out itself. Meanwhile
+# engine 1 sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
+# Needs uart_tx_host_rate.hex and uart_tx_host_rate.cert.hex on the Pico.
+# Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
 import time
 
@@ -110,10 +114,12 @@ def start_log(host, program, certificate, clock_hz=48_000_000):
 
 def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None,
           attach=None, replug=lambda: False, ready=lambda: True):
-    """Forever. Typing waits for a configuration, a HID driver and ready(), so no report sits
-    in the fifo while the laptop enumerates (an IN on endpoint 0 would drop it). A reset puts
-    back the report it lost, `log` gets each report once taken, `say` each step and key.
-    `attach` is called once engine 0 first serves, and again after each `replug`."""
+    """Forever. Typing waits for a configuration, a HID driver and ready(), so no report
+    sits in the fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word
+    more for the rx fifo on a SETUP's heels. A reset puts back the report it lost, `log`
+    gets each report once the laptop has taken it, and `say` each step of the enumeration
+    and each key. `attach`, if given, is called once engine 0 first serves, and again each
+    time `replug` has detached the board."""
     serving, halted, address, configured = False, False, 0, False
     while True:
         if bus_reset():

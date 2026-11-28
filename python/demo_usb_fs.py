@@ -2,7 +2,9 @@
 # The chip as a full speed USB device (MicroPython, Pico A). Engine 0 answers every packet
 # itself from the data memory, with D+ on uio[0] and D- on uio[1], pulled up from D+ on the
 # Icepi Zero built with FS=1. It is a vendor-defined HID device, so a host binds a driver
-# but nothing types. Pico A is the host over pico_board's pins and keeps the board detached.
+# but nothing types. Pico A is the host over pico_board's pins. It keeps the board detached
+# from GP8 -> header 15 until engine 0 serves, and watches header 29 (D+) -> GP6 and
+# 31 (D-) -> GP7 for a bus reset.
 
 import time
 

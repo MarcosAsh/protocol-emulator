@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # I2C START hold times on a bus the chip only listens to (MicroPython, Pico A). Engine 1
 # runs I2c.start_hold on IO2 (SCL) and IO3 (SDA), driving neither, and pushes the cycles
-# from each START's SDA fall to its SCL fall. Pico B is the master (demo/start_hold_master).
-# This script judges against UM10204's 4.0 us and engine 0 shows the verdict on OUT3's stick.
+# from each START's SDA fall to its SCL fall. Pico B is the master, using pico-examples'
+# pio_i2c or its I2C block (demo/start_hold_master). The chip measures, this script judges
+# against UM10204's Standard-mode 4.0 us, and engine 0 then shows the verdict on the
+# NeoPixel stick on OUT3, wired as in demo_neopixel. demo/start_hold.sh runs it once
+# demo/pico_b.sh has loaded Pico B's master.
 
 import bench
 import bench_firmware

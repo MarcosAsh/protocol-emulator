@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """The demo board's half of the USB device.
 
-The core does what must meet the turnaround time (tokens, CRC, ACK, NAK); this does the rest.
-`Board` does no I/O: `feed` takes the core's words, `reload` is the address to load the core
-for (then call `flushed`), and each list in `replies` goes to the tx fifo whole, in order."""
+The core does what must meet the turnaround time (tokens, CRC, ACK, NAK); this does
+the rest: SETUPs, descriptors, data toggles, reloading on a new address.
+
+`Board` does no I/O: `feed` takes the words the core pushed, `reload` is the address to
+load the core for (then call `flushed`), and each list in `replies` must be written to
+the tx fifo whole and in order. `service` is one round of that I/O over a `protocol_emulator.Host`.
+"""
 
 import gc
 
@@ -213,9 +217,11 @@ def drain(host, words):
 
 
 def service(host, board, fifo_depth=8):
-    """One round: hand the core's words to the board, then do what the board wants. Returns
-    the status word. The laptop's ACK, status OUT and next SETUP come back to back, eleven
-    words for an eight word fifo, and feeding them one by one on the Pico is too slow, so
+    """One round: hand the core's words to the board, then do what the board wants.
+    Returns the status word.
+
+    The laptop's ACK, status OUT and next SETUP come back to back, eleven words for an
+    eight word fifo, and feeding them one by one on the Pico is too slow to keep up: so
     the fifo is drained until quiet, then fed."""
     words = []
     status = drain(host, words)

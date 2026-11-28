@@ -117,9 +117,10 @@ def load_receiver(host, engine, name="ethernet_rx"):
 
 def heard(host, frame, td_plus, base, polls=200):
     """Engine 0, running the transmit firmware, sends frame while engine 1, running the
-    receiver's, takes it back off td_plus into base up: the receiver's status, the bytes on
-    the wire after the start of frame, and what engine 1 hands over of them. The data memory
-    takes writes only while both cores are halted."""
+    receiver's, waits for the chip's receiver to take it back off td_plus into base up:
+    the receiver's status, the bytes on the wire after the start of frame, and what
+    engine 1 hands over of them. The data memory takes writes only while both cores are
+    halted."""
     data = wire(frame)[len(PREAMBLE):]
     for engine in (1, 0):
         host.select(engine)
