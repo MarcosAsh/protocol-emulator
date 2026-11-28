@@ -54,3 +54,5 @@ src/osr_kernel.ml ## int at most ## ; sum_lo = pick ( <= ) a.sum_lo b.sum_lo ## 
 src/osr_kernel.ml ## int at least ## ; sum_hi = pick ( >= ) a.sum_hi b.sum_hi ## a tie picks one of two equal values
 src/osr_kernel.ml ## int less than ## if joins.(to_) < widen_after ## near-equivalent: widening a join later changes only a pc that settles at exactly its 64th join, and check has the last word
 src/osr_kernel.ml ## int plus one ## joins.(to_) <- joins.(to_) + 1; ## near-equivalent: widening after 32 joins changes only a pc still moving after 32, which no firmware has, and check has the last word
+src/manchester_rx.ml ## int plus one ## let count_bits = Int.ceil_log2 (timeout slowest + (2 * samples_per_cycle * one) + 1) + 1 ## a bit wider holds the same signed counts
+src/manchester_rx.ml ## int add to subtract ## let count_bits = Int.ceil_log2 (timeout slowest + (2 * samples_per_cycle * one) + 1) + 1 ## in the chip the width is the same, and alone the count stops one cycle's samples past the timeout, which a bit fewer holds
