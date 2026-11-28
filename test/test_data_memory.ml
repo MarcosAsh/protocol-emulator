@@ -374,3 +374,56 @@ let%expect_test "waveform of two engines reading the shared memory" =
     └─────────────┘└───────────────────────────────────────────────────────────────┘
     |}]
 ;;
+
+(* [keeps] waits for the engine's own turn after a start, holds through a write elsewhere
+   and drops for one refetch after a write to the kept word. *)
+let%expect_test "an engine keeps its word from its own turn until a write to it" =
+  Harness.run
+    ~random_initial_state:`All
+    ~create:(Two.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let open Hardcaml in
+       let keeps = (Before_and_after_edge.after_edge outputs).keeps in
+       let halt halted =
+         List.iter2_exn i.halted halted ~f:(fun r b -> r := Bits.of_bool b)
+       in
+       let show what ~cycles =
+         let seen =
+           List.map (List.range 0 cycles) ~f:(fun _ ->
+             Hardcaml_lws.Lws.cycle h;
+             i.dma.valid := Bits.gnd;
+             String.concat (List.map keeps ~f:(fun k -> Bits.to_string !k)))
+         in
+         print_s [%message what (seen : string list)]
+       in
+       let land_at addr =
+         i.dma.valid := Bits.vdd;
+         Bits.(i.dma.addr <--. addr)
+       in
+       i.clocking.clear := Bits.vdd;
+       Hardcaml_lws.Lws.cycle h;
+       i.clocking.clear := Bits.gnd;
+       halt [ true; true ];
+       List.iteri i.reads ~f:(fun n r -> Bits.(r <--. 5 + n));
+       show "halted" ~cycles:4;
+       halt [ false; false ];
+       show "started" ~cycles:4;
+       land_at 9;
+       show "a write elsewhere" ~cycles:3;
+       land_at 5;
+       show "a write to the first's word" ~cycles:4;
+       halt [ false; true ];
+       show "the second halts" ~cycles:2;
+       halt [ false; false ];
+       show "and starts again" ~cycles:3;
+       ());
+  [%expect
+    {|
+    (halted (seen (00 00 00 00)))
+    (started (seen (10 11 11 11)))
+    ("a write elsewhere" (seen (11 11 11)))
+    ("a write to the first's word" (seen (01 11 11 11)))
+    ("the second halts" (seen (10 10)))
+    ("and starts again" (seen (11 11 11)))
+    |}]
+;;
