@@ -26,13 +26,9 @@ module Host : sig
 end
 
 (** [before_start] is the pin levels through the start pulse, 0 by default. At each cycle
-    in [restarts] the host starts the core again, which takes a clock more at the same
-    levels. [preload] is pushed into the tx fifo and [data] written into the data memory
-    from address 0 before the start pulse. [inputs] and [host] are asked once per cycle;
-    [react] sees the model after each step, which is where a peer on the pins advances.
-    Stops at the first mismatch and returns it with the cycle. [coverage] and [premise]
-    are told about every step of the model. [line_table] is loaded and [premises] set
-    before the start. *)
+    in [restarts] the host starts the core again. [preload] goes into the tx fifo and
+    [data] into data memory from 0 before the start. [inputs] and [host] are asked each
+    cycle, [react] sees each step. Stops at a mismatch. *)
 val run
   :  ?cycles:int
   -> ?before_start:int

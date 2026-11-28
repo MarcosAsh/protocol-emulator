@@ -1,16 +1,8 @@
-(** The firmware library as the analyser certifies it and the RTL proves it. Each entry
-    says what its certificate rests on.
-
-    - [period] is the bit period the host loads, for firmware that takes it from the fifo.
-    - [period_floor], where the host picks the rate, is the least period it may load, for
-      the deadlines alone (jitter and sample times hold at [period]).
-    - [single_capture_edge]: the line makes one edge between arming the capture and
-      waiting for it.
-    - [no_wrap]: the induction holds while the core is within 84 ms of its deadline and of
-      its last captured edge. A 24-bit clock needs this when a wait or a host-length loop
-      can leave it far behind.
-    - [any_data]: the data memory reads as anything every cycle, where the rest read
-      zeros. This covers every table a table interpreter can load. *)
+(** The firmware library as the analyser certifies it and the RTL proves it, each entry
+    with what its certificate rests on. [period]: the bit period the host loads, and
+    [period_floor] the least it may load (deadlines only). [single_capture_edge]: one line
+    edge between arming the capture and waiting. [no_wrap]: the core within 84 ms of its
+    deadline and last edge. [any_data]: data memory reads anything every cycle. *)
 
 open! Core
 open Protocol_emulator

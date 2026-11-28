@@ -103,9 +103,8 @@ let read_fuse = [ 0x50; 0x00; 0x00; 0x00 ]
 
 (* Section 32.8.2 (p.378): data goes in on SCK's rise and out on its fall. Each reply byte
    echoes the byte before it on MOSI, but for a read's last, which is the data.
-   Instructions are taken with RESET low after 20 ms (p.379), with SCK high and low at
-   least two CPU cycles. The signature is Table 32-9's (p.368), the fuse the factory low
-   fuse. *)
+   Instructions are taken with RESET low after 20 ms (p.379), SCK high and low at least
+   two CPU cycles. Signature from Table 32-9 (p.368), fuse the factory low fuse. *)
 module Atmega88 = struct
   let signature = [ 0x1e; 0x93; 0x0a ]
   let low_fuse = 0x62
@@ -292,10 +291,9 @@ let limits =
 ;;
 
 (* sigrok's spi in mode 0 with no chip select, under its avr_isp, which names the device
-   from the signature. The spi lines are each instruction's bytes on MOSI and the reply on
-   MISO, which echoes the byte before it but for a read's last. The teeth flip the first
-   MOSI bit, so the programming enable reads 0x2C, and the first MISO bit, so its echo of
-   0xAC reads 0x2C. *)
+   from the signature. The lines are each instruction's bytes on MOSI and the reply on
+   MISO. The teeth flip the first MOSI bit, so the programming enable reads 0x2C, and the
+   first MISO bit, so its echo of 0xAC reads 0x2C. *)
 let sigrok =
   let hex = sprintf "spi-1: %02X" in
   let line = sprintf "avr_isp-1: %s" in

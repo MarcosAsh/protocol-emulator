@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Plants known bugs one at a time to score a reviewer. A finding counts only if its
 # reproducer fails on the planted copy and passes on a clean one. Copies go under _plant/.
-# Usage: python3 test/plant.py screen [--plant NAME ...] [--jobs N]  which bugs runtest misses
-#        python3 test/plant.py export NAME DIR  a planted copy, without this file
-#        python3 test/plant.py grade NAME DIR   DIR/repro.sh on clean and planted
+# Commands: screen (which bugs runtest misses), export NAME DIR (a planted copy), grade
+# NAME DIR (DIR/repro.sh on clean and planted).
 import argparse
 import shutil
 import subprocess

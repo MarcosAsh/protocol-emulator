@@ -1,26 +1,8 @@
 // Power-up is deterministic. Two copies of the chip start from independent arbitrary states
 // (every flop and fifo word) and see the same pins every cycle, with rst_n low at the first
-// edge and free after it. From the cycle after that edge on, their pins and their three SRAM
-// macros' inputs are equal forever.
-//
-// Premise: the two copies' macros hold the same words after the first edge. A macro is its
-// output register. A read takes a value, which is the same in both copies when both read the
-// same way after the first edge, and a free one in each otherwise. The copies' writes are
-// equal from then on, which is asserted, so the premise holds afterwards if it holds then.
-// With COLD, a program macro's words are its own in each copy until its engine is first
-// started or lent to the load checker. The cores reset halted, and Host.load fills all 512
-// words before a check or a start. The data memory keeps the premise, because nothing fills
-// it. The havoc tasks' RTL (powerup_havoc.awk) gives the words and read buffers of the host
-// fifos and the edge stamps any value while the fifo is cleared.
-//
-// By induction on an invariant, which is also asserted. The copies agree on:
-//   - every flop outside the fifos and the load checker
-//   - each macro's output from the second edge on
-//   - the words each fifo holds, the host's and the edge stamps' (fifo_pair)
-//   - the checker's state and the words its walk has written (load_checker_pair)
-//   - Both_edges' falling flops from the falling edge after the first, which the clear reaches
-// powerup.tcl brings the flops out. Each clock edge is a step (multiclock). The teeth set
-// NO_INVARIANT, so they fail on the claim alone, from reset.
+// edge and free after it. After that edge their pins and their three SRAM macros' inputs are
+// equal forever. Premise: the macros hold the same words after the first edge. With COLD a
+// program macro's words are its own per copy until its engine first starts.
 
 `include "pairs.sv"
 

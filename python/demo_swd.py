@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Pico B's SWD port on the chip's SWD host (MicroPython, Pico A): OUT2 (header 12) to
-# SWCLK, pin 1 of Pico B's debug connector, IO5 (header 36) to SWDIO, pin 3, GND to pin 2,
-# each line through 220 R, and 4.7 k from SWDIO to Pico B's 3V3. Reads core 0's DPIDR and
-# AP IDR and core 1's DPIDR, checks an absent instance stays silent, then lets the lines
-# go. demo/outside.sh swd runs it; test/test_swd.py rehearses it on the RTL.
+# SWCLK, IO5 (header 36) to SWDIO, GND to pin 2, each line through 220 R, and 4.7 k from
+# SWDIO to Pico B's 3V3. Reads core 0's DPIDR and AP IDR and core 1's DPIDR, checks an absent
+# instance stays silent. demo/outside.sh swd runs it; test/test_swd.py rehearses it on the RTL.
 
 import bench
 import bench_firmware

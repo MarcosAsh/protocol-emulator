@@ -1,27 +1,7 @@
 (** Compiles a one-pin transmitter into firmware for one engine by the frame it sends, not
-    by its states. [Bit_sim] runs the netlist with the byte as unknown bits, so the coding
-    style (counter shapes, indexed or shifted data, one or two processes) doesn't matter.
-    Anything else is refused, naming the register or cycle at fault:
-
-    - From reset with [valid] low, the circuit must settle in a state that holds, and
-      again after a frame. The idle state is what the two share. A circuit that keeps
-      moving, like a free-running baud tick, is refused.
-    - A take is [valid] high in the idle state, with [data] read then and unknown after.
-      [valid] is unknown for the rest of the frame, so a circuit that reads it while busy
-      is refused, as is one whose control reads the data.
-    - In every cycle the pin is 0, 1 or a bit of the data. Data bits come in rising order
-      (LSB first, gaps allowed) and not inverted, and the frame ends back in the idle
-      state.
-    - The data is at most 16 bits, the tx fifo's word. Inputs other than reset, valid,
-      data and [tied] are unknown.
-
-    An unknown pin is refused along with each input and idle-state register that, made
-    known alone, makes it known.
-
-    Every run of the pin starts at a deadline: [wait t+] on [p] (the commonest run
-    length), then [set pins] or [out pins, 1], then [add t] or extra waits for a run of
-    another length. Consecutive data runs of length [p] share a [jmp x--] loop. So every
-    edge sits at a fixed lag behind the circuit's, whatever the data. *)
+    its states, running [Bit_sim] with the byte as unknown bits. Refused, naming the
+    register or cycle: no idle state to settle in (a free-running baud tick), [valid] read
+    while busy, a pin that isn't 0, 1 or an uninverted data bit in LSB-first order. *)
 
 open! Core
 open! Hardcaml

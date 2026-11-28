@@ -1,9 +1,7 @@
-(** Checks a timing certificate one instruction at a time. A certificate has a row per pc:
-    the phase [now - t] on entry (signed interval), [p], [x] and [y] (unsigned intervals),
-    and the phase minus a multiple of [x] (another signed interval). The analyser proposes
-    the rows and isn't trusted. A program whose rows all pass, with the full range at pc
-    0, never misses a deadline. An empty row means the pc is never reached, and the full
-    range means an unknown phase. *)
+(** Checks a timing certificate one instruction at a time. A row per pc holds the phase
+    [now - t] on entry, [p], [x], [y], and the phase less a multiple of [x], as intervals.
+    The analyser proposes the rows and isn't trusted. A program whose rows all pass, with
+    the full range at pc 0, never misses a deadline. An empty row is a pc never reached. *)
 
 open! Core
 open! Hardcaml
@@ -20,12 +18,10 @@ module Edge : sig
   [@@deriving hardcaml]
 end
 
-(** A pair of pins whose edges must be spaced. Each pin is its [pindirs] bit if [dirs] is
-    set, else its [pins] bit. Also holds the config that writes them and the least cycles
-    between edges. Those are indexed by [2 * own + other], the two bits before an edge,
-    from [a]'s last edge ([hold_a]) and [b]'s ([apart_a]), and the same for [b]. Moving at
-    once is 0 apart. An edge is a move after the pin's first write in the run. Out and mov
-    data aren't followed, so a pin they write may move. *)
+(** A pair of pins whose edges must be spaced, each its [pindirs] bit if [dirs], else its
+    [pins] bit. Holds the config that writes them and the least cycles between edges,
+    indexed by [2 * own + other] from [a]'s last edge ([hold_a]) and [b]'s ([apart_a]),
+    likewise for [b]. Out and mov data aren't followed, so a pin they write may move. *)
 module Spacing : sig
   type 'a t =
     { a : 'a
@@ -100,12 +96,10 @@ module Make_timer (_ : Engine.Timer) : sig
     [@@deriving hardcaml]
   end
 
-  (** [slope] is signed. [offset_lo] and [offset_hi] bound [phase - slope * x], taken
-      modulo the timer and read as signed. Their full range bounds nothing. Where a
-      counted loop's [jmp x--] falls through, x is zero and the phase lies inside the
-      offset. The kernel carries the offset across [set x] and across a step that adds to
-      the phase and leaves x alone or counts it down, as long as both rows have the same
-      slope. On any other step the next row's offset has to be full. *)
+  (** [slope] is signed. [offset_lo] and [offset_hi] bound [phase - slope * x] modulo the
+      timer, read as signed; their full range bounds nothing. Where [jmp x--] falls
+      through, x is zero and the phase lies in the offset. The offset carries across
+      [set x] and steps that leave x alone or count it down, at equal slopes. *)
   module Row : sig
     type 'a t =
       { phase_lo : 'a
@@ -159,11 +153,10 @@ module Make_timer (_ : Engine.Timer) : sig
     [@@deriving hardcaml]
   end
 
-  (** [accepts] split into conjuncts, so a rejection says which one fails. [in_time]: a
-      deadline wait is entered at phase zero or below. [wide_a] and [wide_b]: an edge the
-      word may make keeps the pin's spacing. [next] and [target]: the row maps into the
-      next pc's and into the jump target's, on each way out the instruction may take. A
-      conjunct that doesn't apply (an empty row, a halt) holds. *)
+  (** [accepts] split into conjuncts, so a rejection says which one fails: [in_time] (a
+      deadline wait is entered at phase zero or below), [wide_a] and [wide_b] (an edge
+      keeps the pin's spacing), [next] and [target] (the row maps into the next pc's and
+      the jump target's). One that doesn't apply holds. *)
   module Conjuncts : sig
     type 'a t =
       { in_time : 'a
@@ -176,17 +169,9 @@ module Make_timer (_ : Engine.Timer) : sig
   end
 
   (** The next entry's phase is anything unless [bounded], and one less too if
-      [may_carry]. [next_period] holds when [period_known]. [loaded], when valid, assumes
-      every run-time write to [p] carries its value, or with [floor] at least that. The
-      same goes for [x] and [y]. A jump goes to its target when [taken], if [taken_known].
-      [next_arm] counts the cycles since [capture_arm], leaving out a capturing wait's own
-      wait, when [next_arm_known]. Once [next_captured], the capture is younger than that,
-      because the arm takes effect a cycle late. Only the first wait for the edge after
-      the arm, while [awaiting], captures. [capture_bounded]: this is [mov t, capture]
-      with a captured edge, so the next phase lies in [cycles + 1, next_phase]. [next_a]
-      and [next_b] are the pair's edge states, with an edge showing the cycle after the
-      entry, where out or mov data puts [data_a] and [data_b] on them. [wide_a] and
-      [wide_b]: each keeps its spacing. [halts]: there is no next entry. *)
+      [may_carry]. [loaded], when valid, assumes every run-time write to [p], [x] and [y]
+      carries its value, or with [floor] at least that. [next_arm] counts cycles since
+      [capture_arm]; [halts]: there is no next entry. *)
   module Step : sig
     type 'a t =
       { next_phase : 'a
@@ -276,10 +261,9 @@ module Make_timer (_ : Engine.Timer) : sig
       -> Comb.t Row.t * Comb.t
 
     (** [conjuncts] with no spacing, for one way out against [s]: the jump's where [taken]
-        is high, falling through where it is low, and the other way holds. Where [taken]
-        is low, [fall_through] holds too. This computes a way's image once for the load
-        checker, which checks one way at a time and registers the word's classes with
-        [stage]. [test/test_kernel.ml] proves it matches. *)
+        is high, falling through where it is low. Where [taken] is low, [fall_through]
+        holds too. The load checker checks one way at a time, so this computes a way's
+        image once. [test/test_kernel.ml] proves it matches. *)
     val one_way
       :  ?stage:(Comb.t -> Comb.t)
       -> side_set_count:Comb.t
@@ -381,16 +365,10 @@ module Make_timer (_ : Engine.Timer) : sig
     -> Table.t
     -> Rejection.t list
 
-  (** Checks every pc; words past the program read zero. [period] is [loaded] and
-      [period_floor] is the same as a floor. [spacing] is refused unless its pins differ
-      and lie in the pin space, Manchester and the line code are off, and every row has no
-      slope and the full offset. [formal/phase_spacing.sby] proves that case. A rejection
-      names each pc and the conjuncts that fail there. Together with
-      [formal/phase_step.sv] (the core moves from one entry to the next as [step] says,
-      for any program) and [test/test_kernel.ml] (SAT proves [accepts] keeps [step] inside
-      the rows and a deadline wait at or below zero), this is what makes a passing program
-      miss no deadline. SAT can't follow a multiplication, so that proof takes the offsets
-      as free inputs under stated axioms of modular arithmetic. *)
+  (** Checks every pc; words past the program read zero. [period] is [loaded],
+      [period_floor] the same as a floor. [spacing] is refused unless its pins differ and
+      lie in the pin space, Manchester and the line code are off, and every row has no
+      slope and the full offset ([formal/phase_spacing.sby]). *)
   val check
     :  ?period:int
     -> ?period_floor:int

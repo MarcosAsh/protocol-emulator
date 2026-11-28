@@ -1,14 +1,10 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-// The chip with the outside parts the bench carrier wires to it. An SPI flash takes MOSI from
-// OUT4, SCK from OUT5 and CS from OUT6, and answers on IN0: models/spiflash.v is picosoc's
-// model from YosysHQ/picorv32 at commit ef203c2, unchanged. Unless a test sets flash_wired,
-// the flash is deselected and a cocotb slave on the spi_* lines may answer instead.
-// IO2 is I2C SCL, IO3 SDA and IO4 a 1-Wire line, each pulled up: a cocotb model pulls
-// one low through its *_o, the chip by enabling the pin's output, whose value is 0. A CAN
-// bus is the AND of the transceivers' D: OUT1's, OUT2's once can_out2 joins it, and a
-// cocotb node's can_o; each R gives it back after a loop delay, into IN1 for the chip.
+// The chip with the outside parts the bench carrier wires to it. An SPI flash
+// (models/spiflash.v, picosoc's model, unchanged) takes MOSI from OUT4, SCK from OUT5 and CS
+// from OUT6 and answers on IN0, deselected unless a test sets flash_wired. IO2 is I2C SCL, IO3
+// SDA, IO4 a 1-Wire line, each pulled up. CAN is the AND of the transceivers' D.
 module tb_outside ();
 
   initial begin

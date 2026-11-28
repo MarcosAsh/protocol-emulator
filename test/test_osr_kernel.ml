@@ -29,10 +29,9 @@ let lies_in (r : _ Osr_kernel.Row.t) ~shifted ~x ~pulled =
 let all (h : _ Osr_kernel.Holds.t) = Osr_kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
 
 (* An accepted row maps into the row the core steps to. x and the way out come from the
-   kernel's step (phase_step.sv), and x on the way in lies in the kernel's row, which the
-   kernel's proof gives for a program it accepts. [with_kernel] false drops that. A write
-   to x that the kernel doesn't follow asks for a full sum, so the x the core arrives with
-   is free. *)
+   kernel's step (phase_step.sv), and x on the way in lies in the kernel's row, which its
+   proof gives for a program it accepts ([with_kernel] false drops that). A write to x the
+   kernel doesn't follow asks for a full sum, so the x the core arrives with is free. *)
 let accepted_rows_hold ~with_kernel =
   let side_set_count = G.input "side_set_count" 2 in
   let autopull = G.input "autopull" 1 in
@@ -507,8 +506,7 @@ let assembled source =
 (* Brute force: for a word that leaves x alone or counts it down, on each way out, the
    image's shifted bounds are exactly the smallest and largest counts the core steps to
    from any state the row and x's bounds allow. [jmp x--] is taken only from x >= 1 and
-   falls through only from 0. The sum bounds are exact where every sum in the row's range
-   is reached. *)
+   falls through only from 0. Sum bounds are exact where each sum in range is reached. *)
 let%expect_test "an image's bounds are the hull of the states the core reaches" =
   let module O = Osr_kernel.Make (Bits) in
   let side_set_count = Bits.zero 2 in

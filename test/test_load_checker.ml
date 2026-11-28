@@ -52,8 +52,7 @@ end
 (* Runs the checker over each walk's [words] and [certificate] in turn, in one simulation.
    Program memory answers one cycle after an address and data memory two (the latest
    either engine's turn gives). With [rewrite_at] the host writes a different setup that
-   many cycles into a walk, and with a walk's [abort_at] it aborts the walk that many
-   cycles in. *)
+   many cycles into a walk; with [abort_at] it aborts the walk then. *)
 let run_walks ?random_initial_state ?rewrite_at (walks : Walk.t list) =
   Harness.run
     ?random_initial_state
@@ -454,10 +453,9 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
 ;;
 
 (* A one-word corruption of a firmware for each reason a random search over six firmwares
-   found the model refusing for, under the setup given. Then come the reasons the search
-   didn't find, such as a row marked captured or awaiting where no way into it can be. All
-   are walked in one simulation, each verdict must be the model's, and each refusal's
-   flags are cleared by the walk after it. *)
+   found the model refusing for, then the reasons it didn't find, such as a row marked
+   captured or awaiting where no way into it can be. All are walked in one simulation,
+   each verdict the model's and each refusal's flags cleared by the next walk. *)
 let%expect_test "a refusal for every reason found, one walk after another" =
   let corruptions =
     (* firmware, in the program (or the certificate), at, value, loaded, floor, single
@@ -576,13 +574,10 @@ let%expect_test "a setup written during a walk does not reach it" =
     |}]
 ;;
 
-(* Walks at the edges of what a host can set up, all in one simulation: a certificate at
-   the top of memory, wrapping to its bottom, then at 0. A side-set count of 3, which only
-   the host can write. A loaded period of 0x5a5. A row with an arm that no way into it
-   reaches (only a dictionary holds it), and the same arm in a row only a jump reaches (so
-   the walk holds it). 170 jumps, each to the next, so the search and the entry pointer
-   pass 128 and the certificate fills all 512 words. And, after a refusal at a stored row,
-   a program wrapping at pc 0. *)
+(* Walks at the edges of what a host can set up, in one simulation: a certificate at the
+   top of memory, wrapping to its bottom, then at 0; a side-set count of 3, which only the
+   host can write; a period of 0x5a5; an arm no way into its row reaches, and one only a
+   jump does; 170 jumps filling 512 certificate words; a wrap at pc 0 after a refusal. *)
 let%expect_test "walks at the edges of the setup" =
   let uart_tx = walk_of "uart_tx" in
   let host_rate = walk_of "uart_tx_host_rate" in

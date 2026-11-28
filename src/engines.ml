@@ -167,11 +167,9 @@ module Make (Config : Config) = struct
     let%hw frame_could_write = wire 1 in
     let owns n = if engines = 1 then vdd else i.frame_owner ==:. n in
     let data_turn = Data_memory.O.Of_signal.wires () in
-    (* What the walk reads gets written (or maybe written) under it, or its engine leaves
-       halted. Only its own host's data words land while it walks, and its own receivers'
-       words land in its turn, so either may take its read. Another engine's receivers'
-       words land in their own turn and end the walk only where it has read
-       (Load_checker). *)
+    (* The walk ends where what it reads is or may be written, or its engine leaves
+       halted. Its own host's and receivers' words may take its read. Another engine's
+       receivers' words end it only where it has read (Load_checker). *)
     let%hw abort =
       checking
       &: (pick
@@ -184,12 +182,9 @@ module Make (Config : Config) = struct
           |: pick (List.map lent ~f:( ~: ))
           |: turn_ends)
     in
-    (* A received frame takes the data memory's port only in its owner's turn, and only
-       where no read the owner needs is lost: no host write, and the owner halted and not
-       starting, not pulling from data, or keeping its word. A halted engine's word is
-       refetched from its start. So when words land, and so when the owner's status pins
-       move, never depends on another engine. The owner's walk is aborted wherever a word
-       could land, whether or not the owner's read lets it, which keeps the owner's fetch
+    (* A frame's word takes the port only in its owner's turn and where no read the owner
+       needs is lost, so when words land and its status pins move never depends on another
+       engine. The owner's walk aborts wherever a word could land, which keeps its fetch
        off the abort's path. *)
     let%hw host_writes = data_turn.host_write in
     let%hw_list turn_spared =

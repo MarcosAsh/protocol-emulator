@@ -582,9 +582,8 @@ let slave_mid_read ~byte ~bits =
 
 (* A free bus gets a START and a STOP. If the slave is stopped after the address ack and
    three 0 bits, it lets go after the other five and the ack's rise, where the master's
-   NACK ends the read. If it's stopped after five bits of 0x5a, its 1 ends the pulses and
-   the START frees the 0 behind it. With SDA held for good we get nine pulses and the
-   STOP's rise. *)
+   NACK ends the read. If stopped after five bits of 0x5a, its 1 ends the pulses and the
+   START frees the 0 behind it. With SDA held for good: nine pulses, the STOP's rise. *)
 let%expect_test "the bus clear frees a slave stuck mid-read" =
   clear_bus
     ~slave:(I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0))

@@ -1,12 +1,8 @@
 (** Data rows beside the kernel's timing rows, one per pc. Each has the bits of the osr's
     last word shifted out since ([shifted], run on to [shift_limit] past the core's 16),
-    that plus x ([sum], which a counted loop keeps), and whether a pull or an autopull
-    took the word ([pulled]). formal/data_step.sv proves the core follows [step];
-    test_osr_kernel.ml proves by SAT that [accepts] keeps it in the rows, given the
-    kernel's x. Composed on paper: an out at a [pulled] row sends bits [shifted] to
-    [shifted + n - 1] of that word (from 0 if it autopulls), or underflow is set, unless a
-    [crc_send] is in force. Only meaningful for a program the kernel accepts; an empty row
-    is never reached. *)
+    that plus x ([sum]), and whether a pull or an autopull took the word ([pulled]). An
+    out at a [pulled] row sends bits [shifted] to [shifted + n - 1], or sets underflow,
+    unless [crc_send]. formal/data_step.sv proves the core follows [step]. *)
 
 open! Core
 open! Hardcaml

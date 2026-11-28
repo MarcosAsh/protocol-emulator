@@ -8,12 +8,10 @@ open! Core
 (** Refuses fifo waits and fifo jumps, listing each by address. *)
 val time_triggered : Asm.Program.t -> unit Or_error.t
 
-(** Last push cycle for each of the first [words] words, counted from the core's first
-    cycle; a push at [c] is in the fifo from [c + 1]. [inputs] are the pin levels on every
-    cycle, low unless given. Runs the model with the fifo kept full and replies read at
-    once; by the proof, every host that meets the schedule sees this run. Refuses a
-    program that isn't time-triggered, faults, or takes fewer than [words] words in
-    [max_cycles]. *)
+(** Last push cycle of each of the first [words] words from the core's first cycle (a push
+    at [c] is in the fifo from [c + 1]), given [inputs] per cycle. Runs the model with the
+    fifo full and replies read at once, which every host meeting the schedule matches.
+    Refuses a program that isn't time-triggered, faults, or takes under [words] words. *)
 val schedule
   :  ?inputs:int
   -> ?max_cycles:int

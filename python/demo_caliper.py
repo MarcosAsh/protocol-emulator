@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A Chinese digital scale's output (Chinese Scales, page 1) on OUT0, the clock, and OUT2,
 # the data, which analyser A's D4 and D6 watch (MicroPython, Pico A): two frames of two
-# 24-bit positions, LSB first, 270 cycles a half clock period. OUT1, the library's data
-# pin, reaches no channel.
-# demo/outside.sh caliper runs it, taking its settings from the next line.
+# 24-bit positions, LSB first, 270 cycles a half clock period. demo/outside.sh caliper runs it.
 # outside: analyser=A ms=2000 decode=-P caliper:clk=D4:data=D6 -A caliper=measurement
 
 import bench

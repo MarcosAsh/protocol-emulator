@@ -130,10 +130,9 @@ let bench =
 ;;
 
 (* The spec's timing is nominal, so we take it as the minimum the scale waits: a clock no
-   faster than 90 kHz (half period 5555.5 ns) and pauses of at least 55, 110 and 55 us.
-   The host paces the update periods, so no row bounds them. The last pause runs into the
-   next frame's first, so that row covers both. Highs of the run: 0 is the first pause, 24
-   the one between the words, 48 the last. *)
+   faster than 90 kHz (half period 5555.5 ns), pauses of at least 55, 110 and 55 us. The
+   host paces the update periods, so no row bounds them. The last pause runs into the next
+   frame's first, so that row covers both. Highs: 0 first pause, 24 between, 48 last. *)
 let limits =
   let sheet lines =
     { Datasheet.Sheet.part = "Chinese digital scale"

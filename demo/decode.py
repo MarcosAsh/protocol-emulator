@@ -3,14 +3,6 @@
 # "# sigrok" lines (test/pin_trace.ml) name the decoders, every line they must print, and
 # the teeth: changes to the waveform that they must refuse. Any error or warning annotation
 # fails too.
-# Usage: python3 demo/decode.py test/traces/*.trace test/traces/sigrok/*.trace
-#        python3 demo/decode.py --rate 24 TRACE...            as a 24 MHz analyser sees it
-#        python3 demo/decode.py --capture can.sr TRACE        a capture from the bench
-#        python3 demo/decode.py --analyser B --capture spi.sr test/traces/sigrok/spi_mode0.trace
-#        python3 demo/decode.py --rate 24 --write-capture can.sr TRACE
-#        python3 demo/decode.py --host-frames frames.py TRACE for demo/pico_replay.py
-#        python3 demo/decode.py --summary "the RTL" TRACE...  and a count of protocols read
-#        python3 demo/decode.py --show TRACE                  every line each decoder reads
 import argparse
 import functools
 import os

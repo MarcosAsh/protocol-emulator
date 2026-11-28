@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # One point of a margin sweep on the bench (MicroPython, Pico A). Runs the point's firmware
 # from demo/margins.py REPEATS times against the part, judging each repeat by what the part
-# does, alongside a reference at the library's timing. Each run returns a dict of what it
-# saw, and demo/margins.py judges it and labels the point in spec or OUT OF SPEC. Needs
-# bench.py, bench_firmware.py, protocol_emulator.py, pico_board.py and the parts' demos.
+# does, alongside a reference at the library's timing. Each run returns a dict that
+# demo/margins.py judges. Needs bench.py, bench_firmware.py, protocol_emulator.py and pico_board.py.
 
 import bench
 import bench_firmware

@@ -1,12 +1,8 @@
-(** Runs a firmware on the Tiny Tapeout top the way a board would, with the host on the
-    SPI pins and a peer on the rest, and records every pin on every cycle. The cocotb
-    replay drives the recorded inputs into the Verilog, the gate level netlist and the
-    FPGA netlist and expects the recorded outputs back.
-
-    Cyclesim does not model the asynchronous reset, so registers start at zero (the state
-    [rst_n] low leaves the synchroniser in). Cycle 0 is the first rising clock edge after
-    [rst_n] is released, and the replay holds [rst_n] low before it. Outputs are the
-    values after the edge. *)
+(** Runs a firmware on the Tiny Tapeout top the way a board would, host on the SPI pins
+    and a peer on the rest, recording every pin each cycle. The cocotb replay drives the
+    inputs into the Verilog, gate level and FPGA netlists and expects the outputs back.
+    Cyclesim has no asynchronous reset, so registers start at zero. Cycle 0 is the first
+    rising edge after [rst_n] is released. Outputs are values after the edge. *)
 
 open! Core
 open Protocol_emulator

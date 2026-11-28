@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Runs one bench demo unattended. Loads the chip, runs demo/outside.sh, measures the capture
-# against the datasheet limits, marks demo/speed.tsv, saves everything in
-# EVIDENCE/<date>/<protocol>/<demo>/ and adds a line to demo/runs.tsv. After a timeout or a
-# missing step it resets the Icepi and tries once more (attempt1/, attempt2/). A FAIL
-# verdict is not retried.
-# Usage: PICO=id:<serial of Pico A> python3 demo/bench_run.py DEMO [--bitstream FILE |
-#            --from-flash] [--measure FIRMWARE --probe PIN=Dn...] [--dry-run]
+# Runs one bench demo unattended: loads the chip, runs demo/outside.sh, measures the capture
+# against the datasheet limits, marks demo/speed.tsv, saves it all under EVIDENCE/<date>/
+# <protocol>/<demo>/ and adds a line to demo/runs.tsv. A timeout or missing step resets the
+# Icepi and retries once (attempt1/, attempt2/). A FAIL is not retried. Needs PICO=id:<serial>.
 
 import argparse
 import csv

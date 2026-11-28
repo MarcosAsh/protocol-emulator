@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # NEC infrared from the library's transmitter (MicroPython, Pico A). OUT0 is high for the
 # on third of the 38 kHz carrier, like an LED's drive, and is seen by analyser A's D4 and
-# Pico B's GP1. Sends the spec's example frame (address 0x59, command 0x16), then a repeat
-# code.
+# Pico B's GP1. Sends the spec's example frame (address 0x59, command 0x16), then a repeat code.
 # outside: analyser=A ms=2000 decode=-P ir_nec:ir=D4:polarity=active-high:cd_freq=38000 -A ir_nec=addr:cmd:repeat-code
 
 import bench

@@ -113,14 +113,10 @@ estuff:
       ~period:32]
 ;;
 
-(* USB low speed receiver. The host sends the bit period, and the half period is an
-   immediate so the analyser can follow it. The line state lives in the program counter,
-   as a J half and a K half. Every J-to-K edge re-anchors the sampling: the capture is
-   armed after each sample that reads J, and when the next sample finds D+ high, [t] goes
-   to that edge plus a bit and a half. If D+ is already high just after an arm, the edge
-   may have come before it, so [t] is anchored on [now] instead and the capture is not
-   read stale. Bits go through [in] one at a time so the CRC sees them. After the EOP the
-   CRC register follows as one more word for the host to check. Stuffed zeros are dropped. *)
+(* USB low speed receiver. The host sends the bit period, the half period an immediate so
+   the analyser can follow it. Line state lives in the pc, a J half and a K half. A J-to-K
+   edge re-anchors sampling: [t] goes to it plus a bit and a half, or to [now] if D+ is
+   high just after an arm. After the EOP the CRC register follows as one more word. *)
 let rx ~half_period =
   let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
   let add n =
@@ -296,11 +292,9 @@ module Usb_line = struct
 end
 
 (* USB low speed device. [mov x, pins] reads J as 2, K as 1, SE0 as 0. The previous line
-   state lives in the program counter (each sampling piece exists for J and for K), which
-   leaves y to count bits. Token address and endpoint are compared, CRC5 included, against
-   a constant for [address] endpoint 0, so the CRC unit stays on CRC-16. Endpoint 1 is the
-   only other match. The first PID nibble is walked as a tree, so telling packets apart
-   costs no cycles. *)
+   state lives in the pc (each sampling piece exists for J and K), so y counts bits. Token
+   address and endpoint are compared, CRC5 included, against a constant for [address]
+   endpoint 0, so the CRC unit stays on CRC-16. Endpoint 1 is the only other. *)
 let device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in

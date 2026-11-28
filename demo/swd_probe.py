@@ -3,8 +3,6 @@
 # stock pyOCD can drive it without a plugin. Every SWD edge comes from the chip's SWD
 # firmware, which Pico A runs through python/bridge.py. The wiring is demo_swd.py's. nRESET
 # isn't wired, so connect with -M attach.
-# Usage: PICO=id:<serial of Pico A> python3 demo/swd_probe.py [--port 5555] [--core 0]
-#        pyocd commander -u remote:localhost:5555 -t cortex_m -M attach
 import argparse
 import math
 import os

@@ -1,9 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Runs the video's shots (demo/video.py) on the bench machine under its lock, outside the
-# tt-ci window, and copies the run back to
-# ~/.local/share/protocol-emulator/board-evidence/<date>/video/<time>/. The copy of the tree
-# goes without .git, so the commit goes with it for demo/ledger.py to record.
+# Runs the video's shots (demo/video.py) on the bench machine under its lock, outside the tt-ci
+# window, and copies the run to board-evidence/<date>/video/<time>/.
 # Usage: demo/video.sh late|fixed|heldout|keyboard|all
 #   PC=marcos@192.168.0.219 A_PORT=3-3 B_PORT=3-2 (the analysers' USB ports)
 set -euo pipefail

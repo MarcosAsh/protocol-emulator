@@ -114,8 +114,7 @@ let stream_config = { Program_config.default with autopull = true; pull_threshol
 (* Half period one short: the sample lands a cycle after the release. The capture is armed
    only while the line is high, as the certificate assumes of every arm. [check] (rounded
    (9p - 27) / 19 cycles into the stop bit) balances a slow sender's stop bit against a
-   fast sender's next start edge, and tolerates 4% either way from 16 cycles a bit up (at
-   16, 4.3% fast to 4.1% slow). *)
+   fast sender's next start edge, within 4% either way from 16 cycles a bit up. *)
 let rx_on ~pin ~period =
   let check = ((9 * period) - 18) / 19 in
   [%string

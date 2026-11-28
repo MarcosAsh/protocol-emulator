@@ -645,11 +645,8 @@ let issue t ~sample =
 
 (* The premises a certificate may rest on. Period: at [wait t+] and [add t, p], a [p] last
    written other than by a set carries the loaded period, or at least it with [floor].
-   Checked at the use, so firmware may keep other values in [p] between. Single edge, as
-   [formal/phase_step.sv] assumes: the capture pin is at the other level when
-   [capture_arm] takes effect and, once at the captured level, stays there until a wait
-   for it releases ([holding] from the arm to that release, [seen] once at the level). The
-   fault rises the cycle a premise fails. *)
+   Single edge, as [formal/phase_step.sv] assumes: the capture pin is at the other level
+   when [capture_arm] takes effect and stays captured until a wait releases. *)
 let watch_premises t ~(before : t) ~(op : Isa.Op.t option) ~sample =
   let c = t.config in
   let level = Bool.equal (bit sample c.capture_pin = 1) c.capture_rising in

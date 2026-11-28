@@ -2,9 +2,7 @@
 # The mouse draws the die. demo/outline.py's pen path becomes HID mouse reports, which the
 # chip sends from python/demo_draw.py on Pico A. Renders the reports the way a flat-profile
 # host adds them up, next to the die, and fails if that strays from the path. Ctrl-C
-# releases the button.
-# Usage: python3 demo/draw.py --dry-run [--out DIR]        render and check only
-#        python3 demo/draw.py --pico id:<serial of Pico A>  the bench
+# releases the button. --dry-run renders and checks only.
 import argparse
 import math
 import os

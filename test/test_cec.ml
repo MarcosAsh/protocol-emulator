@@ -133,9 +133,8 @@ let%expect_test "the follower refuses five bit periods free before the same init
 
 (* A line driven by an initiator, drawn in 50 us units of one cycle each, with followers
    at [addresses] on it. Each frame comes [free] bit periods after the previous frame's
-   final bit and goes [from] an initiator [to_] a destination. The initiator holds its ACK
-   slots low for [ack_units]. The frame at each index in [cuts] is cut to its first so
-   many units, the initiator giving it up. *)
+   final bit, goes [from] an initiator [to_] a destination, and holds its ACK slots low
+   for [ack_units]. The frame at an index in [cuts] is cut to its first so many units. *)
 let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?(cuts = []) sends =
   let bit one = List.init 48 ~f:(fun i -> i < if one then 12 else 30) in
   let lows =

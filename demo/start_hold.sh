@@ -1,10 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The start hold demo. Pico B is the EEPROM bus master, through pico-examples' pio_i2c (pio)
-# or its I2C block (hw). The chip stamps every START and Pico A checks the stamps against
-# Standard-mode's 4.0 us. Before that, this runs demo/pico_b.sh to put the master on Pico B,
-# pio_check's static bound on i2c.pio and, if PICO_B is Pico B's tty, the clocks Pico B
-# reports. Afterwards it prints the analyser's own reading.
+# The start hold demo. Pico B is the EEPROM bus master (pico-examples' pio_i2c for pio, its I2C
+# block for hw), the chip stamps every START and Pico A checks them against Standard-mode's 4.0
+# us. Also runs demo/pico_b.sh and pio_check's bound on i2c.pio.
 # Usage: PICO=id:<serial of Pico A> [PICO_B=/dev/ttyACM0] demo/start_hold.sh pio|hw
 set -e
 case $1 in

@@ -25,10 +25,9 @@ let config =
 ;;
 
 (* The host's first word is the line bits after the preamble less one, then the bits, 16
-   per word with the first bit in bit 0. The firmware sends 26.7 us of low
-   (tInterFrameGap), the preamble, the bits in BMC, and the trailing edge of 5.3.4 p.96
-   rules 4-6. The level lives in the program counter: [low] and [high] start a bit from
-   that level, so every edge is a [set]. *)
+   per word with the first in bit 0. The firmware sends 26.7 us of low (tInterFrameGap),
+   the preamble, the bits in BMC, and the trailing edge of 5.3.4 p.96 rules 4-6. The level
+   lives in the pc: [low] and [high] start a bit from it, so every edge is a [set]. *)
 let firmware =
   [%firmware
     {|

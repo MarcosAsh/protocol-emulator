@@ -1,12 +1,8 @@
 (** Finds the check a recorded protocol puts in its frames, from the frames alone: a byte
-    sent again inverted, an XOR or sum of the bytes, or a CRC. The CRC's width,
-    polynomial, init and final XOR are searched the way CRC RevEng does. A rule is only
-    taken when the frames hold more evidence than the search could match by chance, so a
-    few frames, or frames that differ in too few places, give no rule rather than a guess.
-
-    Bits are in the order they were sent. A CRC runs over them in that order with the
-    register shifting left, which is how a receiver checks any CRC bit by bit. A reflected
-    CRC over LSB-first bytes is the same thing with its constants reversed. *)
+    sent again inverted, an XOR or sum of the bytes, or a CRC (width, polynomial, init and
+    final XOR searched as CRC RevEng does). A rule is only taken when the frames hold more
+    evidence than chance would match. Bits are in the order sent, and a CRC runs over them
+    shifting left. *)
 
 open! Core
 

@@ -4,16 +4,10 @@ open Pin_trace
 module Reg = Host_port.Reg
 
 (* Wikipedia, "Digital Addressable Lighting Interface", revision of 10 July 2026 (oldid
-   1363488623), one page, cited by line
-   {v
-   rate      1200 bit/s, fixed                                      lines 157, 172
-   bit       Manchester, a one low then high, a zero the reverse    line 178
-   frame     a start bit 1, 8 to 32 data bits msb first             line 178
-   idle      high, at least 2.45 ms after each frame                line 178
-   forward   16 bits, the address byte then the opcode              line 206
-   backward  8 bits                                                 line 156
-   commands  40 a second at most                                    line 188
-   v} *)
+   1363488623), one page, cited by line: 1200 bit/s fixed (157, 172), Manchester with a
+   one low then high (178), a start bit 1 then 8 to 32 data bits msb first (178), idle
+   high at least 2.45 ms after a frame (178), forward frames of 16 bits (206), backward of
+   8 (156), at most 40 commands a second (188). *)
 
 let pin = 5
 let half_bit = Bench.half ~hz:1200

@@ -1,12 +1,8 @@
 // Edge lemma, on phase_step.sv's cycles; an entry is the first issue after a start or a
-// completion. For any program and any config written while halted, pin_out and pin_dir
-// only change the cycle after an entry whose word writes them, and then to its writes in
-// order: a Manchester second half owed by the word before, side-set, then set, out or mov.
-// A held wait reissues the same side-set and moves nothing. The second half shows (the
-// out's delay + 1) after the first, whatever the next word is. A start or clear drops it,
-// and a stop holds it until then. The only thing assumed of the host is the config's
-// halted window (host_spacing.sv). Out and mov data is the core's value at issue;
-// value_step.sv proves that value is the ISA's.
+// completion. For any program and any config written while halted, pin_out and pin_dir only
+// change the cycle after an entry whose word writes them, and then to its writes in order: a
+// Manchester second half owed by the word before, side-set, then set, out or mov. A held wait
+// moves nothing. Assumes only the config's halted window (host_spacing.sv).
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS

@@ -1,18 +1,8 @@
-// Frame lemma, beside edge_step.sv: from the clear on, a pin outside the engine's
-// footprint never moves in pin_out or pin_dir, whatever the host and the pins do. The
-// footprint is whatever the program's writers reach under the config, on the pins each
-// write takes (5 to 27 drive, 12 to 19 turn around), wrapping at 32 as Pins.write does:
-//   - side-set on every word except a jump (a count of 3 carries two bits, so its third
-//     pin only gets 0)
-//   - set
-//   - out, up to the widest out the program has (an out writes its own count, whatever
-//     out_count is), and two wide for a one-bit Manchester or line-coded out
-//   - mov, up to out_count
-// The one assumption is that every word the core runs writes no more than the program
-// says. Outs 16 wide with every writer used assume nothing. The host, fifos, data word,
-// inputs, line table, premises, next engine and clear are free every cycle, and the chip
-// has no debugger. The config holds between clears: a new one without a clear leaves the
-// last program's pins driven.
+// Frame lemma, beside edge_step.sv: from the clear on, a pin outside the engine's footprint
+// never moves in pin_out or pin_dir, whatever the host and the pins do. The footprint is
+// whatever the program's writers (side-set, set, out, mov) reach under the config on the pins
+// each write takes (5 to 27 drive, 12 to 19 turn around). Assumes every word the core runs
+// writes no more than the program says. The rest is free; the config holds between clears.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS

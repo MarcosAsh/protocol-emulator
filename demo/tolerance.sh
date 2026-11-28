@@ -1,9 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Measures the receiver's tolerance: runs python/demo_tolerance.py on Pico A and prints its
-# log. Engine 1 sends to engine 0 on a wire that never reaches a pin, so the log is the only
-# evidence and no analyser is needed. Reset the chip first, because faults stick until
-# reset. The run is saved in EVIDENCE.
+# Measures the receiver's tolerance: runs python/demo_tolerance.py on Pico A and prints its log.
+# Engine 1 sends to engine 0 on a wire that never reaches a pin, so the log is the only evidence
+# and no analyser is needed. Reset the chip first (faults stick). Saved in EVIDENCE.
 # Usage: PICO=id:<serial of Pico A> demo/tolerance.sh
 set -e
 evidence=${EVIDENCE:-$HOME/.local/share/protocol-emulator/board-evidence/$(date +%F)/tolerance}

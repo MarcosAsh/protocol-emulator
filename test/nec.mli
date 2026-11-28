@@ -1,11 +1,8 @@
 (** NEC infrared remote control on one line, OUT0, as a receiver module's output gives it:
-    low for a mark. Every time is a whole number of 562.5 us units, which the host loads.
-    A frame is a leader, then the address, its inverse, the command and its inverse, each
-    bit a unit's mark and a space of 1 unit for a zero or 3 for a one, and a final mark. A
-    repeat code is sent while a key is held, one every 192 units (108 ms).
-
-    The host sends the unit once, then per key the three words of [words]. A late word is
-    an underflow fault. *)
+    low for a mark. Times are whole units of 562.5 us, which the host loads. A frame is a
+    leader, address, its inverse, command, its inverse, each bit a unit's mark and a space
+    of 1 unit (zero) or 3 (one), a final mark, a repeat code every 192 units while a key
+    is held. The unit is sent once, then per key [words]. A late word underflows. *)
 
 open! Core
 open Protocol_emulator
@@ -27,11 +24,10 @@ val config : Program_config.t
     next key's leader no sooner. *)
 val tx : Timed_program.t
 
-(** A receiver on [pin], at the half unit the host loads, for a line low in a mark, as
-    from a receiver module. It pushes a frame's 32 bits as two words (the address with its
-    inverse in the high byte, then the command's), and 0xffff for a repeat code. A mark
-    too short for a leader is ignored. Nothing checks a frame's bits, so one cut short
-    leaves the receiver waiting for the rest. *)
+(** A receiver on [pin], at the half unit the host loads, for a line low in a mark. It
+    pushes a frame's 32 bits as two words (address with inverse in the high byte, then the
+    command's), 0xffff for a repeat code. A mark too short for a leader is ignored. Bits
+    are unchecked, so a frame cut short leaves it waiting for the rest. *)
 val rx_on : pin:int -> string
 
 val rx_config : pin:int -> Program_config.t

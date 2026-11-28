@@ -1,9 +1,8 @@
-// P3: when the host talks to the core never reaches the pins. [step] is one core with its
-// fifos and memories pulled out. Two copies share configuration, line table writes,
-// premises, pins, the fetched word, the data word and the pulled word, while what the fifos
-// report is free in each. The script makes every register an input and an output, so this
-// is one induction step from any state. Each teeth task in host_timing.sby removes one part
-// and must fail.
+// P3: when the host talks to the core never reaches the pins. [step] is one core with its fifos
+// and memories pulled out. Two copies share configuration, line table writes, premises, pins,
+// the fetched word, the data word and the pulled word, while what the fifos report is free in
+// each. The script makes every register an input and an output, so this is one induction step
+// from any state. Each teeth task in host_timing.sby removes one part and must fail.
 module step (
   input clock, clear, start, stop, clear_irq,
   input [176:0] config_bits,

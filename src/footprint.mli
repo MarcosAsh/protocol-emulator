@@ -1,11 +1,8 @@
 (** The pins one engine can move. From the clear on, a pin outside the footprint keeps 0
-    in [pin_out] and [pin_dir] whatever the host and inputs do. [formal/frame_step.sv]
-    proves this for every config and every program whose words keep to its [Writes].
-    Side-set reaches at most [Isa.max_side_set] pins whatever [side_set_count] says (a
-    wider window writes 0 above them). [out] is as wide as the program's widest, plus one
-    pin for Manchester, and with a [Line_code] table at least [out_count] up to two. [mov]
-    writes [out_count]. This only holds while the config holds between clears: a new
-    config without a clear leaves old pins driven. *)
+    in [pin_out] and [pin_dir] whatever the host and inputs do ([formal/frame_step.sv],
+    for every config and program whose words keep to its [Writes]). Side-set reaches at
+    most [Isa.max_side_set] pins, [out] the program's widest plus one for Manchester (a
+    [Line_code] table: [out_count] up to two), [mov] [out_count]. Holds between clears. *)
 
 open! Core
 open! Hardcaml

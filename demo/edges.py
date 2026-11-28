@@ -2,9 +2,7 @@
 # Prints a bench capture's edges on some of the engine's pins, for test/measure to hold
 # against the bench copy's datasheet limits. Output: the sample rate, the length, then for
 # each pin its level at the first sample and every sample where it changes. A pin is a
-# number or a name such as IO0.
-# Usage: python3 demo/edges.py CAPTURE.sr IO0=D6 IO1=D7 \
-#          | dune exec --root . test/measure/measure.exe -- ps2
+# number or a name such as IO0. Pipe into test/measure/measure.exe.
 
 import argparse
 import re

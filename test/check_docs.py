@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Fails (naming the line) when README.md or a docs/ page cites a path, make target, job,
 # commit or run that doesn't exist, quotes a number that the code, tests or cited run
-# disagree with, or links to a page that is gone. Board results, gds and mutation runs older
-# than CI keeps are read from the releases pinned in test/evidence.sha256. --teeth checks that
-# deliberately wrong READMEs made from this one fail. --offline skips runs, evidence and links.
-# Usage: python3 test/check_docs.py [--offline] [--teeth] [--external-links]
+# disagree with, or links to a page that is gone. Runs older than CI keeps are read from the
+# releases pinned in test/evidence.sha256. --teeth checks deliberately wrong READMEs fail.
 import argparse
 import contextlib
 import csv

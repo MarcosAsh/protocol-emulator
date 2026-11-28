@@ -53,12 +53,11 @@ module Reference = struct
     }
   [@@deriving sexp_of]
 
-  (* A frame starts at the first low cycle from the previous least on (for the first
-     frame, after the line first goes high from [watch_from]). Inside a frame the line
-     moves only at an edge, and it is high by the next least. A move in the four cycles
-     before the least is seen when the next frame starts; an earlier one is seen by the
-     cycle before the least. After a fall at [watch_from], the first frame is blind from a
-     fall [2^16 k] cycles after it. *)
+  (* A frame starts at the first low cycle from the previous least on, the first after the
+     line goes high from [watch_from]. Inside a frame the line moves only at an edge and
+     is high by the next least. A move in the four cycles before the least is seen when
+     the next frame starts, an earlier one by the cycle before the least. The first frame
+     is blind from a fall [2^16 k] cycles after a fall at [watch_from]. *)
   let violations ~edges (w : Wave.t) =
     let m = Array.length edges in
     let least = edges.(m - 1) in

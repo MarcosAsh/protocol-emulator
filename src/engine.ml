@@ -881,12 +881,10 @@ module Make (Timer : Timer) = struct
       &: (pin_of sample c.capture_pin <>: pin_of pins_sampled c.capture_pin)
       &: (pin_of sample c.capture_pin ==: c.capture_rising)
     in
-    (* The premises a certificate may rest on, watched the same way Machine does:
-       - where the kernel treats p as a period, a p not last written by a set holds the
-         loaded period (or at least it, with a floor);
-       - the capture pin is at the other level when capture_arm takes effect, and once it
-         reaches the captured level it stays there until a wait on it releases. The fault
-         rises in the cycle a premise fails. *)
+    (* The premises a certificate may rest on, watched as Machine does. A p the kernel
+       treats as a period holds the loaded period, or at least it with a floor. The
+       capture pin is at the other level when capture_arm takes effect, and holds the
+       captured level until a wait on it releases. The fault rises the cycle one fails. *)
     let%hw writes_p =
       is Mov
       &: Isa.Mov_dest.Of_signal.is mov_dest P

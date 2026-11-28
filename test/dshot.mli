@@ -1,9 +1,8 @@
 (** DShot, the ESC protocol, on [pin]: 16-bit frames MSB first, each bit a high pulse
-    whose width is the data. The host sends the whole frame word, [frame].
-
-    Each bit has three deadlines [zero_high] apart: rise, a zero falls, a one falls. The
-    next rise is [bit] cycles after this one. After a frame the line stays low for the
-    rest of its last bit and [8 * zero_high] cycles more, then until the next word. *)
+    whose width is the data. The host sends the whole frame word, [frame]. Each bit has
+    three deadlines [zero_high] apart: rise, a zero falls, a one falls. The next rise is
+    [bit] cycles after this one. After a frame the line stays low for the rest of its last
+    bit and [8 * zero_high] cycles more, then until the next word. *)
 
 open! Core
 open Protocol_emulator

@@ -1,9 +1,8 @@
-// Round trip: one 10BASE-T frame into frame_rx, with may_write free. The preamble can be
-// any length, the frame any whole number of bytes, TP_IDL 250 to 400 ns, and the sampling
-// phase anything. Each half bit is PER_BIT / 2 samples, give or take DRIFT, chosen afresh,
-// and each edge moves by up to JITTER on its own; both are in 1/4096 samples. Each word
-// lands at base + its index as sent. At finished, the count, half and FCS verdict are
-// right, at the latest two cycles after the line rests.
+// Round trip: one 10BASE-T frame into frame_rx, with may_write free. The preamble can be any
+// length, the frame any whole number of bytes, TP_IDL 250 to 400 ns, and the sampling phase
+// anything. Each half bit is PER_BIT / 2 samples, give or take DRIFT, and each edge moves by up
+// to JITTER on its own (both in 1/4096 samples). Each word lands at base + its index. At
+// finished, the count, half and FCS verdict are right, within two cycles of the line resting.
 
 `ifndef PER_BIT
 `define PER_BIT 8
@@ -333,12 +332,10 @@ module frame_roundtrip (input clk);
     & (decided_count >= 8 ? 8'hff : ~(8'hff >> decided_count));
   wire signed [W-1:0] phase_error =
     $signed({{(W-11){rx_count[10]}}, rx_count}) * 128 - since;
-  // {v
-  //   at a centre, with x the error before it plus the drift's, and q where the sample
-  //   that sees the edge falls after the true centre, in [-JITTER, JITTER + S):
-  //   phase_error' = x - 128 * floor((x + q) / 1024), about 7/8 x - q/8
-  // v} so it stays in [-S - JITTER - 14 DRIFT, JITTER + 14 DRIFT + 1024], the last bound
-  // allowing for the floors
+  // At a centre, with x the error before it plus the drift's and q where the sample that sees
+  // the edge falls after the true centre (in [-JITTER, JITTER + S)): phase_error' = x - 128 *
+  // floor((x + q) / 1024), about 7/8 x - q/8. So it stays in [-S - JITTER - 14 DRIFT, JITTER +
+  // 14 DRIFT + 1024], the last bound allowing for the floors.
   wire locked = phase_error >= -S - `JITTER - 14 * `DRIFT - 128
     && phase_error <= `JITTER + 14 * `DRIFT + 1024 + 128;
   // past the first centre, and before the receiver lets the frame go

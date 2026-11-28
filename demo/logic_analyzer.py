@@ -3,7 +3,6 @@
 # a header of channel names, then one row per sample with a 0 or 1 per channel. The CSV has
 # no sample rate, so you pass it in. Run as a script it converts a CSV to a sigrok session
 # file that edges.py, decode.py and the rest can read.
-# Usage: python3 demo/logic_analyzer.py CAPTURE.csv 100M OUT.sr
 
 import sys
 

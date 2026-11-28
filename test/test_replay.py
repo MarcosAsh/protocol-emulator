@@ -1,15 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Replays test/traces (from test/pin_trace.ml) and compares every output bit on every
-# cycle. Cycle 0 is the first rising edge after RESET_CYCLES of reset, which clears every
-# register that has a clear. Nothing is masked, so an X counts as a mismatch.
-# Unwritten storage is X here but 0 in OCaml. test/uart.ml's uart_rx scenario avoids the
-# one known case, an rx read that empties the fifo. Inputs change on the falling edge and
-# outputs are sampled on the next falling edge.
-# REPLAY_TRACES takes other globs under test/. REPLAY_RECORD names a folder where each
-# trace is rewritten with the outputs the netlist drove (x or z as 0), for demo/decode.py.
-# A trace that differs still runs to the end and is written, then fails. A trace whose
-# header says "# engines N" is skipped if REPLAY_ENGINES (the netlist's engine count) is
-# smaller.
+# cycle. Cycle 0 is the first rising edge after RESET_CYCLES of reset. Nothing is masked, so
+# an X counts as a mismatch; unwritten storage is X here but 0 in OCaml. Inputs change on the
+# falling edge and outputs are sampled on the next one.
 
 import os
 from pathlib import Path

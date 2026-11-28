@@ -2,8 +2,6 @@
 # Tracks how long each protocol takes from spec to certificate to bench, in demo/speed.tsv.
 # new-protocol, formal's inductive_write and inductive_proof, and outside.sh each append a
 # stage's row. Only the first row for a stage counts.
-# Usage: python3 demo/speed.py mark PROTOCOL STAGE [--at ISO_TIME] [--note TEXT] [--if-started]
-#        python3 demo/speed.py table [--tsv FILE]
 
 import argparse
 import csv

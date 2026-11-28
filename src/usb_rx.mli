@@ -1,13 +1,8 @@
 (** USB full speed receive: NRZI with bit stuffing, clock recovered from every edge. Each
-    D+ edge is a bit boundary and restarts the phase, so the bit is the sample half a bit
-    later, then one a bit after that until the next edge. The line state there is J, K or
-    SE0 from D+ and D-. A K after a J starts a SYNC, and a 1 after at least three 0s ends
-    it. A 0 after six 1s is dropped; a seventh 1 is a stuffing error, which ends the
-    packet. SE0 ends it too.
-
-    After SYNC the bits are packed sixteen to a word, first bit lowest, so the PID lands
-    in the low half. A packet that ends on a half word gives its last byte in a low half
-    of its own. [dp] and [dm] are pad samples through the synchroniser, earliest in bit 0. *)
+    D+ edge restarts the phase, and the bit is the sample half a bit later, then one a bit
+    after until the next edge. The line state is J, K or SE0 from D+ and D-. A K after a J
+    starts a SYNC, a 1 after three 0s ends it. A 0 after six 1s is dropped; a seventh 1 is
+    a stuffing error ending the packet, as SE0 does. Bits then pack sixteen to a word. *)
 
 open! Core
 open! Hardcaml

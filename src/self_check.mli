@@ -27,11 +27,8 @@ val min_gap : int
 
 (** Checks each frame on [pin] against the rows at [base], starting from the first fall
     after it sees the line high. A move off the rows raises the irq and halts by the cycle
-    before the least, or for one in the four cycles before it, within ten cycles of the
-    next first edge. It's blind only where a fall's 16-bit stamp repeats an older one: a
-    one-cycle low pulse in the cycle before a least and the next first edge, or a fall in
-    the first cycle it reads and one in the first frame, each [2^16 k] cycles apart. It
-    misses no deadline of its own. *)
+    before the least, within ten cycles of the next first edge. Blind only where a fall's
+    16-bit stamp repeats an older one, [2^16 k] cycles apart. *)
 val checker : pin:int -> base:int -> string
 
 val checker_config : pin:int -> Program_config.t

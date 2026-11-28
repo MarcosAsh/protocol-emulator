@@ -1,27 +1,8 @@
-(** The chip's cores ([engine_n], each with its own program memory and host fields) and
-    the pins between them. They share one [Data_memory], which the host writes only while
-    all engines are halted, and engine [n]'s host writes only while the checker walks no
-    other engine. [Frame_rx] or [Usb_frame_rx] write it only in their owner's turns, where
-    it keeps its word or pulls no data.
-
-    A walk ends on its own host's data word, on a received word waiting in its engine's
-    turn (whether it lands or not), and on any word landing where it has read. The owner
-    reads the receiver's finished, good (FCS, or the CRC its PID names), receiving and
-    error (a dropped word or a stuffing error) on the status pins, from
-    [Isa.first_status_pin] up. The other engines read 0 there, so when the pins move
-    depends on no other engine.
-
-    A pin is the OR of what the engines drive, which keeps a misconfigured double drive
-    defined. An engine reads another's driven bidirectional pin instead of the pad, and
-    any engine's drive on a wire. [formal/chip_frame.sv] proves that two engines sharing
-    no pad drive and read as if alone, except for reading the other's bidirectional pads
-    and wires, provided neither gets a new config without a clear. An engine starts only
-    on a program the [Load_checker] accepted, under the configuration it was checked with,
-    and watches the premises that check took ([Engine.Premises]). A routed engine's pushes
-    go to the next engine's tx fifo, which its host then can't write.
-
-    An engine with a fault latched halts and lets go of its pins, as at reset, until the
-    clear. A start does nothing meanwhile ([formal/fail_safe.sv] proves it). *)
+(** The chip's cores and the pins between them, a pin the OR of what they drive. They
+    share one [Data_memory]; a walk ends on any word that lands, or waits to land, where
+    it reads. Two engines sharing no pad run as if alone ([formal/chip_frame.sv]), given
+    no new config without a clear. An engine starts only on a program the [Load_checker]
+    accepted, and a latched fault halts it until the clear ([formal/fail_safe.sv]). *)
 
 open! Core
 open! Hardcaml

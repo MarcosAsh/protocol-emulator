@@ -31,11 +31,9 @@ let config =
 ;;
 
 (* A frame is a header word (bit 15 erase/write, the rest its bits minus one), then its
-   bits MSB first, 16 per word, by autopull. [set pins] drives SK in bit 0 and CS in bit
-   1. DO is sampled after each fall, where sigrok reads it, and the last 16 samples are
-      pushed. [t] is the next rise on entry to [bit]. An erase/write frame holds CS low
-      for 65536 waits of 19 cycles starting a p after its fall, then high for two SK highs
-      with no clock (the status window), then low. *)
+   bits MSB first, 16 per word, by autopull. [set pins] drives SK in bit 0, CS in bit 1.
+   DO is sampled after each fall and the last 16 samples pushed. [t] is the next rise on
+   entry to [bit]. An erase/write holds CS low 65536 waits of 19, then high 2 SK highs. *)
 let firmware =
   [%firmware
     {|

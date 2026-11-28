@@ -2,9 +2,7 @@
 # Plays a trace's host frames into the chip from Pico A (MicroPython), each after its gap,
 # using the frames.py that demo/decode.py --host-frames writes. The trace starts from reset,
 # so we first stop and flush both engines and run CLEAR on engine 1: a stopped engine keeps
-# its pins, and the top level ORs both engines' outputs.
-# Usage: demo/bench_decode.sh, which copies frames.py, protocol_emulator.py and
-#        pico_board.py over and runs this with mpremote run --no-follow
+# its pins, and the top level ORs both engines' outputs. demo/bench_decode.sh runs it.
 
 import time
 

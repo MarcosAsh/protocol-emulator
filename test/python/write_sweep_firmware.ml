@@ -42,11 +42,10 @@ let level (m : Machine.t) = (m.pin_out lsr wire) land 1
    a stamp can tell apart. *)
 let quiet = 1 lsl 16
 
-(* The model of both engines from the logger's start, run the way the sweep runs them. It
-   gives the setup's edges, then each burst's (a burst is pushed once the one before is
-   quiet), each with the cycle it began. A frame starts at a burst's first edge and at the
-   first edge after an anchor, which is a write of [t] from the clock or the capture.
-   Between frames the host's timing decides. *)
+(* The model of both engines from the logger's start, run as the sweep runs them: the
+   setup's edges, then each burst's, with the cycle it began. A frame starts at a burst's
+   first edge and at the first edge after an anchor, a write of [t] from the clock or the
+   capture. Between frames the host's timing decides. *)
 let simulate ~config ~words ~preamble ~bursts =
   let instructions =
     Array.of_list words

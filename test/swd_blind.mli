@@ -1,13 +1,9 @@
 (** SWD host (ARM IHI 0031C, ADIv5.0 to ADIv5.2, chapter 4): SWCLK on OUT2 by side-set,
-    SWDIO on IO5, the bench's pins to its RP2040.
+    SWDIO on IO5, the bench's pins to its RP2040. The host writes the half period, then a
+    word per eight clocks, two bits per clock from bit 0: SWDIO's level, then 1 to drive
+    or 0 to release. It reads a word per eight, SWDIO sampled at each fall into bits 8 to
 
-    The host writes the half period, then one word per eight clocks, two bits per clock
-    from bit 0: SWDIO's level, then 1 to drive it or 0 to let it go. It reads one word per
-    eight clocks, with SWDIO sampled at each fall into bits 8 to 15 (the first clock in
-    bit 8). The level and direction change just after a fall and the target takes them on
-    the rise. The target changes SWDIO just after a rise and we sample it on the fall. A
-    release happens at once and a drive two cycles later, so SWDIO is let go for at least
-    a period plus two cycles. SWCLK stays low between words. *)
+    15. A drive lands two cycles after a release, so SWDIO is let go a period plus two. *)
 
 open! Core
 open Protocol_emulator
@@ -57,12 +53,10 @@ end
 (** The answer to a read from the words the core pushed, [first] its first clock. *)
 val answer : pushed:int list -> first:int -> Answer.t
 
-(** A SW-DP, protocol version 1, turnaround 1 (DLCR's reset value). It samples SWDIO on
-    each rise of SWCLK and moves it just after. It expects a line reset (50 clocks high, 2
-    idle), then headers; each valid header gets OK, and a protocol error gets no answer
-    until the next line reset. Its DPIDR is the RP2040's, and its AP reads are posted
-    (p.4-95), giving 0 the first time. It flags host and target driving SWDIO at once, and
-    too few idle cycles. *)
+(** A SW-DP, protocol 1, turnaround 1 (DLCR's reset value). It samples SWDIO on each SWCLK
+    rise, moves it just after. It expects a line reset (50 high, 2 idle), then headers: a
+    valid one gets OK, a protocol error nothing until the next line reset. DPIDR is the
+    RP2040's, AP reads posted (p.4-95). Flags double drive, short idle. *)
 module Target : sig
   type t
 

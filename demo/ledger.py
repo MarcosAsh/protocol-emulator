@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs every bench demo in turn at BITSTREAM's clock, each from a fresh load of it (that is
 # the reset). Each demo saves its capture, decode, Pico logs and a SHA256SUMS in
-# EVIDENCE/<date>/ledger/<demo>/, next to the day's other bench runs, and adds a line to
-# demo/ledger.tsv. --keyboard adds the USB keyboard demo; demo/keys.py grabs its keys from
-# the desktop (under sudo) and checks them against the expected text. PICO_B_SERIAL picks
-# Pico B, as for demo/pico_b.sh.
-# Usage: PICO=id:<serial of Pico A> python3 demo/ledger.py BITSTREAM [--keyboard]
-#            [--only DEMO]... [--evidence DIR] [--results TSV] [--dry-run]
+# EVIDENCE/<date>/ledger/<demo>/ and adds a line to demo/ledger.tsv. --keyboard adds the USB
+# keyboard demo, whose keys demo/keys.py grabs (under sudo). PICO_B_SERIAL picks Pico B.
 
 import argparse
 import datetime

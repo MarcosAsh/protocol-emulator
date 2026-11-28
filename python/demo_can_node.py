@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The chip as a CAN node at 500 kbit/s on one SN65HVD230 (MicroPython, Pico A): OUT1 into
-# its D, its R into IN1, the bus to Pico B running demo/can_node. Engine 0 sends four
-# frames with the sender, which reads each ACK slot, the last asking Pico B for frames of
-# its own; then engine 0 takes the receiver, which ACKs Pico B's four. OUT1 is dominant
-# from reset until the sender has its period, which the run gives first.
+# its D, its R into IN1, the bus to Pico B running demo/can_node. Engine 0 sends four frames
+# with the sender, the last asking Pico B for frames of its own, then takes the receiver,
+# which ACKs Pico B's four. OUT1 is dominant from reset until the sender has its period.
 
 import bench
 import bench_firmware

@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Shows what the editor shows in the first demo: test/uart.ml with a delay added to tx16's
 # [out pins, 1], sent to ocamllsp as an unsaved buffer so nothing on disk breaks. Prints each
-# diagnostic the way the compiler would. Fails on any diagnostic outside the literal, such
-# as a missing config.
-# Usage: dune build @check, then python3 demo/squiggle.py [--delay 13]
+# diagnostic the way the compiler would. Fails on any diagnostic outside the literal. Run
+# after dune build @check.
 import argparse
 import json
 import os

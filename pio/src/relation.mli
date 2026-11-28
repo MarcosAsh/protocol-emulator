@@ -1,12 +1,8 @@
-(** How a translated program keeps a PIO program's timing, and a checker that trusts
-    neither the translator nor its layout. Each PIO step has markers, which are [wait t+]
-    words that release on the step's first PIO cycle. Every path from a marker must
-    - take [per_cycle] [wait t+]s for each PIO cycle of the step,
-    - write or sample the step's pins one cycle after the marker (two cycles for a
-      [jmp pin] after a side-set nop), and
-    - reach a marker of a step the PIO can go to next. A stall re-anchors [t] at its
-      release. So once the kernel certifies that every [wait t+] releases on time, a PIO
-      cycle takes [per_cycle] times [p] cycles here. *)
+(** A checker that a translated program keeps its PIO program's timing, trusting neither
+    the translator nor its layout. Every path from a marker ([wait t+] released on a
+    step's first PIO cycle) takes [per_cycle] [wait t+]s per PIO cycle, writes or samples
+    pins one cycle after it (two for a [jmp pin] after a side-set nop), and reaches a next
+    step's marker. A stall re-anchors [t]. *)
 
 open! Core
 open Protocol_emulator

@@ -160,11 +160,10 @@ let intact ~per_bit ~per_cycle ~run ~ppm ~jitter ~skew ~seed =
   List.count want ~f:(fun w -> List.mem got w ~equal:Result.equal)
 ;;
 
-(* Forty DATA0 packets of 32 bytes, half of them 0xff so that a stuffed 0 comes every few
-   bytes, back to back with three bits of J between. The sender is 0.25% fast and slow
-   (the standard's limit). Jitter is uniform and independent per line-state change, so two
-   edges in a row can be up to twice it away from their spacing: 9.25 ns is the standard's
-   18.5 ns to the next transition. Each cell is packets intact out of 40. *)
+(* Forty DATA0 packets of 32 bytes, half 0xff so a stuffed 0 comes every few bytes, back
+   to back with three bits of J between. The sender is 0.25% fast and slow (the standard's
+   limit). Jitter is uniform and independent per line-state change, so two edges can be up
+   to twice it from their spacing (9.25 of 18.5 ns). A cell is intact of 40. *)
 let%expect_test "packets intact under jitter, both edges against one" =
   let jitters = [ 0.; 2.; 5.; 9.25; 12.; 15.; 18. ] in
   printf "%-12s %6s" "sampling" "ppm";
@@ -978,8 +977,7 @@ loop:
 (* Both engines against [System] every cycle, with the status pins the chip shows given to
    the model's owner and the packet's words given to its memory once they are in. The
    owner sees finished and good as it leaves the wait, and engine 0 reads 0 on every
-   status pin. A packet with a stuffing error lands no words, so only what the owner sees
-   on the pins is shown for it. *)
+   status pin. A stuffing error lands no words, so only the owner's pins are shown. *)
 let owner_waits ?corrupt packet =
   let random = Random.State.make [| 7 |] in
   let cycles =

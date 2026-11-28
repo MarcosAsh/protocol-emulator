@@ -40,13 +40,10 @@ let all_but_offset_and_edges (h : _ Kernel.Holds.t) =
   all { h with offset = G.vdd; edge_a = G.vdd; edge_b = G.vdd }
 ;;
 
-(* Proves that an accepted row maps into its successors and meets its deadline, split into
-   claims that SAT finds much easier apart. [bounds]: the conjuncts other than the
-   offset's and the edges' keep the core inside every other bound of the row it steps to,
-   and a deadline wait in time. [offset]: the offset conjuncts keep its offset inside that
-   row's. For each pin of the pair: an edge it may make is spaced. [accepts] implies each,
-   and each is proved one of [cases] at a time. That the edge bounds carry to the next row
-   is too much arithmetic for SAT, so formal/pair_step.sby proves it on the RTL. *)
+(* Proves that an accepted row maps into its successors and meets its deadline, in claims
+   SAT finds easier apart: [bounds] (the core stays inside the next row's bounds and a
+   deadline wait in time), [offset], and per pin that each edge it may make is spaced.
+   That the edge bounds carry to the next row is too much for SAT: pair_step.sby. *)
 type claims =
   { cases : G.t list
   ; bounds : G.t
@@ -143,13 +140,9 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let known k v name = G.mux2 k v (any name Isa.data_bits) in
   let x' = known s.x_known s.next_x "x" in
   (* SAT can't follow a multiplication, so [offset] (the core's [phase - row.slope * x]
-     modulo the timer) and [next_offset] and [target_offset] ([phase' - slope * x'] under
-     each successor's slope) are free inputs. We constrain them with axioms that hold of
-     the true offsets: after [set x, v] the offset is [phase' - slope * v]. Where x is
-     zero it's the phase. With the same slope the offset moves as the phase does where x
-     stays, and a slope further where x is one less. The proof is sound only because these
-     hold, which formal/offset_axioms.smt2 proves. Each is stated only where the kernel
-     needs it, which keeps it true and makes SAT's job far easier. *)
+     modulo the timer), [next_offset] and [target_offset] are free inputs, constrained by
+     axioms that hold of the true offsets and each stated only where the kernel needs it.
+     The proof is sound only because they hold, which formal/offset_axioms.smt2 proves. *)
   let offset = G.input "offset" Isa.timer_bits in
   let next_offset = G.input "next_offset" Isa.timer_bits in
   let target_offset = G.input "target_offset" Isa.timer_bits in
@@ -764,11 +757,9 @@ let cycles_at ~clock_mhz ns = ((ns * clock_mhz) + 999) / 1000
 let cycles = cycles_at ~clock_mhz:50
 
 (* UM10204's master [timings] in cycles at [clock_mhz], as a spacing on i2c_master's pins.
-   SCL is [a] and SDA is [b], each as its pindirs bit (1 pulls the line low). tLOW and
-   tHIGH hold SCL. tBUF holds SDA high before any START, repeated ones too, which UM10204
-   doesn't require. tSU;DAT and tHD;STA keep SCL's edges apart from SDA's, and tSU;STA and
-   tSU;STO keep SDA's edges apart from SCL's rise. fSCL is two edges back, so it isn't a
-   spacing. *)
+   SCL is [a] and SDA is [b], each as its pindirs bit (1 pulls the line low). tBUF holds
+   SDA high before any START, repeated ones too, which UM10204 doesn't require. fSCL is
+   two edges back, so it isn't a spacing. *)
 let i2c_spacing ~clock_mhz timings =
   let limit name = cycles_at ~clock_mhz (I2c_timing.min_ns timings name) in
   { Kernel.Spacing.Spec.a = I2c.scl
@@ -831,9 +822,8 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
 
 (* Cutting the bus clear's SCL low to a quarter keeps every deadline, and the kernel
    refuses it once it spaces the edges. At 6 MHz a quarter of 29 (test_i2c.ml) is refused
-   only at pc 47, the SCL fall for a host word with no START. The SDA edge before it is a
-   STOP behind the host wait, past the kernel's bound. A quarter of 28 also misses
-   tSU;STA. *)
+   only at pc 47, the SCL fall for a host word with no START: the SDA edge before it is a
+   STOP behind the host wait, past the kernel's bound. 28 misses tSU;STA too. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
   let c = Library.find_certified_exn "i2c_master" in
   let short_pulse =
@@ -1447,20 +1437,10 @@ let%expect_test "a spacing is checked only where it is proved" =
     |}]
 ;;
 
-(* A row's phase is [now - t] at the instruction it enters at ([formal/phase_step.sv]). A
-   pin edge shows the cycle after the entry of an instruction that writes pins
-   ([formal/edge_step.sv]): a set, out or mov to pins or pindirs, any instruction with
-   side-set, and the one that lands a Manchester bit's second half, as the analyser's rows
-   mark them. So the widest such row, in cycles, bounds every edge's jitter against its
-   deadline, and its first pc is named. It's a bound, not any one edge's jitter: side-set
-   counts even where it drives the level the pins already hold. A row left unbounded
-   (before the first [mov t, now], after a wait on a pin or the host, or in a loop as long
-   as its data) has no deadline and is listed as untimed.
-
-   Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
-   under [arm_hi] cycles after the core samples the edge, as the arm takes effect a cycle
-   late ([formal/phase_step.sv]), so its edge shows within [arm_hi]. This assumes a single
-   edge, and [Top]'s synchroniser adds two. *)
+(* A row's phase is [now - t] at its entry ([formal/phase_step.sv]). A pin edge shows the
+   cycle after an instruction that writes pins ([formal/edge_step.sv]), so the widest such
+   row bounds its edges' jitter against its deadline, side-set counted where the level
+   holds. A row unbounded is untimed. Reaction assumes one edge, [Top]'s adds two. *)
 let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel accepts" =
   let module Kernel_bits = Kernel.Make (Bits) in
   List.iter (Library.certified @ [ spi_slave_captured ]) ~f:(fun (c : Certified.t) ->

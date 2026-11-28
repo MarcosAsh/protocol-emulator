@@ -1,11 +1,8 @@
 (** Compiles a WaveDrom diagram to a [Tables] table, so it runs under the interpreter's
-    certificate as it stands. Each period (or half period of a clock) is a step of
-    [table.cycles] cycles. With data, the first period is the idle shown while we wait for
-    the host's word. Without data, the diagram loops. Lanes: 0 1 h l are levels, p n are
-    clocks, [=] is a host bit, [.] and [|] continue. An [input: true] lane's [=] cells are
-    bits read by Shift. A frame starts on an edge when an input lane leaves its first
-    level before its first cell and there are no output lanes. That compiles to an Await,
-    a read at each cell's middle, and a Push. *)
+    certificate as it stands. Each period (or half period of a clock) is [table.cycles]
+    cycles. With data the first period is the idle shown while we wait for the host's
+    word, without data the diagram loops. Lanes: 0 1 h l levels, p n clocks, [=] a host
+    bit, [.] and [|] continue. *)
 
 open! Core
 

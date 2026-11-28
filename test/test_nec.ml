@@ -321,9 +321,7 @@ let%expect_test "the kernel accepts every unit from the shortest up" =
 
 (* The receiver anchors each bit on a capture, which the analyser bounds one load at a
    time. This finds the smallest half unit the kernel accepts, and checks every one from
-   it up to
-
-   200. *)
+   it up to 200. *)
 let%expect_test "the least half unit the receiver keeps up with" =
   let accepts half =
     Result.is_ok

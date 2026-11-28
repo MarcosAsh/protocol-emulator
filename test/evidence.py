@@ -3,7 +3,6 @@
 # board ledgers inside them and the gds and mutation runs they keep. Each asset is
 # downloaded once and checked against its pin on every read. Needs gh.
 # EVIDENCE_CACHE overrides the cache dir (default ~/.cache/protocol-emulator).
-# Usage: python3 test/evidence.py chip DIR (see chip, prints run=, source= and kept=)
 import csv
 import hashlib
 import io

@@ -101,9 +101,8 @@ let%expect_test "the kernel accepts the fast target in every mode" =
 
 (* A controller on its own clock, across the pads, in ns. Each pin reaches the core
    through the top's two flops. MISO is read [delay] after the chip's edge that drives it,
-   which covers the pad, the board and the controller's setup together. CS falls and rises
-   a half period from SCK, and stays high for two half periods or 10 cycles, whichever is
-   longer. *)
+   covering the pad, board and controller's setup. CS falls and rises a half period from
+   SCK and stays high two half periods or 10 cycles, whichever is longer. *)
 module Over_pads = struct
   let cycle = 1000. /. 48.
   let flops = 2

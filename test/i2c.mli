@@ -23,12 +23,10 @@ val master_host_rate : string
     the first bit of an address, so use it on a bus no outside slave can hold. *)
 val master_host_rate_without_bus_clear : string
 
-(** [master_host_rate] with each START held, and each repeated START and STOP set up, for
-    [quarters] quarter periods where it has one. UM10204's tHD;STA, tSU;STA and tSU;STO
-    need that at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
-    [idle]. [high] and [low] are instructions, each ending in a newline and carrying the
-    side-set of its level. They run after every data bit's or ack's SCL going high, or
-    going low before a bit or ack, to cut the high or the low short: [sub t] by 7 at most. *)
+(** [master_host_rate] with each START held and each repeated START and STOP set up for
+    [quarters] quarter periods where it has one (UM10204: 3 Standard-mode, 2 Fast-mode).
+    Without [clear_bus] it starts at [idle]. [high] and [low] are newline-ended
+    instructions with the level's side-set that cut SCL short, [sub t] by 7 at most. *)
 val master_host_rate_held
   :  ?clear_bus:bool
   -> ?high:string

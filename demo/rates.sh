@@ -1,13 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Runs python/demo_rates.py on Pico A with the standard settings for the bench's parts,
-# capturing and decoding each demo the way demo/outside.sh does:
-#   i2c   the EEPROM in Standard-mode then Fast-mode, analyser B on IO2 and IO3
-#   spi   the flash in modes 0 to 3, analyser B, decoded once in each mode
-#   uart  OUT0 at each common rate to Pico B's UART0 and analyser A
-# Needs Pico B running MicroPython (demo/pico_b.sh micropython), the I2C pull-ups for i2c,
-# and a chip reset before each demo, because faults stick until reset. Runs are saved in
-# EVIDENCE.
+# Runs python/demo_rates.py on Pico A at standard settings for the bench's parts, decoding as
+# demo/outside.sh does: i2c (EEPROM, Standard then Fast mode), spi (flash, modes 0 to 3), uart
+# (OUT0 to Pico B's UART0). Needs Pico B on MicroPython, I2C pull-ups.
 # Usage: PICO=id:<A> [PICO_B=id:<B>] demo/rates.sh i2c|spi|uart
 set -e
 demo=$1

@@ -2,11 +2,7 @@
 # Checks a bench run kept in test/board/<run>/ as demo/ledger.py wrote it, where witness.json
 # names its bitstream, firmware, host scripts and bench. A check re-hashes the files,
 # decodes the capture again, compares the bytes with what was sent and the edges with the
-# datasheet windows, then breaks each with its teeth (a bit flipped in the waveform, an edge
-# moved) and expects the check to fail.
-# Usage: python3 demo/witness.py check test/board/*/
-#        python3 demo/witness.py write LEDGER_RUN test/board/RUN [--bitstream FROM]
-#        python3 demo/witness.py refresh test/board/*/
+# datasheet windows, then breaks each with its teeth and expects the check to fail.
 
 import argparse
 import ast
@@ -872,11 +868,10 @@ def first_rise(found, idle):
 
 
 def framed(samples, line, idle, frames):
-    """Returns the line's runs from the first rise after more than `idle` samples low,
-    paired with each frame's runs in turn as (expected level, count, samples), skipping
-    low runs between frames; also returns each such low as (samples, the frame's trailing
-    low units in it). A frame whose runs disagree in level or number ends the pairing,
-    which its bytes will show."""
+    """Returns the line's runs from the first rise after more than `idle` samples low, paired
+    with each frame's runs in turn as (expected level, count, samples), skipping low runs
+    between frames, and each such low as (samples, the frame's trailing low units in it). A
+    frame whose runs disagree in level or number ends the pairing, which its bytes will show."""
     found = runs(samples, line)
     i = first_rise(found, idle)
     paired, gaps = [], []

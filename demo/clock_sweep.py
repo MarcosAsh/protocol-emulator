@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Checks the sealed clock windows (python/clock_cliffs.py) against a clock sweep on the bench.
 # Only a stub so far: plan prints the clocks to run each firmware at, compare reads what the
-# sweep saw. Driving the clock and capturing the pins are not written yet.
-# A results file has one tab-separated line per run:
-#   firmware  clock_hz  words_md5  wire  device
-# clock_hz is measured on the chip's clock pin. wire is pass, fail or within (demo/edges.py's
-# capture checked against test/measured_limits.ml). device is works, fails or - (no part).
-# Usage: python3 demo/clock_sweep.py plan [--step PPM]
-#        python3 demo/clock_sweep.py compare RESULTS
+# sweep saw. A results file has one tab-separated line per run: firmware, clock_hz (measured
+# on the chip's clock pin), words_md5, wire (pass, fail or within) and device (works, fails, -).
 import argparse
 import hashlib
 import os

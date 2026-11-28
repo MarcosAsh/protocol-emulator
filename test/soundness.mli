@@ -1,12 +1,8 @@
-(** Checks the analyser's rows against the model. The firmware runs under each stimulus;
-    the phase at every issue must fall inside its row's interval, and no issue may land on
-    a row the analyser calls unreachable. A wait that stalls issues again every cycle, and
-    only its first issue counts as an entry.
-
-    Side-set is checked separately: an issue that finds its side-set pins at another level
-    moves them, and the row must claim a side edge covering the cycle they change. A
-    Manchester bit's second half gets the same check. Every data pull the model refuses
-    must be on a row that says it may be refused. *)
+(** Checks the analyser's rows against the model, the firmware run under each stimulus:
+    the phase at every issue must fall inside its row's interval, none on an unreachable
+    row. An issue that finds its side-set pins at another level moves them, and the row
+    must claim a side edge for that cycle, likewise a Manchester bit's second half. A
+    refused pull needs a row that may refuse. *)
 
 open! Core
 open Protocol_emulator

@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Files for a learn demo on the board (CPython, no numpy):
-#   logger DIR GENERATE LINE...   assemble the edge logger for each line with generate.exe
-#                                 (IO3, or IO3 and IO2 for a clocked bus), as record.json
-#   replay OUT RECORDING...       make Pico B's segments from recordings in demo/edges.py's
-#                                 format [--scale S] [--until SECONDS] [--line NAME]
-#   clocked OUT                   make Pico B's segments for a two-wire bus of invented
-#                                 frames, CRC-8/AUTOSAR last, data moving 10 us after SCL falls
-#   edges CAPTURE NAME=CHANNEL... print a capture's edges the way demo/edges.py does
-# Usage: python3 demo/learn_prepare.py COMMAND ...
+# Files for a learn demo on the board (CPython, no numpy). Subcommands: logger (assemble the
+# edge logger per line with generate.exe), replay (Pico B's segments from recordings in
+# demo/edges.py's format), clocked (segments for an invented two-wire bus, CRC-8/AUTOSAR
+# last) and edges (print a capture's edges the way demo/edges.py does).
 
 import argparse
 import json

@@ -1,11 +1,8 @@
-// Round trip: a host sends one packet (any PID byte) from any sampling phase, at exactly
-// 8 samples a bit, into usb_frame_rx with may_write free. The packet is data of up to BYTES
-// bytes with its CRC-16, a token with its CRC-5, or a handshake. Each word written is the
-// bytes sent as the receiver packs them, at base + its index. At finished, the counts,
-// half, aligned and CRC are right. With SEVEN, any bits after SYNC that contain seven 1s
-// end in stuff_error. With TWICE, the receiver is armed once with rearm held, and a packet
-// of its own follows the first once that has landed. finished falls as the second starts,
-// its words land from base as the first's did, and the same checks hold for it.
+// Round trip: a host sends one packet (any PID byte) from any sampling phase, at exactly 8
+// samples a bit, into usb_frame_rx with may_write free: up to BYTES bytes of data with its
+// CRC-16, a token with its CRC-5, or a handshake. Each word written is the bytes sent as the
+// receiver packs them, at base + its index. At finished, the counts, half, aligned and CRC are
+// right. SEVEN: seven 1s after SYNC end in stuff_error.
 
 `ifndef BYTES
 `define BYTES 8

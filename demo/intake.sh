@@ -1,28 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Spec intake. A headless Claude Code agent turns a protocol's spec (a datasheet PDF, a
-# WaveJSON file or a limit table as text) into a protocol file, firmware and test with
-# generate new-protocol, and the kernel certifies the result. It makes a worktree intake-NAME
-# on a branch intake/NAME off the current commit, plus a run directory holding the prompt
-# (demo/intake_prompt.txt), the spec as text with page markers (pdftotext -layout), an index
-# of its limits, the full stream-json transcript (transcript.jsonl), stages.log, speed.tsv
-# and verdict.txt. The verdict is certified (with how many limit rows have a min or max),
-# refused (naming the limit), or failed. speed.tsv holds the worktree's demo/speed.tsv rows
-# for NAME, which generate new-protocol and the formal targets write via demo/speed.py.
-# Before the agent runs, demo/extract.py reads the spec's limits twice, blind. If the two
-# disagree the run stops with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in
-# disputed.tsv. Once a person has ruled on them (demo/extract.py rule), pass --limits with
-# that run directory.
+# Spec intake: a headless agent turns a spec into a protocol, firmware and test for the kernel
+# to certify or refuse. Two blind limit readings must agree, else exit 3.
 # Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--scenario TEXT] [--hide LIST] [--budget USD] [--model M] [--out DIR] SPEC NAME
 #        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
-#   --dry-run  makes the worktree and run directory, prints the claude commands, removes the worktree
-#   --limits-only  stops after the two readings
-#   --scenario  what the test and trace must show, fixed in advance ("a 26-bit card read on two wires")
-#   --hide  library protocols the agent must not see, e.g. nec,swd. The tree becomes a new
-#     one-commit repository: HEAD minus the paths in demo/hide/LIST.files, minus the rows
-#     demo/hide/LIST.patch removes, minus demo/hide itself. The settings also deny reads of
-#     the checkouts, the run's neighbours and the hidden paths. A command that reads a path
-#     without naming it (python3, dune's cache) is not stopped.
 set -e
 # exit 1 if any tool input in the transcript names the sealed held-out list
 scan() {

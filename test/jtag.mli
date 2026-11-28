@@ -1,11 +1,8 @@
-(** JTAG master: TCK on IO5 by side-set, TDI on IO6 and TMS on IO7, TDO on input 0.
-
-    TMS and TDI change as TCK falls and the TAP takes them on the rise, half a period
-    later. The host writes a word per eight clocks, TDI in the even bits and TMS in the
-    odd from bit 0 up, and reads a word per eight clocks with TDO in bits 8 to 15, the
-    first clock in bit 8. TCK stays low between words, which JTAG allows. Every edge
-    follows a deadline wait, so TCK is exact and TMS and TDI are set and held for exactly
-    half a period. The shortest half period kept up with is [shortest_half] cycles. *)
+(** JTAG master: TCK on IO5 by side-set, TDI on IO6 and TMS on IO7, TDO on input 0. TMS
+    and TDI change as TCK falls and the TAP takes them on the rise. The host writes a word
+    per eight clocks, TDI in the even bits and TMS in the odd from bit 0 up, and reads one
+    with TDO in bits 8 to 15, first clock in bit 8. TCK stays low between words, every
+    edge follows a deadline wait. Shortest half period kept up with: [shortest_half]. *)
 
 open! Core
 open Protocol_emulator
@@ -47,11 +44,10 @@ val shifted_out : pushed:int list -> first:int -> bits:int -> int
 (** The offset of the first shift clock inside [scan_dr]. *)
 val dr_shift_offset : int
 
-(** A TAP controller with a four bit instruction register: 0x1 IDCODE, which reset
-    selects, 0x2 USER, an eight bit register that keeps what is shifted in, and 0xf
-    BYPASS. It follows the sixteen states of IEEE 1149.1 on every rise of TCK and moves
-    TDO on every fall. It times what it sees: TCK high and low, and TMS and TDI set up
-    before and held after each rise, each at least [minimum_ns]. *)
+(** A TAP controller with a four bit instruction register: 0x1 IDCODE (reset selects it),
+    0x2 USER, an eight bit register keeping what is shifted in, and 0xf BYPASS. It follows
+    IEEE 1149.1's sixteen states on each TCK rise and moves TDO on each fall. It times TCK
+    high and low, and TMS and TDI set up and hold, each at least [minimum_ns]. *)
 module Tap : sig
   type t
 

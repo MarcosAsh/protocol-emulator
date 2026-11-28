@@ -1,10 +1,8 @@
-// The load checker's walk, for any program, configuration, setup and certificate. An
-// accepted walk checked every pc, a field at a time, against the rows it then holds at the
-// pc's successor and target, and the full row at pc 0, with each entry decoding as the
-// layout below gives. A missed lookup's empty row and a skipped lookup's full row are
-// test_kernel.ml's. Program memory, and each data word from the walk's first read of it,
-// hold still through an accepted walk, and no write takes its read (gate.sv), so the walk
-// reads the memory as it ends. A data word is free until its address has held two cycles.
+// The load checker's walk, for any program, configuration, setup and certificate. An accepted
+// walk checked every pc against the rows it then holds at the pc's successor and target, and
+// the full row at pc 0, each entry decoding as the layout below gives. Program memory and each
+// data word from the walk's first read hold still, with no write taking its read (gate.sv). A
+// data word is free until its address has held two cycles.
 
 module certify (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -138,11 +136,10 @@ module certify (input clk);
     .fell_x_lo(fell_x_lo), .fell_x_hi(fell_x_hi), .fell_y_lo(fell_y_lo),
     .fell_y_hi(fell_y_hi), .fell_captured(fell_captured), .fell_awaiting(fell_awaiting));
 
-  // The certificate's layout, as load_check.mli gives it. From the base: the counts, then
-  // the entries (three words each), the wide dictionary (three words an interval), and the
-  // narrow one (two words an interval). An entry packs its pc, the captured and awaiting
-  // bits, and seven bit indices for the phase, arm, period, x and y, where index 0 is the
-  // whole range.
+  // The certificate's layout is load_check.mli's: the counts, then the entries (three words
+  // each), the wide dictionary (three words an interval) and the narrow one (two). An entry
+  // packs its pc, the captured and awaiting bits, and seven bit indices for the phase, arm,
+  // period, x and y (index 0 is the whole range).
   wire [8:0] entries_at = base + 9'd2;
   wire [8:0] wide_at = entries_at + 9'd3 * count;
   wire [8:0] narrow_at = wide_at + 9'd3 * wide_count;

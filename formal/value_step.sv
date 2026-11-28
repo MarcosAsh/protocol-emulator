@@ -1,21 +1,8 @@
-// Value lemma, beside edge_step.sv: at every issue of a word the ISA decodes, the ISA's
-// value (ISA.md and machine.ml, restated here and not taken from the core) reaches the osr,
-// isr, their counts, the data pointer, the CRC's send flag, underflow, overflow, the fifo
-// pops and pushes, and whichever of pins, pindirs, x, y, p or t the word writes. A
-// Manchester bit's second half gets its value at the next issue. Pins.write of that value
-// on the pins only holds for a config written while halted, which edge_step.sv takes; the
-// host port never changes one mid-run (host_spacing.sv).
-// Trusted:
-//   - x, y, now, capture and crc where they are read (their other updates are left to the
-//     engine's tests)
-//   - the fifos' head, empty and full (fifo_order.sv)
-//   - data_word as the memory's word at data_ptr
-//   - when the core issues, and that these registers move at no other time (phase_step.sv,
-//     edge_step.sv, config written while halted)
-//   - under a line code, the table's bit, level and drop (test_line_code.ml)
-// A routed push goes to the next engine, whose fifo's full the core reads instead. Host,
-// pins, clear, config, the line table, premises and the next engine are otherwise free
-// every cycle, and the chip has no debugger. A count above 16 acts as 16, as in Pins.
+// Value lemma, beside edge_step.sv: at every issue of a word the ISA decodes, the ISA's value
+// (ISA.md and machine.ml, restated here) reaches the osr, isr, their counts, data pointer, CRC
+// send flag, underflow, overflow, fifo pops and pushes, and whichever of pins, pindirs, x, y, p
+// or t the word writes. Trusted: x, y, now, capture and crc where read, the fifos' head, empty
+// and full (fifo_order.sv), data_word, when the core issues.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS

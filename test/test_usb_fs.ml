@@ -156,12 +156,10 @@ let pins_of : Line.t -> int * int = function
   | Se0 -> 0, 0
 ;;
 
-(* Engine 0 as the device with the receiver re-armed on its pins, a host that makes each
-   control read of [requests], and a board that queues each reply chunk as the last is
-   acknowledged. Engine 0 runs beside [System] every cycle, given the status pins the chip
-   shows it and each packet's words as the receiver ends it. Prints each transaction, the
-   device's turnarounds in bit times from the EOP's J to its SOP, and the first cycle
-   where the model and the RTL part, if any. *)
+(* Engine 0 as the device, receiver re-armed on its pins, a host making each control read
+   of [requests] and a board queuing each reply chunk as the last is acknowledged. Runs
+   beside [System] every cycle, given the status pins and each packet's words as the
+   receiver ends it. Prints transactions, turnarounds (bit times) and a split. *)
 let control_reads
   ?(board_latency = 100)
   ?(rearm = true)

@@ -1,10 +1,8 @@
 (** The kernel's verdicts on one-field variants of the firmware library: every other delay
     that re-encodes, and every jump target moved one either way inside the program. Runs
-    stay within the certificates' premises: the host preloads the period, and a run stops
-    at the first load of [p] that writes anything else. Receivers are left out (random
-    pins break their single-edge premise), and so are table interpreters (their table
-    lives in data memory, which runs leave empty). Runs are much shorter than the 84 ms
-    [no_wrap] horizon. *)
+    stay within the certificates' premises: the host preloads the period, a run stops at
+    the first load of [p] writing anything else, and runs are far under [no_wrap]'s 84 ms.
+    Receivers (single-edge premise) and table interpreters (data memory) are out. *)
 
 open! Core
 open Protocol_emulator

@@ -1,18 +1,8 @@
-// The start gate on the two-engine chip as it is built. From the clear on, for each
-// engine n:
-//   (a) a start reaches the core only while n is certified.
-//   (b) n is certified only after a walk of n that began after the last program,
-//       configuration or line table write to n, held n free throughout, saw no data write
-//       land in n's data turn (which would take its read) or at a word it had read (any
-//       word, watch), and finished accepted.
-//   (c) a start never comes the cycle after the checker held n's ports.
-//   (d) the frame receivers write only in their owner's data turn, while it is free, does
-//       not pull data or keeps its word, and never beside a host write.
-//   (e) a walk of n checks under the setup it began with, and n's core, while certified,
-//       watches the premises of that setup. A walk of n begins only while n is free, so
-//       a running core's premises never move.
-//   (f) a walk of n runs only in n's turn at the checker.
-// Every host field is free every cycle, and so is each memory's output.
+// The start gate on the two-engine chip as built. From the clear on, for each engine n: (a) a
+// start reaches the core only while n is certified; (b) n is certified only after an accepted
+// walk of n that began after its last write, held n free and saw no data write take its read;
+// (c) no start follows a checker hold of n's ports; (d) the frame receivers write only in their
+// owner's free data turn; (e) a walk runs in n's turn. Host fields are free.
 
 module gate (input clk);
   (* anyseq *) wire reset;
@@ -73,12 +63,9 @@ module gate (input clk);
     .premises_valid_1(premises_1[18]), .premises_value_1(premises_1[17:2]),
     .premises_floor_1(premises_1[1]), .premises_single_edge_1(premises_1[0]));
 
-  // what each walk of n saw:
-  //   fresh   it began after n's last write
-  //   quiet   n stayed free, with no data write in its turn or at watch once read
-  //   good    it ended accepted with both of those
-  //   seen    it has read watch
-  //   beside  the other engine's host wrote data while it ran
+  // what each walk of n saw: fresh (began after n's last write), quiet (n stayed free, with no
+  // data write in its turn or at watch once read), good (ended accepted with both), seen (has
+  // read watch), beside (the other engine's host wrote data while it ran)
   reg [1:0] fresh = 0, quiet = 0, good = 0, was_lent = 0, seen = 0, beside = 0;
   genvar n;
   generate

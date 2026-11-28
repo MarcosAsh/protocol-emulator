@@ -1,12 +1,8 @@
-(** Edge times on any input pin, for the host. A cycle in which a pin under [mask] differs
-    from the cycle before queues [now] and every pad's level, so edges on several pins in
-    one cycle share an entry and the host diffs consecutive entries to see which moved.
-    [now] is the time base the caller picks (the chip uses [engine]'s, the clock its
-    [capture] reads), so a stamp on the capture pin equals that engine's capture.
-
-    The queue is four deep. An edge while full is dropped and sets [lost] until [flush],
-    which also empties the queue. [pop] takes the head; the head of an empty queue reads
-    zero. *)
+(** Edge times on any input pin, for the host. A cycle in which a pin under [mask] moves
+    queues [now] and every pad's level, so the host diffs entries to see which moved.
+    [now] is the caller's time base (the chip uses [engine]'s capture clock). The queue is
+    four deep: an edge while full is dropped and sets [lost] until [flush], which empties
+    it. The head of an empty queue reads zero. *)
 
 open! Core
 open! Hardcaml

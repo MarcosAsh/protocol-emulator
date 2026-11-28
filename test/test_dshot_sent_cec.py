@@ -117,11 +117,9 @@ def sent_words(status, data):
 
 def decode_sent(levels):
     """SAE J2716 pulses from their falling edges. Sync is 56 ticks and within 1/64 of the
-    last, every pulse is low for more than 4 ticks, nibbles are 12 to 27 ticks and a whole
-    number of eighth-ticks, and a pause is 12 to 768. A trailing frame cut short has its
-    sync checked (as in test/sent.ml's decoder) but doesn't count. Like that decoder, this
-    is an oracle for this transmitter only: it doesn't check J2716's 3 to 90 us tick, so
-    the test runs short ticks, and it expects a pause after every frame."""
+    last, every pulse is low for more than 4 ticks, nibbles are 12 to 27 ticks and a pause
+    12 to 768. Like test/sent.ml's decoder, an oracle for this transmitter only: it skips
+    J2716's 3 to 90 us tick, and expects a pause after every frame."""
     falls = [i for i in range(1, len(levels)) if levels[i - 1] and not levels[i]]
     rises = [i for i in range(1, len(levels)) if not levels[i - 1] and levels[i]]
     pulses = []
@@ -174,12 +172,9 @@ async def test_sent(dut):
 
 class CecFollower:
     """A follower at logical address address that acknowledges every block sent to it and
-    times the initiator in units (CEC 1.4, 50 us each): a start bit is low 70 to 78 and
-    86 to 94 in all, a one is low 8 to 16, a zero 26 to 34, and a bit lasts 41 to 55. Before
-    a frame the line must be free for 5 bit periods of 48 units if the initiator is new,
-    3 if it retries a failed frame, and 7 otherwise (CEC 9.1), checked at the EOM. If the
-    line stays high past 55 units in a bit, or 94 in a start bit, the frame is given up and
-    failed. The next frame may retry it if it begins with the blocks it got to."""
+    times the initiator in units (CEC 1.4, 50 us each): start bit, one, zero and bit lengths
+    as in CEC 1.4. Before a frame the line must be free 5 bit periods of 48 units if the
+    initiator is new, 3 if it retries, else 7 (CEC 9.1). A bit high past 55 units fails it."""
 
     def __init__(self, unit, address=0):
         self.unit = unit

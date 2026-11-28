@@ -54,11 +54,10 @@ val rtl
   -> unit
   -> Outcome.t
 
-(** What the bench runs: each pair with its host words, every firmware passed by the
-    kernel. I2C: write two bytes to the target at 0x42, read two back after a repeated
-    START, then call 0x77 (nothing answers), in Standard-mode and Fast-mode. SPI: three
-    frames in each mode, the target answering each byte. UART: four bytes at each of
-    [Uart.bauds]. *)
+(** Each pair with its host words, every firmware passed by the kernel. I2C: write two
+    bytes to the target at 0x42, read two back after a repeated START, then call 0x77
+    (nothing answers), in Standard-mode and Fast-mode. SPI: three frames per mode, the
+    target answering each byte. UART: four bytes at each of [Uart.bauds]. *)
 module Case : sig
   type t =
     { name : string

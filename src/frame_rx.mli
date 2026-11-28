@@ -1,14 +1,8 @@
 (** 10BASE-T receive into the data memory: [Manchester_rx] on both clock edges at gain 1/8
-    ([fifty] picks 10 samples a bit for a 50 MHz clock, else 8 for 40 MHz), with the FCS
-    checked by a CRC-32 of its own.
-
-    [arm] (re)starts it: the next frame's words land from [base] up, and the frame's end
-    disarms it with [finished], so one frame at a time stays put for the host. A word
-    lands only where [may_write] lets it and only below the data memory's end; otherwise
-    it is counted and [dropped] says so. A word waits for [may_write] until the next one
-    arrives, and [finished] waits until the last one lands. [fcs_ok] is the CRC-32 residue
-    at the last whole byte. [half] marks a last word that holds one byte. Assumes an
-    external line receiver with squelch, idle reading low. *)
+    ([fifty] picks 10 samples a bit for 50 MHz, else 8 for 40), with its own CRC-32. [arm]
+    (re)starts it: the next frame lands from [base] up and its end disarms it with
+    [finished]. A word lands only where [may_write] lets it and below the memory's end,
+    else [dropped] says so. Assumes a line receiver with squelch, idle low. *)
 
 open! Core
 open! Hardcaml

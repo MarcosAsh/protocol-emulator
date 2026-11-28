@@ -29,10 +29,9 @@ module Refusal : sig
 end
 
 (** Assembles, then runs [Analyser.check] under its assumptions, then the kernel on the
-    analyser's rows (which aren't trusted). The kernel covers less, so it can refuse what
-    the analyser passes. A [period_floor] is checked at its two ends, which covers every
-    load between. A config that [Program_config.validate] refuses, or a period [p] can't
-    hold, is refused. Lines count from 1. *)
+    analyser's rows (which aren't trusted), so it can refuse what the analyser passes. A
+    [period_floor] is checked at its two ends. A config [Program_config.validate] refuses,
+    or a period [p] can't hold, is refused. Lines count from 1. *)
 val check
   :  ?period:int
   -> ?period_floor:int

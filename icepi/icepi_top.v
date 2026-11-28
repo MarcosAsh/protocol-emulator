@@ -5,13 +5,10 @@
 
 `default_nettype none
 
-// The chip on an Icepi Zero. The 50 MHz oscillator goes through the PLL to MHZ (48, or 40
-// for 10BASE-T, whose bit is four cycles) and the pins sit on the 40-pin header. With
-// USB_UIO set, uio[1:0] are D+/D- on the first USB-C port, with the board's pull-up on D-
-// for low speed or on D+ for full speed (FULL_SPEED). Their header pins mirror the bus so
-// a host can see a bus reset. USB_PROBE moves the bus to header 8 (D+) and 12 (D-), in
-// place of OUT0 and OUT2, where the bench carrier's analyser A reads D4 and D6. The
-// button is reset.
+// The chip on an Icepi Zero. The 50 MHz oscillator goes through the PLL to MHZ (48, or 40 for
+// 10BASE-T) and the pins sit on the 40-pin header. With USB_UIO, uio[1:0] are D+/D- on the
+// first USB-C port, with the board's pull-up on D- (low speed) or D+ (FULL_SPEED), mirrored on
+// header pins. USB_PROBE moves the bus to header 8 (D+) and 12 (D-). The button is reset.
 module icepi_top #(
     parameter USB_UIO = 1,
     parameter MHZ = 48,

@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Mutation score of the OCaml tests: applies one textual mutation at a time, in copies
-# under _mutation/. A survivor that isn't in test/mutation_allow.txt exits 1 (at --report
-# with --json). --prove sends each survivor of the trusted checker to the proofs (see
-# prove() below), and --prove-only does that for every mutant without running the tests.
-# Usage: python3 test/mutate.py [--scope engine|wide|kernel|onchip] [--file F ...] [--operator NAME ...]
-#        [--id ID ...] [--shard I/N] [--seed S] [--jobs N] [--timeout S] [--json OUT] [--list]
-#        [--prove | --prove-only] [--proof-timeout S] [--proofs NAME ...]
-#        python3 test/mutate.py --report OUT ...
+# under _mutation/. A survivor that isn't in test/mutation_allow.txt exits 1. --prove sends
+# each survivor of the trusted checker to the proofs (see prove() below); --prove-only does
+# that for every mutant without running the tests. --report merges --json outputs.
 import argparse
 import hashlib
 import json
@@ -166,11 +162,10 @@ SCOPES = {
     },
 }
 
-# The trusted checker. Each entry gives the generator of its check of a row (as
-# Kernel.check and Osr_kernel.check decide it), the outputs that must match, the groups
-# whose "and" accepts, the lines that are software the gates leave out, and the proofs a
-# mutant that accepts more must pass, fastest first. Each proof is an sby run or a task
-# from a task list in formal/Makefile; the second list's tasks are the slowest, so last.
+# The trusted checker. Each entry gives the generator of its check of a row, the outputs
+# that must match, the groups whose "and" accepts, the lines that are software the gates
+# leave out, and the proofs a mutant that accepts more must pass, fastest first (an sby run
+# or a task from formal/Makefile; the second list is the slowest).
 KERNEL_PROVED = {
     "check": ["check-gates"],
     "equal": ["next_pc", "target_pc"],
@@ -403,12 +398,10 @@ def run_logged(command, cwd, log, timeout):
 
 
 def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
-    # Classify a checker survivor by comparing its gates with the original's, under the
-    # formula from test/mutation_assume.txt if there is one. EQUIVALENT: the decision is the
-    # same for every input. STRICT: it accepts only what the original does. Otherwise it
-    # accepts more: LAX if the SAT lemma or a proof fails on it, SOUND if every one holds,
-    # TESTED if (untested before) a test of the lemma's file fails but every proof holds.
-    # OUTSIDE: software the gates leave out, which only a test can kill.
+    # Classify a checker survivor by its gates against the original's, under the formula from
+    # test/mutation_assume.txt if any. EQUIVALENT or STRICT (accepts only what the original
+    # does), else it accepts more: LAX if the SAT lemma or a proof fails, SOUND if all hold,
+    # TESTED if only a test fails. OUTSIDE: software the gates leave out, only a test kills.
     spec = PROVED[m["file"]]
     logs = cwd / "_prove"
     logs.mkdir(exist_ok=True)
@@ -507,11 +500,10 @@ PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 
 
 def report(results, planned):
-    # A timeout counts as killed (the suite doesn't pass) and is listed separately, and so
-    # is a survivor a proof kills. An allowed mutant's timeout isn't a kill, because an
-    # equivalent mutant runs like the original until the timeout stops it. Neither is a
-    # surviving mutant whose Verilog equals the original's: it changes no gate and is left
-    # out of the score.
+    # A timeout counts as killed and is listed separately, as is a survivor a proof kills. An
+    # allowed mutant's timeout isn't a kill, as an equivalent mutant runs like the original
+    # until the timeout. A surviving mutant whose Verilog equals the original's changes no gate
+    # and is left out of the score.
     allowed = read_allowed()
 
     def same(r):

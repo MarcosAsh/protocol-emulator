@@ -4,18 +4,10 @@ open Pin_trace
 module Reg = Host_port.Reg
 
 (* SB-Projects, "NEC Protocol", last updated 17 July 2025, one page; numbers by line of
-   the limit table's text (spec.txt):
-   {v
-   carrier       38 kHz, duty 1/4 or 1/3                     lines 17, 21, 23
-   burst         560 us of carrier                           line 21
-   bit           1.125 ms a zero, 2.25 ms a one, LSB first   lines 18, 22, 26
-   frame         9 ms AGC burst, 4.5 ms space, address, its
-                 inverse, command, its inverse, a burst      lines 28-31, 34
-   repeat code   9 ms AGC, 2.25 ms space, a burst, every
-                 110 ms while the key is down                lines 36-37
-   v}
-   The spec gives nominal times only; each is taken as the least the line may give. The
-   line is the LED's drive: high for the carrier's on third, low otherwise. *)
+   the limit table's text (spec.txt): carrier 38 kHz at duty 1/4 or 1/3 (17, 21, 23), a
+   560 us burst (21), 1.125 ms a zero and 2.25 ms a one, LSB first (18, 22, 26), a frame
+   of 9 ms burst, 4.5 ms space, address, command and their inverses (28-31, 34), a repeat
+   code of 9 ms and 2.25 ms every 110 ms (36-37). Times are nominal, taken as least. *)
 
 let pin = 5
 
@@ -26,13 +18,10 @@ let standard_third = 422
 let shortest_third = 16
 let config = { Program_config.default with set_base = pin; set_count = 1 }
 
-(* The host loads the third once, then per message a word: 0 for a frame, anything else
-   for a repeat code. A frame also gets the address and command as one word. The firmware
-   sends each byte then its inverse, so a frame is always 7780 thirds, and each message
-   starts at least 12540 thirds (110 ms) after the one before. [t] is the next third
-   throughout; a pulse is high a third and low two. The osr holds the address and its
-   inverse, then [isr]'s command and its inverse; a repeat code leaves it empty and [isr]
-   zero. *)
+(* The host loads the third once, then per message a word: 0 for a frame, else a repeat
+   code; a frame also gets the address and command as one word. A frame is 7780 thirds and
+   a message starts at least 12540 (110 ms) after the last. [t] is the next third. The osr
+   holds the address and its inverse, [isr] the command and its inverse. *)
 let firmware =
   [%firmware
     {|

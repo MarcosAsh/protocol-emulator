@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Self-timing for every firmware engine 1 can stamp, on the host Pico (MicroPython). Each
 # firmware runs on engine 0 with its watched output on wire 20. Every edge's stamp must
-# match the cycle the model gives it, and fall in the interval the kernel's rows allow
-# along the model's path, counted from the frame's first edge. sweep_firmware.py says what
-# runs and why the rest don't. Needs protocol_emulator.py, pico_board.py,
-# demo_self_timing.py and sweep_firmware.py.
+# match the cycle the model gives it, and fall in the interval the kernel's rows allow,
+# counted from the frame's first edge. sweep_firmware.py says what runs and why the rest don't.
 
 import gc
 

@@ -2,8 +2,7 @@
 # Cheat the referee (MicroPython, Pico A). Runs demo_self_check's frames on wire 20, and
 # pressing BOOTSEL makes the next restart's bit period one cycle long or short. Engine 1
 # catches it and halts, gets reloaded as the SK6812 driver to light the score on the stick
-# on OUT3 (after the catch, not during it), then goes back to being the referee.
-# demo/referee.sh runs it.
+# on OUT3, then goes back to being the referee. demo/referee.sh runs it.
 
 import bench
 import demo_neopixel

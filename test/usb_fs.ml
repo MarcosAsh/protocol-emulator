@@ -61,8 +61,7 @@ let send ~name ~then_ =
 (* A reply's record from x: its data bits plus one (0 for a handshake), then SYNC and the
    PID, then the data. Every bit takes four cycles. The PID's last bit decides whether
    data follows. [crc_init] lands after it and [crc_send] after the data, so the CRC unit
-   sends the CRC-16. The line stuffs, and after the CRC's last bit [stuff_reset] has the
-   outs pay what it owes. *)
+   sends the CRC-16. The line stuffs, and [stuff_reset] pays its debt after the CRC. *)
 let send_data ~name ~then_ =
   let handshake = name ^ "_handshake" in
   let packet = name ^ "_packet" in
@@ -158,12 +157,10 @@ let pid_is v ~ignore =
     ]
 ;;
 
-(* Registers: p is the IN token word for endpoint 0 at this address, y is the pending
-   reply's (none is 1, which no token is), x is scratch. The receiver lands each packet
-   from rx_base. The program waits on receiving then good, then anchors t and compares
-   word 0 in one jmp, so every reply's SYNC starts [turnaround] cycles after the anchor. A
-   bit takes four cycles, which leaves no room for [jmp stuff], so the line table's
-   [tx_stuff] does the stuffing. *)
+(* Registers: p is the IN token word for endpoint 0 at this address, y the pending reply's
+   (none is 1, which no token is), x scratch. The program waits on receiving then good,
+   then anchors t and compares word 0 in one jmp, so each SYNC starts [turnaround] cycles
+   after it. A bit takes four cycles, no room for [jmp stuff], so [tx_stuff] does. *)
 let device =
   List.concat
     [ [ "    set pins, 1"

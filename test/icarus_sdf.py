@@ -2,8 +2,7 @@
 # Rewrites the flow's SDF or netlist so Icarus's annotator accepts it. SRAM macro names
 # lose their escapes, each macro's per-bit IOPATHs collapse to one path per bus at the
 # slowest bit's delay, and interconnects to macro bus pins (which crash vvp) and timing
-# checks (which Icarus ignores and can't parse on a bus bit) are dropped.
-# python3 icarus_sdf.py sdf|netlist < in > out
+# checks (which Icarus can't parse on a bus bit) are dropped.
 
 import re
 import sys

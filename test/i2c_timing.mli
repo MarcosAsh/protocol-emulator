@@ -1,13 +1,8 @@
 (** The bus timings an I2C master drives, bounded from the analyser's certificate. SCL is
     the one side-set pin and SDA the pin [set pindirs] and [mov pindirs] write, both open
-    drain: a direction of 1 pulls the line low and 0 lets it go high. A write to SDA while
-    SCL is high is a START or a STOP, depending on the level it leaves.
-
-    From every edge the program can make, every way through it is followed to the edge the
-    timing ends on, each instruction timed from the analyser's phase and each wait's
-    deadline. A wait for the host or a pin may last any time, so a bound holds for every
-    run. A way that revisits an instruction is cut, since coming round again only takes
-    longer. The schedule at the pins is bounded, not the bus's rise and fall times. *)
+    drain (direction 1 pulls low). A write to SDA while SCL is high is a START or STOP by
+    the level it leaves. Every way through the program is followed edge to edge, a wait
+    lasting any time for a host or pin, a revisit cut. Rise times unbounded. *)
 
 open! Core
 open Protocol_emulator

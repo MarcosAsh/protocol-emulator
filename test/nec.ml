@@ -3,13 +3,10 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* NEC as SB-Projects' page on it gives the frames, in units of 562.5 us:
-   {v
-   frame   leader mark 16, space 8, 32 bits LSB first, final mark 1
-   bit     mark 1, then space 1 for a zero, 3 for a one
-   repeat  mark 16, space 4, final mark 1
-   period  192, 108 ms, from one leader or repeat to the next
-   v} *)
+(* NEC as SB-Projects' page on it gives the frames, in units of 562.5 us: a frame is a
+   leader mark 16, space 8, 32 bits LSB first, final mark 1; a bit is mark 1 then space 1
+   for a zero, 3 for a one; a repeat is mark 16, space 4, final mark 1; the period is 192
+   (108 ms) from one leader or repeat to the next. *)
 
 let pin = 5
 let standard_unit = 27_000

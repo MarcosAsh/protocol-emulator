@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # One AC-3 frame in an IEC 61937 burst on OUT0's S/PDIF transmitter (MicroPython, Pico A).
 # FFmpeg made the burst, and demo/traffic.py has FFmpeg find the frame in the capture.
-# demo/outside.sh spdif_ac3 takes the analyser and capture length from the next line. Its
-# sigrok decode is not judged, as spdif misreads the burst.
+# sigrok's decode is not judged, as spdif misreads the burst. demo/outside.sh spdif_ac3 runs it.
 # outside: analyser=A ms=2000 decode=-P spdif:data=D4 -A spdif=samples
 
 import bench

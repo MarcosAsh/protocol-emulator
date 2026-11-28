@@ -2,11 +2,7 @@
 # The chip records a transmitter it was never told about (MicroPython, Pico A). Each engine
 # runs the edge logger on its line and stamps every edge with its own 16-bit clock. This
 # script drains the stamps and reads the clock after each drain to extend every stamp to
-# whole cycles, using the Pico's microseconds to count the clock's wraps between reads.
-# If a drain finds stamps more than 65536 cycles (1.4 ms at 48 MHz) after the last, it marks
-# the recording broken rather than guess. With two lines, engine 1 starts first and stamps
-# the wire engine 0 raises as it starts, which puts both on one clock. record.json
-# (demo/learn_prepare.py) has the loggers; record.edges and record.log are kept.
+# whole cycles, marking the recording broken if a drain finds a gap over 65536 cycles.
 
 import array
 import gc

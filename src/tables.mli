@@ -140,10 +140,9 @@ val spi_master : half:int -> Spi_master.t t
 val dshot : zero_high:int -> bit:int -> Dshot_bits.t t
 
 (** Takes writes to [address] on SDA [sda] and SCL [sda + 1] (open drain), and acks the
-    address and each byte. Each byte goes to the host as [0x8000 lor byte]. The host keeps
-    a [marker] word queued for every byte, and it reaches the host bit as the eighth bit
-    comes in. START and STOP are only watched for on the first bit of a byte, like
-    [I2c.slave]. *)
+    address and each byte. Each byte goes to the host as [0x8000 lor byte], and the host
+    keeps a [marker] word queued per byte, reaching the host bit as the eighth bit comes
+    in. START and STOP are only watched for on a byte's first bit, like [I2c.slave]. *)
 val i2c_slave : address:int -> sda:int -> I2c_slave.t t
 
 val marker : int

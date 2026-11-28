@@ -1,12 +1,8 @@
-// Step lemma for the universal certificate. For any program, from one instruction's entry
-// to the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the
-// pc and, with Manchester and the line code off and edge_step.sv's lemma assumed, a watched
-// pair's edges. A deadline wait entered at phase <= 0 does not fault. Equalities are mod
-// 2^T, where T is the timer's width: 24, or 7 in the narrow tasks, which reach the wrap in
-// a bounded run.
-// The engine is the chip's, with every input free except its premises (the kernel's), so
-// this holds for each engine of several. CHIP runs it on one engine inside the two-engine
-// chip instead. Program memories are the flop stand-in for the SRAM macro.
+// Step lemma for the universal certificate. For any program, from one instruction's entry to
+// the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the pc
+// and, with Manchester and the line code off and edge_step.sv's lemma assumed, a watched pair's
+// edges. A deadline wait entered at phase <= 0 does not fault. Mod 2^T, T the timer's width
+// (24, or 7 in the narrow tasks). Every input is free but the premises.
 
 `ifndef TIMER_BITS
 `define TIMER_BITS 24
@@ -63,11 +59,10 @@ module phase_step (input clk);
   wire [15:0] crc_poly_high = config_bits[32:17];
   wire [15:0] crc_init_high = config_bits[16:1];
   wire crc_complement = config_bits[0];
-  // The premises the kernel may take: p is loaded_period wherever a run-time write left it
-  // (or at least floor_period, with a floor), and the capture pin makes one edge from
-  // capture_arm to the wait for it. The core is handed them and faults where they fail.
-  // CHIP's core is handed none, so there they are assumed of its inputs, with loaded_period
-  // free at each entry.
+  // The premises the kernel may take: p is loaded_period wherever a run-time write left it (or
+  // at least floor_period, with a floor), and the capture pin makes one edge from capture_arm
+  // to the wait for it. The core is handed them and faults where they fail. CHIP's core is
+  // handed none, so they are assumed of its inputs, with loaded_period free at each entry.
   (* anyconst *) wire loads_period;
 `ifdef CHIP
   (* anyseq *) wire [15:0] loaded_period;
@@ -597,11 +592,10 @@ module phase_step (input clk);
 `endif
   wire t_ok = t == e_t_after || (e_may_carry && t == e_t_after + 1'd1);
 
-  // The teeth that weaken the single-edge premise only keep the claims at entries. The
-  // invariants between entries are there for induction and lean on the premise too, so
-  // they would fail first whether or not the claims need it. The same goes for the tooth
-  // whose core stamps the capture one cycle early (capture_early.awk), and the ghost's tie
-  // to it.
+  // The teeth that weaken the single-edge premise only keep the claims at entries: the
+  // invariants between entries lean on the premise too, so they would fail first whether or not
+  // the claims need it. The same goes for the tooth whose core stamps the capture one cycle
+  // early (capture_early.awk), and the ghost's tie to it.
 `ifdef SECOND_EDGE
 `define ENTRIES_ONLY
 `elsif LEVEL_AT_ARM
@@ -646,11 +640,10 @@ module phase_step (input clk);
     end
 `endif
 
-  // The single-edge premise, on the level the core sees: the capture pin is at the other
-  // level when capture_arm issues, and once it is at the captured level it stays there
-  // until a wait for it releases. The core's guard keeps the same two flops and faults where
-  // either half fails. CHIP assumes it, and its teeth level_at_arm and second_edge drop one
-  // half each.
+  // The single-edge premise, on the level the core sees: the capture pin is at the other level
+  // when capture_arm issues, and once at the captured level it stays there until a wait for it
+  // releases. The core's guard keeps the same two flops and faults where either half fails.
+  // CHIP assumes it, and its teeth level_at_arm and second_edge drop one half each.
   wire arms = entry && opcode == 7 && instruction[7:0] == 8'd7;
   wire capturing = opcode == 1 && !instruction[6] && instruction[4:0] == capture_pin
     && instruction[7] == capture_rising;
@@ -989,11 +982,10 @@ module phase_step (input clk);
 `endif
   end
 `ifdef TABLE
-  // The theorem in one run. For any table and config loaded while halted, assume the
-  // kernel's accepts at every pc entered, with the next and target rows it picks, and a
-  // start at a row that bounds nothing. Then the core lies in the row of every entry and no
-  // deadline is missed. Rows have no slope and the full offset, as library tables do. With
-  // AFFINE they are whole rows and the run rests on row_step. SPACING adds the pair's bounds.
+  // The theorem in one run. For any table and config loaded while halted, assume the kernel's
+  // accepts at every pc entered, with the next and target rows it picks, and a start at a row
+  // that bounds nothing. Then the core lies in the row of every entry and no deadline is
+  // missed. Rows have no slope and the full offset, as library tables do.
 `ifdef AFFINE
   localparam ROW_BITS = 266;
 `elsif SPACING
@@ -1048,10 +1040,9 @@ module phase_step (input clk);
     .b$level(1'b0), .b$fresh(1'b0)
 `ifdef AFFINE
   // The offset is the phase minus slope * x, mod 2^24. SMT can't follow a product of two
-  // variables, so the product and each successor's offset are free, held to what the true
-  // ones satisfy: no product where x is zero, the core's offset at that successor's pc, and
-  // row_step's axioms (proved in offset_axioms.smt2). row_step's lemma holds for any inputs,
-  // so assuming it drops no run.
+  // variables, so the product and each successor's offset are free, held to what the true ones
+  // satisfy: no product where x is zero, the core's offset at that successor's pc, and
+  // row_step's axioms (offset_axioms.smt2).
   (* anyseq *) wire [23:0] product, next_offset, target_offset;
   reg [23:0] e_product;
   always @(posedge clk) if (entry) e_product <= product;

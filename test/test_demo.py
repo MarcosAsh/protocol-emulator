@@ -350,17 +350,14 @@ async def test_mouse_draw(dut):
 
 
 # test_keyboard_slow_host charges each call what it costs Pico A and enumerates like the
-# bench laptop did. It runs in real time (48 MHz cycles, also for sleeps and ms()), because
-# a compressed millisecond would let a reload outlast the 10 ms after SET_ADDRESS. That is
-# 330 ms of chip, an hour on icarus, so only Verilator runs it:
-#   make SIM=verilator COCOTB_TEST_MODULES=test_demo COCOTB_TEST_FILTER=slow_host
-# PICO_SCALE=k multiplies every cost. TURNAROUND_US is the laptop's time between transfers.
+# bench laptop did, in real time (48 MHz cycles, also for sleeps and ms()), as a compressed
+# millisecond would let a reload outlast the 10 ms after SET_ADDRESS. That is 330 ms of chip,
+# an hour on icarus, so only Verilator runs it. PICO_SCALE=k multiplies every cost.
 
-# Pico A's costs in microseconds: before the call's SPI frame, after it, per word moved
-# (before a write's frame, after a read's), then the bytes allocated per call and per word.
-# The frame's simulated wire time is subtracted from the first two. bench: timed on Pico A
-# at 200 MHz on 2026-10-01, including the timing loop's 8 us call; fit: solved from the
-# bench's load times; est: read off the code.
+# Pico A's costs in microseconds: before the call's SPI frame, after it, per word moved,
+# then the bytes allocated per call and per word. The frame's simulated wire time is
+# subtracted from the first two. bench: timed on Pico A at 200 MHz on 2026-10-01 (8 us call
+# included); fit: solved from the bench's load times; est: read off the code.
 COSTS = {
     "Host.status": (60, 281, 0, 320, 0),  # bench 341; split, bytes est
     "Host.read": (60, 186, 0, 210, 0),  # bench 246 a word

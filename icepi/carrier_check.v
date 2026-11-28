@@ -5,15 +5,10 @@
 
 `default_nettype none
 
-// The bench carrier's self-test on an Icepi Zero, in place of the chip. Pico A drives and
-// reads the other 21 header pins over the host port's four, using SPI mode 0 with an
-// 11-byte frame each way, MSB first (python/carrier_pins.py).
-// In: oe, out, a slot byte (bit 6 on, bit 7 level, bits 4:0 pin), the slot's length and
-// its sample time in us.
-// Out: "pin", the pins as CS fell, then the slot's sample in bit 0 and bit 1 once taken.
-// A frame takes effect when CS rises. Its slot then drives its pin for its length, over
-// oe and out, and samples the pin at its time. Idle pins are released and pulled down,
-// except OUT1 (CAN's D) and OUT6 (the flash's CS), which are high. The button resets that.
+// The bench carrier's self-test on an Icepi Zero, in place of the chip. Pico A drives and reads
+// the other 21 header pins over the host port's four (SPI mode 0, 11-byte frames;
+// python/carrier_pins.py). In: oe, out, a slot byte (bit 6 on, bit 7 level, bits 4:0 pin), its
+// length and sample time in us. Out: the pins as CS fell, then the slot's sample.
 module carrier_check (
     input  wire       clk,
     input  wire       button_n,

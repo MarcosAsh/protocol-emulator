@@ -492,14 +492,10 @@ let%expect_test "a start does nothing while a fault is held" =
     |}]
 ;;
 
-(* The checker serves one engine per turn. Engine 0's check is asked at the clear, and
-   aborted at the last pcs by the host writing the certificate under it. Engine 1's is
-   accepted on its turn. Then each is refused on a corrupted certificate, and twice on one
-   whose first entry is out of order, under both premises and then neither. Each verdict
-   stays with its engine through the other's turn, the premises are each check's own, and
-   engine 0's start between its checks is refused as uncertified until its next check
-   begins. Last, engine 1's start after its refusals is refused until a check on the
-   certificate accepts it. *)
+(* The checker serves one engine per turn. Engine 0's check is aborted at the last pcs by
+   the host writing the certificate under it and engine 1's is accepted; then each is
+   refused on a corrupted certificate and twice on an out-of-order first entry, under both
+   premises then neither. A start stays refused until its engine's check accepts. *)
 let%expect_test "each engine's check is its own, kept through the other's turn" =
   let case =
     List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")

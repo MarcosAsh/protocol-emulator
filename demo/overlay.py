@@ -1,17 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Draws every edge of a logic analyser capture against the interval the analyser proved for
-# it. The rows come from `generate.exe assemble -rows`. An edge's phase there is relative to
-# the deadline t, which only moves by p within a frame, so an edge's offset from the frame's
-# first edge is the sum of those moves plus the two phases. Assumes an idle-high line whose
-# frames start with a falling edge, like a UART's.
-# The clock mode is for a side-set clock such as SWD's SWCLK: it compares each high and low
-# inside a transfer with the half period the core waits, and prints the widths.
-# Usage: uv run demo/overlay.py edges CAPTURE --rows ROWS --frame 6,9*8,12 -o out.png
-#        uv run demo/overlay.py histogram CAPTURE --rows ROWS --frame 6,9*8,12 -o out.png
-#        uv run demo/overlay.py compare CAPTURE --rows ROWS --frame 6,9*8,12 \
-#            --against PICO.sr --baud 9600 -o out.png
-#        uv run demo/overlay.py clock CAPTURE --half 24 --channel D6 --name SWCLK -o out.png
-#
+# it. The rows come from `generate.exe assemble -rows`. Assumes an idle-high line whose
+# frames start with a falling edge, like a UART's. The clock mode is for a side-set clock
+# such as SWD's SWCLK: it compares each high and low with the half period the core waits.
 # /// script
 # dependencies = ["matplotlib", "numpy"]
 # ///

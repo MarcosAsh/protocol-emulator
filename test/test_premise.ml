@@ -280,12 +280,9 @@ let usb_device_at_once ~bit_period firmware =
 ;;
 
 (* Runs every receiver whose certificate assumes the single-edge premise as certified,
-   under a sender that's off only in rate. At each [capture_arm], is the pin already at
-   the captured level, or does it leave that level before the wait releases? Either case
-   is a frame the certificate doesn't cover. UART also runs at 25 and 17 cycles per bit,
-   and with every eighth stop bit missing to reach the arm after a framing error. USB
-   allows 1.5% off. Beyond what its receiver follows, packets garble and only the arms
-   matter. *)
+   under a sender off only in rate. At each [capture_arm], is the pin already at the
+   captured level, or does it leave that level before the wait releases? Either case is a
+   frame the certificate doesn't cover. UART also runs with every eighth stop missing. *)
 let%expect_test "the receivers keep the premise their certificates rest on" =
   printf
     "%-18s %-9s %5s  %8s  %10s  %s\n"

@@ -1,17 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The remote lab's worker. A job is a WaveDrom diagram and its frames, which generate.exe
-# lab compiles for the certified table interpreter, or firmware with its certificate, which
-# it runs only past the kernel and the chip's load check. Either way a refusal comes before
-# anything reaches the chip. A job the bench can take runs on the chosen backend
-# (bench: Pico A and one pass for each analyser that sees a pin it drives, with the Icepi
-# reset before and after each; rtl: the same script on the RTL in cocotb; model: none). Any
-# other job gets the model's trace, labelled simulated. Results go to RESULTS/<id>/, and
-# bench runs also to EVIDENCE/<date>/lab/.
-# Queues are polled files.
-# Usage: python3 demo/lab.py submit JOB --queue DIR [--as NAME]
-#        python3 demo/lab.py fake --queue DIR
-#        [PICO=id:<serial of Pico A>] python3 demo/lab.py work (--queue DIR | --issues FILE)
-#            --backend bench|rtl|model [--from-flash | --bitstream FILE] [--once] [--dry-run]
+# The remote lab's worker. A job is a WaveDrom diagram and its frames, or firmware with its
+# certificate, and a refusal by the kernel or the chip's load check comes before anything
+# reaches the chip. A job the bench can take runs on --backend bench, rtl or model; any
+# other gets the model's trace, labelled simulated. Results go to RESULTS/<id>/ and EVIDENCE/.
 
 import argparse
 import datetime
@@ -138,11 +129,10 @@ class Spool:
 
 
 class Issues:
-    """Reads the output of `gh issue list --label lab --json number,author,createdAt,body`,
-    saved to FILE by whatever fetched it. A job is the body's first ```json block. This is
-    read-only; answered issues are recorded in RESULTS/issues_taken. Anyone can open an
-    issue on a public repo, so the fetch should only take a label the owner sets or
-    authors they allow."""
+    """Reads `gh issue list --label lab --json number,author,createdAt,body` saved to FILE. A
+    job is the body's first ```json block. Read-only; answered issues are recorded in
+    RESULTS/issues_taken. Anyone can open an issue on a public repo, so the fetch should only
+    take a label the owner sets or authors they allow."""
 
     FENCE = re.compile(r"```json\s*\n(.*?)\n```", re.S)
 

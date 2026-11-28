@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Self-test for the bench carrier v1.2, with icepi/carrier_check.v in the Icepi and
-# MicroPython on both Picos. Prints one line per net (or group) of demo/carrier_netlist.csv,
-# with its pads: PASS or FAIL if a pin reaches it, SKIP if none does. Both Picos run
-# python/carrier_pins.py. --analysers pulses every analysed net a different number of times
-# while each analyser captures, which finds a probe on the wrong pin. A flash JEDEC ID of
-# all 00 or ff is a SKIP. --button-only checks SW1 alone and waits for a press.
-# demo/carrier_check.sh loads the bitstream, runs this, and puts the chip back.
-# Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] python3 demo/carrier_check.py
-#            [--analysers] [--no-button | --button-only] [--evidence DIR]
+# MicroPython on both Picos running python/carrier_pins.py. One line per net of
+# demo/carrier_netlist.csv: PASS or FAIL if a pin reaches it, SKIP if none does (a flash
+# JEDEC ID of all 00 or ff too). --analysers finds a probe on the wrong pin by pulsing nets.
 
 import argparse
 import ast

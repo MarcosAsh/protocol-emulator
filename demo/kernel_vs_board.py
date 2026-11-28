@@ -2,12 +2,7 @@
 # Compares the kernel's verdicts with the board. Runs every delay variant from
 # test/python/write_kernel_variants.exe on the chip through Pico A, in batches of
 # python/demo_kernel_vs_board.py, and reloads the bitstream after a fault (faults stick until
-# reset). A variant the kernel accepts must run on time. One the kernel refuses that still
-# runs on time counts as the kernel being pessimistic. With --chip the chip checks each
-# variant's certificate itself and must match chip_model. A refusal the kernel would accept
-# counts as the gap the README names.
-# Usage: PICO=id:<serial> python3 demo/kernel_vs_board.py VARIANTS --bitstream BIT --out DIR
-#            [--python DIR] [--chip] [--batch N] [--only FIRMWARE...]
+# reset). A refusal that still runs on time is kernel pessimism. --chip checks the chip's verdict.
 import argparse
 import hashlib
 import json

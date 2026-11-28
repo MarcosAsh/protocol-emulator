@@ -1,12 +1,8 @@
 (** Simulates a circuit one cycle at a time on bits that are 0, 1, a bit of one data word,
-    or unknown. A known result holds for every value of the unknown bits and every data
-    word, so what it shows of a circuit, it shows for all of them.
-
-    Logic and muxes keep data bits. Arithmetic and compares need known operands, or their
-    result is unknown, except for an [==] that some known bit already decides. A mux whose
-    select is unknown keeps the bits on which its cases agree. Registers take reset, then
-    clear, then enable (as Cyclesim does), and start at [initialize_to] or unknown.
-    Memories, instances, falling edges and a second clock are refused. *)
+    or unknown. A known result holds for every unknown bit and data word. Logic and muxes
+    keep data bits, a mux with an unknown select keeps what its cases agree on, and
+    arithmetic and compares need known operands unless a known bit decides an [==].
+    Memories, falling edges and a second clock are refused. *)
 
 open! Core
 open! Hardcaml

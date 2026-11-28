@@ -1,13 +1,8 @@
 (** A remote lab job: a WaveDrom diagram and its frames, or firmware with its certificate.
-    A diagram is compiled at the rated clock to a table for the interpreter the kernel
-    certified once, so it brings data words alone. Firmware runs only if the kernel
-    accepts it and the chip's load check accepts the job's certificate for it. A refusal
-    names the limit before anything reaches the bench.
-
-    The bench takes a certified job only when every pin it can drive is one [Pads] lets a
-    job drive, an analyser sees at least one of them, nothing is read, and everything the
-    host sends fits the tx fifo before the start, so the host's own timing can't shape the
-    waveform. Any other job runs on the model alone and is labelled simulated. *)
+    A diagram compiles at the rated clock to a table for the interpreter the kernel
+    certified once. Firmware runs only if the kernel and the chip's load check accept it,
+    and a refusal names the limit before anything reaches the bench. The bench takes only
+    a certified job on [Pads]-allowed pins, one seen, sent whole before the start. *)
 
 open! Core
 
@@ -180,10 +175,8 @@ val check : Job.t -> t Or_error.t
 
 (** The result folder's files from the check, as name and contents: [job.json],
     [certificate.txt] and [check.json]. A certified job also gets [simulated.json] (each
-    lane's first 2048 edges, by cycle). If the bench takes it, there is also
-    [firmware.json] (the config, the interpreter's words, the certificate the chip checks
-    them against and its assumptions, the table, the tx words, [run_ms], the expected
-    faults and the probes, for python/demo_lab.py and test/test_lab_rtl.py). *)
+    lane's first 2048 edges, by cycle), and if the bench takes it [firmware.json], for
+    python/demo_lab.py and test/test_lab_rtl.py. *)
 val files : t -> (string * string) list
 
 (** [check.json] for a job that never reached [check], saying why. *)

@@ -1,9 +1,8 @@
 (** Static timing of a PIO program over every path, in state machine cycles. Each edge
-    gets a lower bound on the pulse it ends and each rule gets its worst case. [phase]
-    counts from the last [wait] on a pin, which is where a receiver locks. Times are at
-    the pin driver, not at the bus's 30% and 70% levels, so the caller has to subtract
-    rise and fall times. On an open-drain pin another driver may stretch a low we release,
-    unless [no_stretch] is set. *)
+    gets a lower bound on the pulse it ends and each rule its worst case. [phase] counts
+    from the last [wait] on a pin, where a receiver locks. Times are at the pin driver,
+    not the bus's 30% and 70% levels, so the caller subtracts rise and fall times. On an
+    open-drain pin another driver may stretch a released low unless [no_stretch]. *)
 
 open! Core
 

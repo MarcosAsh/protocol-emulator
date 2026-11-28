@@ -1,15 +1,8 @@
-// frame_step.sv's frame lemma on the two-engine chip. Take two programs whose footprints
-// share no pad. From the clear on:
-//   (a) each engine's pads show what it would drive alone, and pads outside both
-//       footprints stay 0;
-//   (b) each engine reads what it would read alone (the frame receivers' status pins where
-//       it owns them), except where it hears the other;
-//   (c) there it reads what the other drives.
-// The pads_shared task drops the disjoint-pads assumption, which only (a) needs. Like
-// frame_step.sv, this assumes each word a core runs writes no more than its program says.
-// Wires are not pads: both engines may write one. An engine with a fault drives nothing.
-// Host fields, line tables, pads and clear are free every cycle, and each config (line
-// code and route included) holds between clears.
+// frame_step.sv's frame lemma on the two-engine chip, for programs whose footprints share no
+// pad. From the clear on: (a) each engine's pads show what it would drive alone, and pads
+// outside both footprints stay 0; (b) each reads what it would read alone, or what the other
+// drives where it hears it. Assumes each word a core runs writes no more than its program says.
+// Host fields, line tables, pads and clear are free.
 
 module chip_frame (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;

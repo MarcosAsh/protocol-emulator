@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A galvanometer controller's XY2-100 on OUT3 (SENDCK), OUT4 (SYNC) and OUT6 (DATA), which
 # analyser B's D4, D1 and D3 watch (MicroPython, Pico A): a sweep of setpoints, one word
-# each, then the core halted, which stops SENDCK. OUT1, the library's SYNC, reaches no
-# channel. OUT5, the flash's clock, stays still, so the flash takes none of it.
-# demo/outside.sh xy2_100 runs it, taking its settings from the next line.
+# each, then the core halted, which stops SENDCK. demo/outside.sh xy2_100 runs it.
 # outside: analyser=B ms=2000 decode=-P xy2-100:clk=D4:sync=D1:data=D3 -A xy2-100=type:parity:position
 
 import bench

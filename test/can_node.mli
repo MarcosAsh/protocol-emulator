@@ -9,10 +9,9 @@ open Protocol_emulator
 val rx_pin : int
 
 (** CAN 2.0A frames off CRX, resynced on every falling edge, ACKed on CTX when the CRC
-    holds. The ACK delimiter and EOF are not checked. Each frame pushes [words]. An error
-    pushes its [Error_code] and [irq], then waits for a host word, and first for a
-    dominant bit, since the error may leave the capture armed. If the ACK is not back on
-    CRX by the slot's sample, it assumes a transceiver in standby. *)
+    holds. ACK delimiter and EOF unchecked. Each frame pushes [words]. An error pushes
+    [Error_code] and [irq], then waits for a host word and a dominant bit, as the capture
+    may be left armed. No ACK by the slot's sample: transceiver in standby. *)
 module Receiver : sig
   (** 500 kbit/s at 48 MHz, sampled at 75%. *)
   val period : int

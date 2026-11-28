@@ -1,14 +1,8 @@
 (** NEC infrared remote control on one line, OUT0, as SB-Projects' page gives it (updated
-    17 July 2025): the LED's drive, high for the on third of a 38 kHz carrier, duty 1/3. A
-    frame is a 9 ms AGC burst, a 4.5 ms space, then the address, its inverse, the command
-    and its inverse, LSB first. Each bit is a 560 us burst and a space to 1.125 ms for a
-    zero or 2.25 ms for a one, and a last burst ends the frame. A repeat code is a 9 ms
-    AGC burst, a 2.25 ms space and a burst. Each message starts 110 ms or more after the
-    one before. Every time is a whole number of thirds of a carrier period, which the host
-    loads, and each comes out at least the spec's nominal.
-
-    The host sends the third once, then per message the words of [words]. A late word only
-    delays its message. *)
+    17 July 2025): the LED's drive, high for the on third of a 38 kHz carrier. Frame: 9 ms
+    burst, 4.5 ms space, address, inverse, command, inverse, LSB first, each bit a 560 us
+    burst and a space to 1.125 ms or 2.25 ms, then a last burst. Times are whole thirds of
+    a carrier period, loaded once, then per message [words]. Late words only delay. *)
 
 open! Core
 open Protocol_emulator

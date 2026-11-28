@@ -5,11 +5,9 @@ open Protocol_emulator_test
 
 (* A UART from engine 0 to engine 1 over a wire, proved by induction on the two-engine
    chip for all time. Each word engine 1 pushes is the low byte of the word engine 0
-   pulled for that frame, once per frame, with every sample half a bit from the wire's
-   edges. The invariant is a table of both engines' state, indexed by steps since the
-   start, the pull and the start bit. Simulation proposes it and the proof checks it for
-   any words at any times. Engine 1's claims hold until its host lets the fifo overflow,
-   which halts it. *)
+   pulled for that frame, once a frame, sampled half a bit from the wire's edges.
+   Simulation proposes the invariant, a table of both engines' state, and the proof checks
+   it. Engine 1's claims hold until its host lets the fifo overflow. *)
 
 let wire = 20
 
@@ -171,11 +169,10 @@ let run ~(key : Key.t) ~programs ~configs ~pull_pc ~sample_pc ~push_pc ~sends ~s
   Queue.to_list trace
 ;;
 
-(* What the tables cover: each engine's outputs, except the host's fifos and the two
-   timers (which are given as distances back from [now]), plus the level the receiver
-   sampled and the ghosts. Each is keyed by the engine it belongs to. A data field is
-   claimed bit by bit, as a constant or a bit of the word. A count the ghosts saturate is
-   claimed as the range it keeps, and anything else as a single value. *)
+(* The tables cover each engine's outputs but the host's fifos and the two timers (given
+   as distances back from [now]), plus the level the receiver sampled and the ghosts. A
+   data field is claimed bit by bit, a count the ghosts saturate as a range, and anything
+   else as one value. *)
 module Field = struct
   module Kind = struct
     type t =

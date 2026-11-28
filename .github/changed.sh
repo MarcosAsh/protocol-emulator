@@ -1,9 +1,8 @@
 #!/bin/sh
-# Prints GROUP=true or GROUP=false for each group named: whether a branch changed what
-# that group's CI jobs read since it left main. A later push that leaves them alone still
-# runs them. Pushes to main, the nightly and a dispatch get true for every group. A nightly
-# on a commit whose push run of ocaml.yaml is green gets repeat, proofs for the generate
-# job, and nothing else (needs GH_TOKEN).
+# Prints GROUP=true or GROUP=false per group named: whether a branch changed what that
+# group's CI jobs read since it left main. Pushes to main, the nightly and a dispatch get
+# true for every group. A nightly on a commit whose push run of ocaml.yaml is green gets
+# repeat, proofs for the generate job, and nothing else (needs GH_TOKEN).
 # Usage: .github/changed.sh GROUP... >> "$GITHUB_OUTPUT", from a checkout with fetch-depth: 0
 set -eu
 

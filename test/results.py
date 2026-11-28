@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Writes a results table from GitHub Actions: each claim, the job that checks it, its last
-# green run on main, the weakened copies that had to fail (and did), and the time taken.
-# It reads the job logs, so it can only report what CI printed. Needs gh, logged in.
-# --readme-table prints the README's first table with fresh numbers, runs and dates from
-# the sources test/check_docs.py holds it to. --board-table prints the pinned ledgers.
-# A run GitHub shows as cancelled is never cited, and a claim whose job is gone from CI's
-# newest runs is not verified, so a renamed job can't leave an old row standing.
-# Usage: python3 test/results.py [--repo OWNER/NAME] [--runs N] [--html PAGE] > RESULTS.md
-#        python3 test/results.py --readme-table | --board-table
+# green run on main, the weakened copies that had to fail, and the time taken. It reads the
+# job logs, so it can only report what CI printed. A cancelled run is never cited, and a
+# claim whose job is gone from CI's newest runs is not verified. Needs gh, logged in.
 import argparse
 import html
 import json

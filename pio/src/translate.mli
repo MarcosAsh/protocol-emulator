@@ -1,30 +1,8 @@
 (** Translates RP2040 and RP2350 PIO programs to the core's ISA, keeping PIO time. A PIO
-    cycle takes [k] cycles here, made of [per_cycle] [wait t+]s of [p] cycles plus
-    [fraction]. A step's pin write, sample or side-set happens one cycle after its first
-    cycle, so each pin edge shows up at [k] times its PIO cycle plus one latency. A wait
-    or a stall re-anchors [t] at its release. Anything the core can't do is refused by
-    name. Anything it only does under a host contract is listed in [contract].
-
-    {v
-    PIO                           here
-    delay [d]                     (1 + d) * per_cycle wait t+ in all
-    side-set, opt                 side on every word, its value followed per path;
-                                  by set where out shares the pins
-    set, mov, in, out (<= 16)     the same word, 16-bit data
-    out null, 32                  out null, 16
-    autopull threshold over 16    the host splits each word, 24 bits as 12 and 12
-    jmp !x, !y                    jmp x--, add x, 1 on both ways
-    jmp !osre with autopull       jmp !osre, then jmp tx (an empty OSR refills at once)
-    jmp pin with side-set         side first, jmp pin the cycle after
-    wait pin, jmppin              wait pin, re-anchor
-    pull, push, autopull (block)  jmp tx|rx|!osre past a stall copy: wait, op, re-anchor
-    pull, push noblock            jmp !tx|!rx to mov osr, x | mov isr, null
-    out exec (with a table)       the entry's index from the host, x saved in p
-    irq, irq wait                 irq; irq wait halts too, and the host restarts it
-    refused                       irq clear, wait irq, wait gpio, mov|out pc, mov status,
-                                  mov exec, mov ~ into a register, mov ::, push iffull,
-                                  shifts over 16 bits, side-set over 2 pins
-    v} *)
+    cycle takes [k] cycles here: [per_cycle] [wait t+]s of [p] cycles plus [fraction]. A
+    step's pin write, sample or side-set lands one cycle after its first cycle, and a wait
+    or stall re-anchors [t]. What the core can't do is refused by name, and what it does
+    only under a host contract is listed in [contract]. *)
 
 open! Core
 open Protocol_emulator

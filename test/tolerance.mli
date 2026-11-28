@@ -1,20 +1,9 @@
-(** Each receiver's allowed sender clock error, from its certificate.
-
-    The sender free-runs at [m] 2^-16 cycles per bit, with bit [k] starting at cycle
-    [start + (phase + k * m) / 2^16] for any [phase] below 2^16. This is engine 1's
-    fractional period exactly. Each read the receiver makes after [mov t, capture] lands
-    [d] cycles after the captured edge, where [d] is the sum of the program's adds to [t]
-    plus the read's phase row. With the captured edge at bit [e] and the read in the run
-    of equal bits [r0, r1], the read is right for every phase iff
-
-    {v
-      (r0 - e) * m <= 2^16 * d_lo   and   (r1 + 1 - e) * m >= 2^16 * (d_hi + 1)
-    v}
-
-    because bit [k]'s edge lies [floor] or [ceil] of [(k - e) * m / 2^16] cycles after bit
-    [e]'s, and some phase gives each. A [capture_arm] is a read of the capture pin. The
-    bounds are the tightest of these over the reads of a stimulus that holds every run the
-    protocol allows. *)
+(** Each receiver's allowed sender clock error, by its certificate. The sender free-runs
+    at [m] 2^-16 cycles per bit, bit [k] starting at cycle
+    [start + (phase + k * m) / 2^16] for any [phase] below 2^16. A read after
+    [mov t, capture] lands [d] cycles after the captured edge [e], right for every phase
+    iff, over the run [r0, r1] of equal bits, (r0 - e) m <= 2^16 d_lo and (r1 + 1 - e) m
+    >= 2^16 (d_hi + 1). *)
 
 open! Core
 open Protocol_emulator
@@ -106,12 +95,10 @@ val receives : Receiver.t -> m:int -> phase:int -> bool
     shows in what the host reads. [predicts r] runs the model once. *)
 val predicts : Receiver.t -> m:int -> bool
 
-(** Whether a sender at [m] from phase 0 surely faults the receiver. That holds when the
-    first wrong read [predicts] finds is a [capture_arm]: the edge came before it and the
-    capture still holds the last frame's, which misses a deadline (or, with the single
-    edge watched, faults the arm first). After a first wrong read of another kind the
-    receiver is out of step, so [false] rules no fault out. [faults r] runs the model
-    once. *)
+(** Whether a sender at [m] from phase 0 surely faults the receiver: when the first wrong
+    read [predicts] finds is a [capture_arm] (the edge came before it and the capture
+    still holds the last frame's). After another kind of wrong read the receiver is out of
+    step, so [false] rules nothing out. *)
 val faults : Receiver.t -> m:int -> bool
 
 (** The faults the model's run at [m] and [phase] ends with. Its core stops an edge after

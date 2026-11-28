@@ -35,12 +35,10 @@ val shortest_setup : int
 val shortest_hold : int
 val longest_hold : int
 
-(** A host word is a byte in bits 7 to 0, plus [last] to end the frame; the core pushes
+(** A host word is a byte in bits 7 to 0, plus [last] to end the frame. The core pushes
     the byte it read. CS falls [setup] cycles before the first SCK edge, rises [hold]
-    cycles after the last, and stays high for at least [deselect] cycles, never fewer than
-    9 (a flash waking from power down needs that). Between bytes of a frame CS stays low
-    and SCK idles for as long as the host is slow. Raises if [setup], [hold] or [deselect]
-    is out of range (up to 248 cycles). *)
+    after the last, stays high [deselect] at least 9 (flash waking from power down), low
+    between bytes. Raises if [setup], [hold] or [deselect] exceeds 248 cycles. *)
 val master
   :  mode:Mode.t
   -> half_period:int

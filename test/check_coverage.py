@@ -1,17 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Checks Hardcaml's cyclesim coverage of src/ against test/coverage_triage.txt: every point
 # the tests leave open must be triaged there, and every triaged point must still be open.
-# Usage: python3 test/check_coverage.py test/coverage_triage.txt REPORT... [--holes]
-#   a REPORT is a coverage.txt written by the test runner with
-#   HARDCAML_CYCLESIM_COVERAGE_VERBOSE=1, or a directory of them (test/coverage.sh).
-#   All reports are merged into one.
-#
-# Hardcaml only merges structurally equal circuits, so the engine in each test bench is
-# counted separately. A point is a src/ signal, named by its module and local name or, if
-# unnamed, by the src/ frames of the stack that made it. Copies of a point in one circuit
-# (loop iterations, a second engine) count as covered only when all are covered. A point
-# is closed when some circuit covered every copy. Signal waivers are already out of the
-# report. Line numbers are only for reading; a point is identified by the text of its lines.
+# A point is a src/ signal, named by its module and local name or, by the src/ frames of its
+# stack. Hardcaml merges only equal circuits, so each test bench's engine is counted alone.
 import argparse
 import collections
 import hashlib

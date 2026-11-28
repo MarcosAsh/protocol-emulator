@@ -1,16 +1,8 @@
-# Checks that the chip has one clock and that every pin except clk goes through exactly
-# one two-flop synchroniser, on the flattened design that rtl.ys or gate.ys leaves. The
-# frame pad and the pad after it, D-, are each picked among the pads by a flop's mux,
-# one on each edge. Each is a Both_edges falling pair: a falling flop in the RTL, a rising
-# one behind an inverter in the netlist. So a late pad edge can only unsettle the first
-# stage, which nothing but the second reads, and it settles to a value the pad would give
-# if held steady, which the proofs' free pins already take. rst_n's release is read the
-# same way and only moves by a cycle.
-#
-# Premises: a flop settles within a clock period. rst_n stays low for two edges, because
-# its assertion reaches the cleared flops' D mid-cycle, which can also garble a macro
-# write in flight, so reset only at power-on. A failed check is the last one named in the
-# log.
+# Checks that the chip has one clock and every pin except clk goes through exactly one two-flop
+# synchroniser, on the flattened design rtl.ys or gate.ys leaves. The frame pad and D- are each
+# picked by a flop's mux, one per edge (a Both_edges falling pair), so a late pad edge only
+# unsettles the first stage. Premises: a flop settles within a clock period. rst_n stays low for
+# two edges, so reset only at power-on. A failed check is the last one named in the log.
 
 yosys -import
 

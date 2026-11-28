@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Stands in for the ttboard SDK calls demo_board.py makes, on a bare Pico wired as Pico A
-# (python/carrier_pins.py): GP2 SCK -> ui[0], GP3 MOSI -> ui[1], GP5 CS_N -> ui[2], GP4 MISO <- uo[0].
-# The chip keeps its own clock and is reset by hand, and selecting another design powers
-# nothing down. demo/etr_standin.sh copies it as ttboard/demoboard.py and ttboard/mode.py,
-# then runs main.
+# (python/carrier_pins.py): GP2 SCK -> ui[0], GP3 MOSI -> ui[1], GP5 CS_N -> ui[2], GP4 MISO <-
+# uo[0]. The chip keeps its own clock and is reset by hand. demo/etr_standin.sh copies it as
+# ttboard/demoboard.py and ttboard/mode.py.
 
 import machine
 from machine import Pin

@@ -307,11 +307,9 @@ let%expect_test "usb rx in lockstep" =
 ;;
 
 (* A sender off in rate, with its bit [num / den] of the receiver's, each bit starting on
-   the first cycle at or after it is due. USB allows a low speed sender to be 1.5% off.
-   The receiver re-anchors on every J-to-K edge, at most fourteen bits apart once stuffed,
-   so the drift it has to ride out is that of fourteen bits, not a whole packet. Every
-   byte in eight-byte DATA0 packets, then packets of all ones, which have the longest gaps
-   between edges. *)
+   the first cycle at or after it is due. USB allows a low speed sender 1.5% off. The
+   receiver re-anchors on every J-to-K edge, at most fourteen bits apart once stuffed, so
+   the drift is that of fourteen bits. Eight-byte DATA0 packets of each byte, then 1s. *)
 let%expect_test "usb rx follows a sender off in rate" =
   let bit_period = 32 in
   let level (line : Usb_ls.Line.t) =

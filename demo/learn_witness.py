@@ -1,15 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Checks a learn demo kept in test/board/learn_<protocol>/ as demo/learn_board.sh left it.
 # This is the half that needs sigrok: every file against SHA256SUMS, each capture's edges
-# against the .edges file made from it, and sigrok's stock decoder on what the chip sent
-# against what the run kept, once for each frame sent. A bit flipped in one frame must be
-# refused. The other half is test/test_learn_board.ml, which learns again from the chip's
-# own recording, must write the same firmware, and reads the analyser's and Pico B's edges
-# back as the message sent.
-# Usage: python3 demo/learn_witness.py check test/board/learn_*/
-#        python3 demo/learn_witness.py write RUN test/board/learn_<protocol> --decode ARGS
-#            --expect LINE... --tooth CHANNEL FIRST-LAST[,FIRST-LAST...] WHAT...
-#            [--commit HASH --commit-from HOW]
+# against its .edges file, and sigrok's stock decoder on what the chip sent against what the
+# run kept. A bit flipped in one frame must be refused. test/test_learn_board.ml is the other half.
 
 import argparse
 import hashlib

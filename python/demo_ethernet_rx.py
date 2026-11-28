@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T into the chip (MicroPython, Pico A): frames from a PIO on GP6 at 10 Mb/s, off
-# Pico A's own crystal, into IO0 (header 29) and the chip's receiver, sampling for its
-# 40 MHz. Engine 0's ethernet_rx hands each frame to the host, which holds the bytes and
-# the receiver's FCS verdict to what it sent: good and bad FCSs, odd and even lengths, one
-# past the data memory's end, then the rate stepped both ways until frames fail. Needs
-# the Icepi's 40 MHz header build, the host SPI at 5 MHz, and bench.py, ethernet.py,
-# ethernet_rx.hex and ethernet_rx.cert.hex on the Pico.
+# 10BASE-T into the chip (MicroPython, Pico A): frames from a PIO on GP6 at 10 Mb/s into
+# IO0 (header 29), sampled at 40 MHz. Engine 0's ethernet_rx hands each frame to the host,
+# which holds the bytes and FCS verdict to what was sent, then steps the rate until frames
+# fail. Needs the Icepi's 40 MHz build, host SPI at 5 MHz, and ethernet_rx.hex and .cert.hex.
 
 import array
 import gc

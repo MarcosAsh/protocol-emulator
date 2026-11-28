@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Records the keys a USB keyboard sends, as this machine's kernel sees them, without letting
 # the desktop have them. Every input device with the keyboard's VID:PID is grabbed
-# (EVIOCGRAB) as it appears, so no window gets its keys or pointer; if a grab fails the
-# device is unbound from usbhid instead, so it types nowhere. Prints each grab and each key
-# press with its time, until SECONDS pass. Needs root for /dev/input and the unbind.
-# Usage: sudo python3 demo/keys.py SECONDS [--id 1209:0001]
+# (EVIOCGRAB), or unbound from usbhid if the grab fails. Prints each grab and key press with
+# its time, until SECONDS pass. Needs root for /dev/input and the unbind.
 
 import argparse
 import fcntl

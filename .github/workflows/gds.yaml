@@ -228,10 +228,9 @@ jobs:
           path: test/gl_traces
 
   # reruns the gate-level tests and replays with the router's delays, one corner per job
-  # (test/Makefile sdf_*), beside gl_test so the run takes no longer.
-  # Each corner is split into eighteen groups of tests (test/Makefile's GROUP), because a
-  # whole corner on the 8x4 chip would take a runner past six hours, and a third of it
-  # still takes past five
+  # (test/Makefile sdf_*), beside gl_test so the run takes no longer. Each corner is split
+  # into eighteen groups (test/Makefile's GROUP): a whole corner on the 8x4 chip runs past
+  # six hours, and a third of it still runs past five.
   gl_sdf:
     needs: gds
     runs-on: ubuntu-24.04

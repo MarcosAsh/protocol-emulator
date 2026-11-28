@@ -502,11 +502,9 @@ let exits_loop (t : Isa.t) ~first ~last =
   | Jmp { target; _ } -> target < first || target > last
 ;;
 
-(* A counted loop is a [jmp x--] back over instructions that each move the phase by the
-   same amount on every pass, or jump out leaving x alone. If a pass moves it by [d] while
-   x counts down by one, [phase + d * x] stays put, so the slope is [-d]. A loop that
-   overlaps an earlier one gets none. The straight run from a [set x] into the loop shares
-   its slope. *)
+(* A counted loop is a [jmp x--] back over instructions that each move the phase by [d] a
+   pass, or jump out leaving x alone, so [phase + d * x] stays put and the slope is [-d].
+   A loop over an earlier one gets none. A run from a [set x] into it shares its slope. *)
 let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
   let slopes = Array.create ~len:(Array.length program) 0 in
   let drift_at b = Option.bind entry.(b) ~f:(fun s -> drift s program.(b)) in

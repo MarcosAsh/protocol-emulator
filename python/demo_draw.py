@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # A mouse draws the die (MicroPython). demo/draw.py writes draw.bin: a byte for how many
-# seconds to wait after the laptop configures the chip, then three bytes per report
-# (buttons, dx, dy). This serves them through demo_usb.serve on Pico A, and engine 1 sends
-# each report's three bytes to pico_listener once the laptop has taken it. Ctrl-C on the
-# console releases the button and leaves the outcome in `ended` for demo/draw.py to read.
+# seconds to wait after the laptop configures the chip, then (buttons, dx, dy) per report.
+# Pico A serves them through demo_usb.serve, and engine 1 sends each report to pico_listener
+# once the laptop has taken it. Ctrl-C releases the button and leaves `ended` for demo/draw.py.
 
 import time
 

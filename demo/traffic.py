@@ -3,7 +3,6 @@
 # PASS only reflects what the chip told it, and a bus nobody answers can still end in a PASS.
 # Each check reads DEMO.sr, sigrok's DEMO.decode (with demo/outside.sh's arguments) and
 # Pico A's DEMO.log, which has the run's own values for demos that have them.
-# Usage: python3 demo/traffic.py DEMO [DIR]   prints each thing missing and then FAIL
 
 import re
 import subprocess
@@ -497,10 +496,9 @@ CHECKS = {
 
 
 # sigrok's spdif takes its clock from the first pulses it sees, and a line that stays low
-# from reset until the firmware starts throws it off for good. So we decode these the way
-# demo/decode.py joins their traces: starting once the channel has idled high for the
-# trace's joins_after (in 48 MHz cycles, see test/traces/spdif.trace). Saved as
-# DEMO.joined.decode.
+# from reset until the firmware starts throws it off for good. So we decode these as
+# demo/decode.py joins their traces: once the channel has idled high for the trace's
+# joins_after (48 MHz cycles). Saved as DEMO.joined.decode.
 JOINED = {"spdif": (4, 34)}
 
 

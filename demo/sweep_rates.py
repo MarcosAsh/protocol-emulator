@@ -1,15 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs the standard rates the organisers named, on the bench: SPI modes 0 to 3 and I2C at
-# 100 kHz and 400 kHz, each from a fresh load of BITSTREAM. python/demo_rates.py runs one
-# of them on Pico A (against the flash for SPI, the EEPROM for I2C) while analyser B
-# captures. The capture is then checked against its protocol: SPI against the mode's
-# sampling edge and the bytes sent, I2C against UM10204's Table 11 (demo/i2c_timing.py) and
-# the EEPROM's reads and writes. Each run saves its capture, Pico log, sigrok decode,
-# verdict and SHA256SUMS in EVIDENCE/<date>/sweep-rates/<run>/ and adds a line to
-# demo/ledger.tsv. Pico B, if plugged in, runs MicroPython.
-# Usage: PICO=id:<serial of Pico A> python3 demo/sweep_rates.py BITSTREAM [--only RUN]...
-#            [--rate 24M] [--dry-run]
-#        python3 demo/sweep_rates.py --self-check    judges synthetic captures, no hardware
+# 100 kHz and 400 kHz, each from a fresh load of BITSTREAM, with python/demo_rates.py on Pico A
+# and analyser B capturing. SPI is checked against the mode's sampling edge and the bytes
+# sent, I2C against UM10204's Table 11 and the EEPROM. Evidence: EVIDENCE/<date>/sweep-rates/.
 
 import argparse
 import datetime

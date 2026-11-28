@@ -1,9 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # Runs the inline tests of just the named test/ files, four at a time, and diffs any whose
-# output changed. -library adds every test that reads Library (a new protocol shows up in
-# those). -promote copies the new output into place like dune promote, so rerun after a
-# fix before promoting or the stale output goes in.
+# output changed. -library adds every test that reads Library. -promote copies the new output
+# into place like dune promote, so rerun after a fix first or the stale output goes in.
 # Usage: test/only.sh [-promote] [-library] test_uart.ml...   from the repository's root
 set -e
 promote=

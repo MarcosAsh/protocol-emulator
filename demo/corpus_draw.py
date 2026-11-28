@@ -3,10 +3,6 @@
 # snapshot of sigrok's decoder list. This file is the rule, committed before the round. Eligible
 # decoders rank by sha256(randomness || id) and the first N not on the owner's salted exclusion
 # list are drawn. Only the owner makes that list (seal) and commits its sha256 beforehand.
-# Usage: python3 demo/corpus_draw.py pool                   the eligible pool and why each other is out
-#        python3 demo/corpus_draw.py seal < IDS > EXCLUDE    the owner, on their own list, one id a line
-#        python3 demo/corpus_draw.py draw --exclude EXCLUDE [--round R] [--beacon JSON] [--record FILE]
-#        python3 demo/corpus_draw.py snapshot DECODERS_DIR COMMIT > demo/corpus_decoders.tsv
 import argparse
 import ast
 import datetime

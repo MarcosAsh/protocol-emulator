@@ -1,12 +1,8 @@
-# Builds a miter of fine.ys that starts from any state. Every flop starts free, with its
-# own input in the first cycle. The reset input -v reset is asserted then (-v high=1 if
-# active high) and free afterwards. The trigger counts from the second cycle. With -v
-# fifos=1, the words and read buffers of the host fifos and edge stamps (which have no
-# reset) load a free value at the first edge, one per name on both sides; powerup's havoc
-# task proves the RTL with them free. It fails if it finds none. Asynchronous resets act
-# in their own cycle, as in aig.ys.
-# Reads the file twice, awk -f anystate.awk m.il m.il. The first pass finds the flops and
-# their nets' names.
+# Builds a miter of fine.ys that starts from any state. Every flop starts free, with its own
+# input in the first cycle; the reset input -v reset is asserted then and free afterwards. The
+# trigger counts from the second cycle. With -v fifos=1 the host fifos' words and read buffers
+# and the edge stamps (no reset) load a free value at the first edge, as powerup's havoc task
+# needs. Reads the file twice (awk -f anystate.awk m.il m.il).
 
 # side.name [bit], or for the netlist's one-bit nets side.name[bit], as name|bit
 function key(sig, side,    name, bit) {

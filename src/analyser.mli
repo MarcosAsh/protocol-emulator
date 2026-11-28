@@ -1,10 +1,7 @@
 (** Static timing of a program: the phase [now - t] on entry to every instruction, as an
-    interval over all executions, with the slack at every deadline wait. Waits on pins and
-    fifos leave the phase unbounded above until the next anchor. A wait for the captured
-    edge bounds the capture anchor by the time since [capture_arm]. Every pin write is an
-    edge, placed at the phase the change shows on the pin, and every pin read is a sample.
-    The interval's width is the jitter in cycles. Side-set makes an edge too, which is how
-    SPI and I2C drive their clocks. *)
+    interval over all executions, with the slack at every deadline wait. Pin and fifo
+    waits leave it unbounded above until the next anchor. Every pin write, side-set too,
+    is an edge at the phase it shows on the pin, and the interval's width is its jitter. *)
 
 open! Core
 
@@ -15,11 +12,9 @@ module Pin_event : sig
   [@@deriving sexp_of]
 end
 
-(** What side-set does to its pins. [at] is the phase the level shows on the pins. A wait
-    drives them when it is reached, so [at] is its own phase and not its release.
-    [changes] is false when the pins already hold that level on every way in, which is a
-    hold rather than an edge. Otherwise [at] covers only the ways in that can change the
-    level. *)
+(** What side-set does to its pins. [at] is the phase the level shows, for a wait its own
+    phase and not its release. [changes] is false when every way in already holds that
+    level, and otherwise [at] covers only the ways in that can change it. *)
 module Side_event : sig
   type t =
     { at : Interval.t
@@ -71,13 +66,10 @@ end
 (** A wait for the captured edge: on the capture pin, for the captured level or edge. *)
 val captures : Program_config.t -> Isa.Wait.t -> bool
 
-(** Assumptions about the world, each named so a report can say what it rests on. [period]
-    is the value every run-time load of [p] carries. [single_capture_edge] says the
-    capture pin is at the other level when [capture_arm] issues and holds the captured
-    level until the wait for it releases; without it, [mov t, capture] leaves the phase
-    unbounded. [period_floor], used instead of [period], assumes only that every load
-    carries at least that. A state changed [max_passes] times at an address (256 by
-    default) is widened. *)
+(** [period] is what every run-time load of [p] carries, [period_floor] the least it does.
+    [single_capture_edge]: the capture pin is at the other level at [capture_arm] and
+    holds the captured level until its wait releases; without it [mov t, capture] is
+    unbounded. A state changed [max_passes] times at an address is widened. *)
 val analyse
   :  ?period:int
   -> ?period_floor:int

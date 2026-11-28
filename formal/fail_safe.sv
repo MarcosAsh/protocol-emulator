@@ -1,9 +1,8 @@
-// The fault fail-safe on the two-engine chip. From the clear on, an engine with a fault
-// latched drives no pin, from the edge the fault shows. It halts within two edges and stays
-// halted with its pc held, whatever its host does, until the next clear. With no fault the
-// pins are the plain OR of both engines' drive. Host fields, line tables, the frame
-// receivers and their owner, pads and clear are free every cycle, and each config holds
-// between clears.
+// The fault fail-safe on the two-engine chip. From the clear on, an engine with a fault latched
+// drives no pin from the edge the fault shows. It halts within two edges and stays halted with
+// its pc held, whatever its host does, until the next clear. With no fault the pins are the OR
+// of both engines' drive. Host fields, line tables, frame receivers and their owner, pads and
+// clear are free every cycle, and each config holds between clears.
 
 module fail_safe (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;

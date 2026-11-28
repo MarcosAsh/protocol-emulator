@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The demo board's RP2 under CPython. It fakes the machine, rp2, micropython, time and
 # ttboard calls that python/demo_board.py and demo_board_check.py make, and has a PIO
-# interpreter and the pads. Names follow tt-micropython-firmware v3.1.1 and MicroPython's
-# rp2 module. A chip backend has run(board, ticks, stop), which elapses each wait that
-# board.events yields, plus drive and pads.
+# interpreter and the pads. A chip backend has run(board, ticks, stop), which elapses each
+# wait that board.events yields, plus drive and pads.
 
 import collections
 import importlib

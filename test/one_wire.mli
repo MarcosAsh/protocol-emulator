@@ -1,22 +1,8 @@
-(** 1-Wire master at standard speed on one open drain pin, IO0.
-
-    The host sends the unit in cycles as its first word: 6 us, 288 cycles at 48 MHz. Every
-    slot is five deadlines: the line falls, a one or a read lets go after 1 unit (6 us),
-    the line is sampled at 2 (12 us), a zero lets go at 11 (66 us) and the next slot
-    starts at 12 (72 us). That is 13.9 kbit/s, a unit clear of the standard's 60 us. A
-    read is a write of 0xff and every byte comes back as seen on the line. A reset is 80
-    units low (480 us), the presence sample 12 units after the release, and 68 units more
-    to make up the 480 us high.
-
-    Host words after the unit: [reset], which answers 0 when a device pulled the line low
-    and 1 when none did, and [byte b], which answers the byte sampled.
-
-    Each edge follows a deadline wait, so the times are exact to one cycle (20.8 ns),
-    except the reset's end and the presence sample, two cycles later (reset 480.04 us).
-    The shortest unit kept up with is 5 cycles, which dispatching a host word needs.
-
-    The host checks the ROM's CRC: the core's CRC unit sees every bit shift, including the
-    ones that open a read slot, so it cannot be pointed at the read bits alone. *)
+(** 1-Wire master at standard speed on one open drain pin, IO0. The host's first word is
+    the unit in cycles (6 us, 288 at 48 MHz). A slot has five deadlines: fall, release at
+    1 unit for a one or read, sample at 2, release at 11 for a zero, next slot at 12. Then
+    [reset] answers 0 if a device pulled the line low, [byte b] the byte sampled. Shortest
+    unit 5 cycles. The CRC unit sees every shifted bit, so the host checks the ROM CRC. *)
 
 open! Core
 open Protocol_emulator
@@ -37,12 +23,10 @@ val crc8 : int list -> int
 (** The eight bytes of a ROM in the order they are read: family, serial LSB first, CRC. *)
 val rom : family:int -> serial:int -> int list
 
-(** A slave with a ROM that answers a reset with a presence pulse and READ ROM (0x33) with
-    its eight bytes. It is the datasheet's worst case where that is the master's problem:
-    a zero it sends is held for 15 us from the falling edge and no longer. It times what
-    the master drives: a low of 1 to 15 us is a one or a read, 60 to 120 us a zero, 480 us
-    or more a reset, and anything else a violation, as is a slot shorter than 60 us, less
-    than 1 us between slots or less than 480 us high after a reset. *)
+(** A slave with a ROM, answering a reset with a presence pulse and READ ROM (0x33) with
+    its eight bytes, holding a zero 15 us. It times what the master drives: low 1 to 15 us
+    a one or read, 60 to 120 a zero, 480 or more a reset, else a violation, as is a slot
+    under 60 us or gap under 1 us, or high under 480 us after a reset. *)
 module Slave : sig
   type t
 

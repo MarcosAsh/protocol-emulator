@@ -1,12 +1,8 @@
-(** Checks each module of the circuit the tests simulate against the same module of a
-    Verilog file (as Yosys reads it) using [Hardcaml_verify.Sec].
-
-    Sec pairs state by name, so the Hardcaml side is rebuilt into the form Yosys gives:
-    clear and enable are folded into a flop's [d] (clear first, as Cyclesim does), a
-    memory becomes one flop per word named [mem[i]], an asynchronous reset goes through
-    inverters, and each flop takes the name the Verilog declares. Instances pair by label
-    and their ports are compared, so the modules compose to the whole chip. Sec ignores
-    initial values, so they are compared separately. *)
+(** Checks each module of the simulated circuit against the same module of a Verilog file
+    (as Yosys reads it) using [Hardcaml_verify.Sec]. Sec pairs state by name, so the
+    Hardcaml side is rebuilt in Yosys's form: clear and enable folded into a flop's [d],
+    memory as a flop per word named [mem[i]], asynchronous reset through inverters.
+    Instances pair by label. Initial values are compared apart. *)
 
 open! Core
 open! Hardcaml

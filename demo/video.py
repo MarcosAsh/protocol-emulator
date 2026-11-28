@@ -1,16 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The video's four shots on the real board, each from a fresh load of the frozen bitstream
-# (faults stick until reset). A shot prints a heading, its essential lines and PASS or FAIL.
+# (faults stick until reset): late (the chip refuses `out pins, 1 [13]` at pc 8), fixed
+# (the same with [12], accepted at slack 0 and decoded by sigrok), heldout and keyboard.
 # Full logs go to RUN/<shot>/. Run it through demo/video.sh, which takes the bench lock.
-#   late      test/uart_tx.asm with `out pins, 1 [13]`, the sed in docs/getting-started.md,
-#             which the chip refuses at pc 8 (reason 0, in time), leaving the engine halted
-#   fixed     the same with [12], accepted at slack 0, run and decoded by sigrok on OUT0
-#   heldout, keyboard  DALI and the USB keyboard, through demo/ledger.py
-# demo/video.sh assembles late and fixed on the machine with the OxCaml switch, into a PROGRAMS json
-# for the bench machine.
-# Usage: python3 demo/video.py assemble GENERATE.EXE --programs PROGRAMS
-#        PICO=id:<serial> python3 demo/video.py late|fixed|heldout|keyboard|all --run DIR
-#            --bitstream BIT --programs PROGRAMS
 
 import argparse
 import json

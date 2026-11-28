@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Both roles on one chip (MicroPython, Pico A): engine 0 is a controller and engine 1 a
-# target, each running the library's firmware on wires no pin shows, so only the host sees
-# them. Covers I2C in Standard-mode and Fast-mode, SPI modes 0 to 3 and UART at 9600 to
-# 230400 baud. Each case checks both engines against what they pushed on the RTL
-# (both_roles_firmware.py). demo/both_roles.sh runs it.
+# target, each running the library's firmware on wires no pin shows. Covers I2C in
+# Standard-mode and Fast-mode, SPI modes 0 to 3 and UART at 9600 to 230400 baud, each case
+# checked against the RTL (both_roles_firmware.py). demo/both_roles.sh runs it.
 
 import bench
 import both_roles_firmware

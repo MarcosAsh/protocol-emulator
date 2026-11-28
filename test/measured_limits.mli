@@ -74,10 +74,9 @@ val measure : Datasheet.t list -> Bench.t -> Capture.t -> t list
 val to_string : Capture.t -> t list -> string
 
 (** A bench copy's own run at its clock (a sample per cycle) on the pins its limits read,
-    with every edge each limit bounds and the edge it is measured from: a spacing's, as
-    [applications] finds them, or the levels a run bound's width spans. A width is placed
-    only where it is a run of whole levels after the first. The run is fed as for the
-    first limit's pin, with the host on time. *)
+    with every edge each limit bounds and the one it is measured from (a spacing's, as
+    [applications] finds them, or a run bound's levels). A width is placed only after a
+    first level, over whole levels. Fed as for the first limit's pin, the host on time. *)
 module Prediction : sig
   type t =
     { firmware : string

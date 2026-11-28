@@ -1,10 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The full speed USB device demo, with the Icepi's first USB-C port on this machine and
-# the FS=1 build loaded. Runs python/demo_usb_fs_device.py on Pico A while
-# demo/usb_fs_host.py keeps what the kernel saw, as usb_fs_device.host and .log in
-# CAPTURES. No analyser: on the bench pc it shares the device's USB controller and stops
-# early when the device attaches.
+# The full speed USB device demo, with the Icepi's first USB-C port on this machine and the FS=1
+# build loaded. Runs python/demo_usb_fs_device.py on Pico A while demo/usb_fs_host.py keeps what
+# the kernel saw. No analyser: it shares the device's USB controller and stops early.
 # Usage: PICO=id:<serial of Pico A> demo/usb_fs_device.sh
 set -e
 : "${PICO:?PICO=id:<serial of Pico A>}"

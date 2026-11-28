@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Tests the chip's own USB full speed receiver on the board against a real host. Loads the
-# chip built with FS=1, whose D+ pull-up makes the laptop enumerate the first USB-C port at
-# full speed. Pico A (demo/usb_fs_chip_pico.py) holds the port detached during the load,
-# then arms the receiver over the host port and reads its verdict on every packet. Tokens
-# (two words, one half) need a good CRC-5 and data packets a good CRC-16, with no stuffing
-# error and no dropped word. The chip never answers, so the host gives up; openFPGALoader
-# -r then restores the chip from flash.
-# Usage: PICO_A=<serial of Pico A> [REV=v1.3] python3 demo/usb_fs_chip.py [--out DIR]
+# chip built with FS=1. Pico A (demo/usb_fs_chip_pico.py) holds the port detached during the
+# load, then arms the receiver and reads its verdict on every packet: a good CRC-5 on tokens,
+# CRC-16 on data, no stuffing error, no dropped word. openFPGALoader -r restores the chip.
 
 import argparse
 import collections

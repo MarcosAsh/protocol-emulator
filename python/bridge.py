@@ -1,19 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Pico B's SWD port for a debugger on the laptop (MicroPython, Pico A), wired as in
-# demo_swd.py. Every edge comes from the chip's SWD firmware via demo_swd's Swd. It reads
-# a line of ops and prints a line of replies, in ASCII so Ctrl-C still reaches the REPL.
-# demo/swd_probe.py is the client.
-#
-# Ops, separated by ";", fields hex:
-#   h HALF       load the SWD firmware with that half period, and release SWDIO
-#   a            selection alert and SW-DP activation
-#   l            line reset
-#   t TARGET     TARGETSEL
-#   r AP A       read: the status (ACK, 8 for a parity error) and RDATA
-#   w AP A V     write: the status
-#   x            let both lines go and stop serving
-# A transfer that gets WAIT is retried up to demo_swd.POLLS times. Ops after one that
-# doesn't end OK are skipped, so the reply can be shorter than the request.
+# demo_swd.py. Every edge comes from the chip's SWD firmware via demo_swd's Swd. It reads a
+# line of ops, hex fields separated by ";", and prints a line of replies in ASCII. WAIT is
+# retried up to demo_swd.POLLS times, and ops after a failure are skipped.
 
 import bench
 import bench_firmware

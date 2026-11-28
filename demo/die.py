@@ -3,9 +3,6 @@
 # comes from the RTL line yosys keeps and from its output net's name. Gates keep neither, so
 # each takes the module of the nearest flop or named net it drives, or failing that the
 # nearest one in either direction. --check scores this on RTL synthesised one module at a time.
-# Usage: gh run download RUN -R MarcosAsh/protocol-emulator -n GDS_logs -D gds
-#        source env.sh && uv run demo/die.py gds/runs/wokwi -o docs/die.png [--check]
-#
 # /// script
 # dependencies = ["matplotlib"]
 # ///

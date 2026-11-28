@@ -4,11 +4,6 @@
 # test/python/write_margins.exe lists (python/demo_margins.py) while analyser B captures.
 # Each repeat is judged by what the part did, and the capture is measured for what the chip
 # drove and the part answered. A point already in OUT is kept, so a stopped run can resume.
-# Usage:
-#   PICO=id:<Pico A> ANALYSER_B_PORT=<port> demo/margins.py run MARGINS.json OUT
-#       [--part P] [--parameter X] [--repeats N] [--cycles C,...]
-#   demo/margins.py analyse MARGINS.json OUT [--part P] [--parameter X] [--again]
-#   demo/margins.py table MARGINS.json OUT
 
 import argparse
 import collections

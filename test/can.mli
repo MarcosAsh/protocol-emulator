@@ -1,13 +1,8 @@
-(** CAN 2.0A transmitter on [tx_pin] (recessive high), with the core's CRC-15.
-
-    The host sends the bit period once, then per frame the number of bits after SOF minus
-    one, and those bits (ID to the last data bit, MSB first, sixteen per word). The
-    firmware sends SOF, the bits, the CRC, delimiter, ACK slot, ACK delimiter, EOF and
-    intermission, with a stuff bit after five equal bits from SOF to the end of the CRC. A
-    frame's words must fit the fifo; a late word is an underflow fault, not a moved edge.
-
-    No arbitration, and the ACK slot is not read. The pin is dominant from reset until a
-    bit after the period arrives. *)
+(** CAN 2.0A transmitter on [tx_pin] (recessive high), with the core's CRC-15. The host
+    sends the bit period once, then per frame the bit count after SOF minus one and the
+    bits (ID to last data bit, MSB first, sixteen per word). A stuff bit follows five
+    equal bits from SOF to the CRC's end. A late word is an underflow fault. No
+    arbitration, no ACK read. Dominant from reset until a bit after the period. *)
 
 open! Core
 open Protocol_emulator

@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Bring-up check for the Tiny Tapeout demo board (MicroPython). Nothing attached, every ui
 # DIP switch off. Checks status, register readback, the chip's clock against the RP2's,
-# and uart_tx_host_rate on uo[1] read back by a PIO. Prints a line per check, then PASS or
-# FAIL.
-#   mpremote cp python/protocol_emulator.py python/demo_board.py :
-#   mpremote run python/demo_board_check.py
-# Not tried on a board yet, only on the RTL (test/test_demo_board.py).
+# and uart_tx_host_rate on uo[1] read back by a PIO, then prints PASS or FAIL. Not tried on
+# a board yet, only on the RTL (test/test_demo_board.py).
 
 import rp2
 import time

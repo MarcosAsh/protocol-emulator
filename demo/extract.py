@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The intake's double extraction. Two headless agents read the spec's timing limits blind,
 # each confined to its own copy of the spec, and we compare their tables field by field. A
-# row that only one reader wrote, with typical values only, is kept and marked because it
-# bounds nothing. Any other disagreement stops the intake with "limit disputed, DOC p.N" and
-# keeps both readings in disputed.tsv, where a person fills in the ruling column and settles
-# it with `rule`. Writes limits.tsv, disputed.tsv, ruled.tsv and agreement.txt in RUN_DIR,
-# and a row of agreement.tsv next to it. Exit 0 means agreed, 3 means disputed.
-# Usage: python3 demo/extract.py run RUN_DIR DOC [--budget USD] [--model M] [--dry-run]
-#        python3 demo/extract.py rule RUN_DIR DOC RULINGS   RULINGS: disputed.tsv, ruled
+# row only one reader wrote, with typical values only, is kept and marked as bounding nothing.
+# Any other disagreement stops the intake ("limit disputed, DOC p.N"); `rule` settles it.
 import argparse
 import csv
 import datetime

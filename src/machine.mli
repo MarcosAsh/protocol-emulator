@@ -1,24 +1,8 @@
 (** Cycle-accurate model of the core. The simulator, the timing analyser and the hardware
-    tests all compare against it.
-
-    An instruction issues when the core is neither halted nor stalled, then stalls for its
-    delay ([Isa.jmp_cycles - 1] after a [jmp]). A false [wait] reissues next cycle and
-    re-applies its side-set. The wrap from [wrap_top] to [wrap_bottom] takes no cycles
-    unless a jump is taken. [now] counts every cycle, halted or not, and a delay that has
-    begun runs out even if the core halts. State written in a cycle is visible from the
-    next, so a read of capture misses an edge in the same cycle. Autopull comes before an
-    [out] at threshold and never after it, so a cycle touches each fifo once.
-
-    Pins 0-4 are inputs, 5-11 outputs, 12-19 bidirectional (they read the driven value
-    when the direction bit is set), and 20-27 wires (read ORed with whatever [inputs] says
-    other cores drive). Writes to inputs are dropped.
-
-    Nothing that touches a fifo stalls. A push into a full fifo drops and sets [overflow];
-    a pull from an empty one leaves [osr] alone and sets [underflow]. A late deadline
-    release sets [missed_deadline], and an undecodable word halts and sets [decode]. The
-    CRC and stuff counter only see single-bit [in]/[out]; [jmp stuff_pending] compares the
-    run with the threshold. After [crc_send], such a bit shifts the CRC out instead, and
-    an [out] sends the CRC's bit (complemented if configured) in place of the osr's. *)
+    tests all compare against it. State written in a cycle is visible from the next.
+    Nothing that touches a fifo stalls: a full push drops and sets [overflow], an empty
+    pull sets [underflow]. Pins 0-4 are inputs, 5-11 outputs, 12-19 bidirectional, 20-27
+    wires. *)
 
 open! Core
 

@@ -37,8 +37,7 @@ let certify (c : Certified.t) =
 (* Everything a protocol file provides, from its record alone, in the order a new protocol
    goes through it. First each firmware's certificate, which CI then proves by induction
    ([make -C formal inductive_certificate NAME=...]). Then the bench copies against their
-   datasheet limits, each run at the pins in lockstep with the engine, and what sigrok's
-   decoders have to read off its trace (demo/decode.py checks that). *)
+   datasheet limits, and what sigrok's decoders read off its trace (demo/decode.py). *)
 let end_to_end (p : Protocol.t) =
   (match p.certified @ p.time_triggered with
    | [] -> print_endline "certificates: none"

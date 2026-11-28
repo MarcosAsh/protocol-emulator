@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A chirp in AC-3, MP3, AAC and DTS on OUT0's S/PDIF transmitter, one codec after another
-# (MicroPython, Pico A). FFmpeg made the IEC 61937 bursts in python/spdif_bursts.py, and
-# demo/traffic.py has FFmpeg name each codec and find its frames in the capture. The
-# firmware sends silence between bursts. sigrok's spdif misreads them, so its decode is
-# not judged. demo/outside.sh spdif_codecs reads the next line.
+# (MicroPython, Pico A). FFmpeg made the IEC 61937 bursts in python/spdif_bursts.py and
+# demo/traffic.py has FFmpeg find them. sigrok's spdif misreads them, so its decode isn't judged.
 # outside: analyser=A ms=3000 files=python/spdif_bursts.py decode=-P spdif:data=D4 -A spdif=samples
 
 import binascii

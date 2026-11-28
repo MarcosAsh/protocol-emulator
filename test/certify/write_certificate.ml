@@ -16,27 +16,9 @@ let writes_pins (t : Isa.t) =
 ;;
 
 (* Proves the departure time in a stamped frame, for a transmitter shaped like
-   [Uart.tx_stamped]. [mov y, now] starts the stamp, a [set pins, 0] sends the start bit,
-   [mov osr, y] loads the stamp and [wait t+; out pins, 1; jmp x--] sends it LSB first.
-   The claims:
-
-   - in the first cycle the start bit shows, the line was high the cycle before and [y]
-     holds the low 16 bits of [now];
-   - [y] keeps that stamp until [mov osr, y], and the bits of [osr] still to go are the
-     stamp's, from the next one to send;
-   - from each [out] to the next, the pin shows the stamp bit it sent.
-
-   The first is inductive through the line's level where the program knows it (after a
-   [set pins] it holds until the next pin write) and the delay left at each pc.
-
-   It assumes nothing beyond the certificate: inputs and fifo traffic are free and the
-   host never halts the core. No clock bound is needed, since the stamp is [now] modulo
-   2^16 and wraps with it. A receiver that wants the whole cycle unwraps it, which works
-   for frames less than 65536 cycles apart. The pin is the engine's [pin_out] register,
-   and each flop between it and the pad adds one cycle.
-
-   Two deliberately wrong claims have to fail: OFF_BY_ONE puts the stamp a cycle after the
-   edge, and NEXT_BIT says the pin shows the bit after the one sent. *)
+   [Uart.tx_stamped]: when the start bit first shows, [y] holds the low 16 bits of [now],
+   and each [out] puts the stamp's next bit on the pin. Assumes only the certificate and a
+   core the host never halts. The wrong claims OFF_BY_ONE and NEXT_BIT have to fail. *)
 let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   if config.side_set_count <> 0
      || config.manchester
@@ -179,13 +161,10 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   monitor, claims
 ;;
 
-(* Which bits of the host word the pins carry, for firmware that pulls by hand and outs to
-   the pins n bits at a time. This comes from the osr kernel's rows. osr_count and the osr
-   follow the count since the pull, and a pulled row holds a word or has set underflow.
-   While an out to the pins was the last write to them or the osr, the pins show its bits
-   [c - n, c), and where a row's sum S is one value, bits [S - n - x, S - x). Bits count
-   from the end the osr shifts from. The word is the tx fifo's head at the pull
-   (fifo_order.sv). *)
+(* Which bits of the host word the pins carry, for firmware that pulls by hand and outs n
+   bits at a time, from the osr kernel's rows. After an out the pins show bits [c - n, c),
+   or [S - n - x, S - x) where a row's sum S is one value, counted from the end the osr
+   shifts from. The word is the tx fifo's head at the pull (fifo_order.sv). *)
 let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list) =
   if config.autopull || config.manchester
   then raise_s [%message "BUG: data claims are for firmware that pulls by hand"];
@@ -386,28 +365,9 @@ let anyseq_host =
 ;;
 
 (* The same certificate as an invariant for induction, which holds for all time. The
-   program is a ROM behind the macro's port, read a cycle late, so the state induction
-   starts from can't get it wrong. At every cycle the core runs:
-
-   - the instruction register holds the word at the pc and the memory's output the word
-     after it, but in the second cycle of a jump, when the output is the word at the new
-     pc and the register still the jump;
-   - the opcode, the decode flag and the wait pin, which the core registers beside the
-     word, say what the word says. They are state of their own, so induction could start
-     them disagreeing with it and let a wait retire before its deadline;
-   - with no [crc_send] in the program, the CRC is not sending, so outs send the osr;
-   - what is left of a delay brings the next issue to the phase its row allows;
-   - in a counted loop, phase less slope times x lies in the row's offset;
-   - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
-   - x, y and p hold what the analyser says on the way into the pc;
-   - the pc is one the analyser reaches, after an instruction it says can precede it;
-   - a Manchester bit's second half is pending only where the analyser says it can be;
-   - where the program moves the capture, the captured edge has passed, which is what the
-     analyser takes [mov t, capture] to load, and the clock and capture start at zero;
-   - the cycles since the last pin edge are what the analyser says for the way in, also
-     while a delay or wait holds the core. That holds the gaps in a loop with no deadline;
-   - under the single-edge assumption, the capture is armed until the edge, which comes
-     after the arm, and after the wait for it is as old as the analyser says. *)
+   program is a ROM behind the macro's port, read a cycle late. The invariant ties the
+   registered word, opcode and decode flags to the pc, and the delay, loop offset, stalls,
+   registers, capture and edge gaps to what the analyser's row says on the way in. *)
 let inductive
   ?period
   ?(single_capture_edge = false)
@@ -770,13 +730,10 @@ let inductive
     in
     phase ^ capture
   in
-  (* The one thing a certificate assumes about time: [no_wrap]. A wait for the host or a
-     pin can stall indefinitely, so the rows after it have no ceiling on phase and 24 bits
-     of the difference wrap. A loop that anchors no deadline does the same, and on an idle
-     line a captured edge can be arbitrarily far back. The core's own release compares the
-     same 24 bits (a deadline over about 168 ms away at 50 MHz reads the wrong way round),
-     so the hardware keeps this bound too. Staying within 84 ms of the deadline and of
-     that edge covers all three. *)
+  (* The one thing a certificate assumes about time. A stalled wait, a loop with no
+     deadline or an idle capture leaves the phase no ceiling, and 24 bits of it wrap. The
+     core's release compares the same 24 bits, so staying within 84 ms (at 50 MHz) of the
+     deadline and of the captured edge covers all three. *)
   let no_wrap =
     if not no_wrap
     then ""
@@ -1035,11 +992,10 @@ endmodule
 |}]
 ;;
 
-(* The miter for [Fsm_compiler]: the unmodified [Uart.Tx] of hardcaml_hobby_boards beside
-   the engine running what the compiler makes of it at 4 clocks per bit. The host writes
-   each byte the circuit takes, and the engine's pin is the circuit's line 4 cycles later,
-   provided a byte comes at least 4 cycles after the circuit is ready. The coupling
-   invariants are written by hand for this machine. *)
+(* The miter for [Fsm_compiler]: hardcaml_hobby_boards' unmodified [Uart.Tx] beside the
+   engine running what the compiler makes of it at 4 clocks per bit. The engine's pin is
+   the circuit's line 4 cycles later, provided a byte comes at least 4 cycles after the
+   circuit is ready. The coupling invariants are written by hand. *)
 let lag = 4
 let gap = 4
 let clocks_per_bit = 4

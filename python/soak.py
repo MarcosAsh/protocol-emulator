@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The self-check unattended, as Pico A's main.py with the chip booting from flash. Sends
-# quiet frames forever and, every GLITCH_S, a restart one cycle long and one cycle short,
-# each of which must raise the alarm. Writes a line to soak.log every LOG_S, rolling to
-# soak.1.log past LOG_BYTES. The LED blinks slowly while every check holds and fast once
-# one fails.
+# quiet frames forever and, every GLITCH_S, a restart one cycle long and short, each of which
+# must raise the alarm. Logs to soak.log every LOG_S, rolling to soak.1.log past LOG_BYTES.
+# The LED blinks slowly while every check holds and fast once one fails.
 
 import time
 

@@ -25,8 +25,7 @@ let config =
 (* The master: a header, then the slave's response read back one byte per word. The host
    loads half a bit, then per frame the response's bytes minus one (checksum included) and
    the PID. [t] steps half a bit; each pin write follows its [wait t+]. The response is
-   sampled as [Uart.rx_host_rate_on] does: the core already waits at each start edge, so
-   [now] a cycle after the wait releases is the edge's cycle plus one. *)
+   sampled as [Uart.rx_host_rate_on] does: [now] after the wait is the edge's plus one. *)
 let firmware =
   [%firmware
     {|
@@ -324,8 +323,7 @@ let bench =
 (* The header's timing at the pin, every row the run's: the break is a loop of waits, so
    the kernel counts one pass of it. A header runs from the break's fall to the PID's
    start bit (the seventh fall) and its ten bits after (2.3.1, 2.3.2). Single bits, the
-   levels under a bit and a half, carry the bit rate. Slave-side, wake up, sleep and
-   transport layer rows don't apply to this firmware. *)
+   levels under a bit and a half, carry the bit rate. Slave-side rows don't apply here. *)
 let limits =
   let sheet page =
     { Datasheet.Sheet.part = "LIN master"

@@ -1,9 +1,8 @@
 # Turns the chip's flops into ports for powerup.sv's invariant. Each host fifo and the edge
-# stamps become one port named for them (flops.tcl). The load checker's state and the flops
-# it keeps without a clear become one port, load_checker. Every other flop goes in one
-# port, state, whose width goes to powerup.sv as STATE_BITS. The engines' start inputs,
-# three of their flops and the load checker's lending also come out, but the flops stay
-# in state.
+# stamps become one port named for them (flops.tcl). The load checker's state and the flops it
+# keeps without a clear become one port, load_checker. Every other flop goes in one port, state,
+# whose width goes to powerup.sv as STATE_BITS. The engines' start inputs, three of their flops
+# and the load checker's lending also come out, but the flops stay in state.
 
 source flops.tcl
 yosys cd tt_um_marcosash_protocol_emulator

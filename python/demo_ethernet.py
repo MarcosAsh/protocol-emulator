@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # A 10BASE-T UDP broadcast every second from the demo board (MicroPython, ttboard) at
-# 40 MHz. TD+ is uio[0] and TD- is uio[1], through a transformer to the RJ45. The chip
-# also hears each frame on uio[0] and engine 1's ethernet_rx hands it to the host, as
-# demo_pi_ethernet.py does on the Icepi. Not tried on a board yet: test/test_ethernet.py
-# sends and hears the same frames through RTL, gates and the FPGA netlist. Needs
-# ethernet_rx.hex and ethernet_rx.cert.hex on the board.
+# 40 MHz. TD+ is uio[0] and TD- is uio[1], through a transformer to the RJ45. The chip also
+# hears each frame on uio[0] and engine 1's ethernet_rx hands it to the host. Not tried on a
+# board yet. Needs ethernet_rx.hex and ethernet_rx.cert.hex on the board.
 
 import time
 

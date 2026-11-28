@@ -1,12 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Learns a protocol from a recording, on the board. Pico B replays a transmitter the chip
-# knows nothing about onto IO3 (and IO2 for a clocked bus). The chip's own edge loggers
-# record it, with analyser B watching as referee. generate.exe learn reads the protocol
-# from that recording and writes firmware the kernel accepts, for a message never sent.
-# The chip then sends the message on OUT0 (OUT5 and OUT4 for a clocked bus). Analyser A or B
-# captures it, sigrok decodes it, and Pico B, listening on OUT0, reads it back. Loads the
-# bitstream first, because faults stick until reset.
+# Learns a protocol from a recording on the board: Pico B replays it onto IO3, generate.exe
+# learn writes firmware from the chip's edge logs, and the chip sends a message never seen.
 # Usage: PICO=id:<Pico A> BIT=<bitstream> demo/learn_board.sh OUT line|clocked
 #            [RECORDING.edges... [--scale S] [--until SECONDS]]
 set -eu

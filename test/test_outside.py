@@ -318,11 +318,10 @@ async def test_eeprom(dut):
 
 
 class StretchingMemory(Memory):
-    """Holds SCL low for a random 0 to 1499 cycles before each byte it takes or gives, the
-    way cocotbext-i2c holds it across handle_write and handle_read. After a read's first
-    byte, 0.1.2 calls handle_read as the ACK's SCL rises, and a hold there would cut that
-    high to nothing, which no slave may do. So this one first lets SCL go until the ACK's
-    fall."""
+    """Holds SCL low for a random 0 to 1499 cycles before each byte it takes or gives, as
+    cocotbext-i2c does. After a read's first byte, 0.1.2 calls handle_read as the ACK's SCL
+    rises, and a hold there would cut that high to nothing, which no slave may do, so this
+    one first lets SCL go until the ACK's fall."""
 
     def __init__(self, *args, seed, **kwargs):
         super().__init__(*args, **kwargs)
@@ -678,11 +677,10 @@ async def test_can(dut):
 
 @cocotb.test()
 async def test_can_from_reset(dut):
-    """The CAN demo's run with no arm before it, with the transmitter wired from reset.
-    Module A's R is dominant until the run sets the period, then idle for at least 11 bits
-    before the first SOF, and sigrok reads every frame from where R let go. A capture from
-    reset wouldn't work: sigrok 0.5.3's CAN decoder treats a low level as SOF rather than a
-    falling edge, so demo/outside.sh arms before it captures."""
+    """The CAN demo's run with no arm before it, the transmitter wired from reset. Module A's
+    R is dominant until the run sets the period, then idle at least 11 bits before the first
+    SOF, and sigrok reads every frame from where R let go. A capture from reset wouldn't
+    work: sigrok 0.5.3 treats a low level as SOF, so demo/outside.sh arms before it captures."""
     await reset(dut)
     line = Analyser({5: bit(dut.can_rx)})
     later = []
@@ -730,10 +728,9 @@ def crc15(bits):
 
 class PicoB:
     """Pico B as demo/can_node.c runs can2040, on its own transceiver. It ACKs each frame
-    whose CRC holds. After a frame with ID request it waits delay_ms, then sends the
-    replies (can2040's own lines) gap_ms apart, each repeated until ACKed. This model is
-    ours: it samples each bit three quarters in from the SOF's fall with no
-    resynchronising, which the simulator's steady clocks allow."""
+    whose CRC holds, and after a frame with ID request waits delay_ms, then sends the replies
+    gap_ms apart, each repeated until ACKed. This model samples each bit three quarters in
+    from the SOF's fall with no resynchronising, which the simulator's steady clocks allow."""
 
     def __init__(self, dut, request, replies, delay_ms, gap_ms):
         self.dut = dut

@@ -1,12 +1,8 @@
-(** The kernel as a chip runs it at load. The host writes a certificate to the data
-    memory, and the chip walks the program in its own memory against it, refusing to start
-    one that fails. A certificate stores rows only at the wrap and jump targets; every
-    other row is the kernel's [fall_through] image of the row before it. Rows carry no
-    Spacing and no slope, so firmware that needs either is refused.
-
-    Layout from [base]: the entry count and the wide count (each its low byte), then three
-    words per entry sorted by pc, then the wide dictionary (three words per interval),
-    then the narrow one (two words per interval). Addresses wrap at the memory's size. *)
+(** The kernel as a chip runs it at load. The host writes a certificate to the data memory
+    and the chip walks the program in its own memory against it, refusing to start one
+    that fails. A certificate stores rows only at wrap and jump targets, every other row
+    being the kernel's [fall_through] image of the one before. Rows carry no Spacing and
+    no slope, so firmware that needs either is refused. *)
 
 open! Core
 open! Hardcaml
@@ -68,12 +64,10 @@ module Rejection : sig
   [@@deriving sexp_of]
 end
 
-(** [walk]'s step at a pc, over [Kernel.Make]. Gives the row held next (the stored
-    entry's, [stored_row], where [stored]), whether a conjunct fails, [reason] (the first
-    in [Kernel.Conjuncts.to_list] order), and each conjunct. [next] and [target] are the
-    rows looked up at the successors; [next] is unread where the pc falls through.
-    [formal/complete.sv] takes the circuit for the walk that the load checker is proved to
-    keep. *)
+(** [walk]'s step at a pc, over [Kernel.Make]. Gives the row held next ([stored_row] where
+    [stored]), whether a conjunct fails, [reason] (the first in [Kernel.Conjuncts.to_list]
+    order) and each conjunct. [next] is unread where the pc falls through.
+    [formal/complete.sv] takes the circuit for the walk that the load checker keeps. *)
 module Step : sig
   module I : sig
     type 'a t =

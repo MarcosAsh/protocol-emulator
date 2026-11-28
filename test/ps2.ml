@@ -429,11 +429,9 @@ let bench =
 ;;
 
 (* IBM's receiving data timings, figure 8. T1 runs from data's last move to each clock
-   fall, T2 from the clock rise to each data move. Clock lows and highs are checked too,
-   the first high counted from reset. A direction bit of 1 pulls the line low. The
-   kernel's high run lasts from the device releasing the clock to taking it again (969
-   cycles at least), so it includes a host's inhibit and request to send. Figure 9 leaves
-   the quarter from release to first clock untimed, so the minimum high is the run's. *)
+   fall, T2 from the clock rise to each data move. Clock lows and highs are checked too. A
+   direction bit of 1 pulls the line low. The kernel's high run (969 cycles at least)
+   includes a host's inhibit and request to send, so figure 9's untimed quarter is its. *)
 let limits =
   let sheet parameter =
     { Datasheet.Sheet.part = "PS/2 keyboard and auxiliary device"

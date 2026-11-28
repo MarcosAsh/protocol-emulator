@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Tests Usb_frame_rx on the board against a real host. Loads icepi/usb_fs_check.v, whose D+
 # pull-up makes the laptop enumerate the first USB-C port at full speed, and reads back
-# every packet it received through Pico B (demo/usb_fs_listen.py). Each packet's CRC is
-# checked here as well, and the SOF frame numbers must count up by one. The device never
-# answers, so the host gives up after a few seconds; openFPGALoader -r then restores the
-# chip from flash.
-# Usage: PICO_B=<serial of Pico B> [REV=v1.3] python3 demo/usb_fs_check.py [--out DIR]
+# every packet it received through Pico B (demo/usb_fs_listen.py). Each packet's CRC and the
+# SOF counting are checked here. The device never answers; openFPGALoader -r restores the chip.
 
 import argparse
 import collections

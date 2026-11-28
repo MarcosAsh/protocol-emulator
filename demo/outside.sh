@@ -1,15 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# One outside-chip demo. Runs the demo's script on Pico A while its analyser
-# captures, then prints the Pico's log and sigrok's decode. The last line is FAIL if the
-# capture lacks the demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip
-# before every demo, because faults stick until reset. Analyser A sees the host port, OUT0,
-# CAN and SWD; B sees the flash, the stick, 1-Wire and I2C (see demo/capture.sh). The capture,
-# log and decode are saved as <name>.sr, .log and .decode in CAPTURES (default: here).
-# Usage: PICO=id:<serial of Pico A> demo/outside.sh <demo>, one of
-#   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
-#   pio_ws2812 pio_uart_tx pio_spi, or any protocol whose python/demo_<demo>.py has an
-#   "# outside:" line
+# One outside-chip demo: runs the demo's script on Pico A while its analyser captures, then
+# prints its log and decode. FAIL if the capture lacks the demo's traffic (demo/traffic.py).
+# Reset the chip first (faults stick). Analyser A sees OUT0, CAN, SWD; B the rest.
+# Usage: PICO=id:<Pico A> demo/outside.sh <demo>  (a demo_<demo>.py with an "# outside:" line)
 set -e
 name=$1
 captures=${CAPTURES:-.}

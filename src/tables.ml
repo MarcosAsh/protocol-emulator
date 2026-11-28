@@ -107,11 +107,9 @@ let max_hold = (1 lsl Isa.data_bits) - 1
 let burst_bits = 12
 
 (* Two words per entry: its hold, then outputs (6 bits), kind (4) and next state (6), low
-   bits first. The entry is at [d << 7 | state << k | inputs], where d is the host bit
-   p[15]. Kinds are tried in [Kind.all]'s order by counting x down, and the last takes
-   every later code. Each path adds its [Kind.added] to [t] before the paths join. A wait
-   for the host or a pin clears [t] first and re-anchors after, since its phase is
-   unbounded. *)
+   bits first. The entry is at [d << 7 | state << k | inputs], d the host bit p[15]. Kinds
+   are tried in [Kind.all]'s order by counting x down, the last taking every later code. A
+   wait for the host or a pin clears [t] first, as its phase is unbounded. *)
 let interpreter (w : Wiring.t) =
   Wiring.validate w |> ok_exn;
   let drive = if w.open_drain then "pindirs" else "pins" in

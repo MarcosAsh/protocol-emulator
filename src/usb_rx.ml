@@ -7,12 +7,9 @@ module type Config = sig
   val samples_per_cycle : int
 end
 
-(* Edge-aligned sampling with a full resync on every edge:
-   {v
-   NRZI with a 0 stuffed after six 1s has a D+ edge at least every seven bits. Count
-   samples from the last one; the bit is the sample half a bit on, then one each bit.
-   USB 2.0 table 7-10: a full speed receiver takes 18.5 ns of jitter to the next edge.
-   v} *)
+(* Edge-aligned sampling with a full resync on every edge. NRZI with a 0 stuffed after six
+   1s has a D+ edge at least every seven bits, and the bit is the sample half a bit after
+   the last edge. USB 2.0 table 7-10: 18.5 ns of jitter to the next edge. *)
 module Make (Config : Config) = struct
   open Config
 

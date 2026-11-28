@@ -1,12 +1,8 @@
-# The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEEDS='1 2'], then
-# make prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too.
-# The .sha256 file lists the bitstream and the netlist it came from, and make equiv proves
-# that netlist equal to the RTL (formal/icepi_equiv).
-# FS=1 pulls D+ up for full speed USB instead of D-, and names the bitstream differently.
-# PROBE=1 puts D+ and D- on header 8 and 12 instead of OUT0 and OUT2, for an analyser.
-# MHZ=40 clocks the chip at 40 MHz for 10BASE-T. USB defaults to 0 then, since low speed
-# USB needs 48. The bitstream is named differently. The SRAM macro is its IHP behavioural
-# model, which yosys maps to block RAM.
+# The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEEDS='1 2'], then make
+# prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too. make equiv
+# proves the netlist in the .sha256 file equal to the RTL (formal/icepi_equiv). FS=1 pulls D+ up
+# for full speed USB instead of D-. PROBE=1 puts D+ and D- on header 8 and 12. MHZ=40 is for
+# 10BASE-T and defaults USB to 0, as low speed USB needs 48.
 
 REV ?= v1.4
 MHZ ?= 48

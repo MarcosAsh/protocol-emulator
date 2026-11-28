@@ -1,11 +1,10 @@
 open! Core
 open Pio
 
-(* One state machine at an integer divider, following RP2040 datasheet chapter 3 and the
-   verifier's pioemu.py. Side-set lands on an instruction's first cycle and its data
-   writes on the cycle it completes, with side-set winning a tie (3.2.4, 3.5.1, 3.5.6).
-   The machine reads its own outputs 4 system clocks late, through the synchronisers
-   (3.5.6.1). *)
+(* One state machine at an integer divider, per RP2040 datasheet chapter 3 and pioemu.py.
+   Side-set lands on an instruction's first cycle and data writes on its last, side-set
+   winning a tie (3.2.4, 3.5.1, 3.5.6). It reads its own outputs 4 system clocks late,
+   through the synchronisers (3.5.6.1). *)
 
 module Edge = struct
   type t =

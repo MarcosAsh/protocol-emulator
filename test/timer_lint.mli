@@ -1,27 +1,8 @@
-(** A lint for compares of timer values. The timer ([Isa.timer_bits] wide) wraps by
-    design, so comparing two of its values only means what it says as the signed
-    difference ([now - t] against a constant), or on a sum computed wide enough that it
-    cannot wrap.
-
-    The lint walks the signal graph of each circuit, through wires, muxes and resizes. It
-    looks at every unsigned and signed less-than, every equality with an adder or
-    subtractor on one side, and every test of the sign bit, where the operands are timer
-    wide or are sums and differences of timer-wide values. A sign bit that only feeds a
-    sign extension of its value, the flip [<+] makes of it, or a reordering of all its
-    bits is not a test.
-
-    A difference of two timer values is safe against a constant, since it wraps on
-    purpose. A difference with a constant is a threshold on its other side and is judged
-    as that side would be, so [msb (x -:. limit)] tests [x] against [limit]. Anything else
-    is a count: a sum wide enough that its largest value does not carry out of its width,
-    which is one bit more than a timer value for two terms and two more for three or four.
-    A count compared as signed, or tested by its sign bit, needs one bit more again to
-    stay below the sign bit. A difference added into a count may be negative, so it is
-    flagged.
-
-    A value's bound comes from its structure alone (constants, zero extension, muxes and
-    nested sums). A sum that cannot wrap for a reason the graph does not show is flagged
-    and needs an allowance saying why. *)
+(** A lint for timer compares. The timer ([Isa.timer_bits] wide) wraps by design, so two
+    of its values compare only as the signed difference ([now - t] against a constant) or
+    as a sum wide enough not to wrap. It walks each circuit's signal graph and judges
+    every less-than, adder equality and sign bit test on timer wide values. Bounds come
+    from structure alone, so a hidden reason not to wrap needs an allowance. *)
 
 open! Core
 open! Hardcaml

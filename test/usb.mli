@@ -2,8 +2,7 @@
     and the demo board around a [Machine] that runs [device], with D+ and D- as a shared
     wire. The host side sends tokens and data and listens. The board side reads the words
     the core pushes, answers requests from a table of descriptors after [latency] cycles
-    (which is what makes the core send NAKs), and reloads the core when the address
-    changes. *)
+    (which makes the core send NAKs), and reloads the core when the address changes. *)
 
 open! Core
 open Protocol_emulator
@@ -25,17 +24,9 @@ val rx_dp_pin : int
 val rx_config : Program_config.t
 
 (** USB low speed device for [address], endpoints 0 and 1. The host sends the bit period
-    first. A token that is not ours is ignored together with the data that follows it.
-    After a SETUP or OUT that is ours the data goes to the host, tag word first (1 for
-    DATA0, 2 for DATA1), and is acknowledged if its CRC is good. A bad one raises the
-    interrupt. An IN that is ours gets a NAK two and a half bit times after the end of its
-    EOP, or the reply if the host has queued one for that endpoint. A reply is a word with
-    the endpoint in the low byte and the PID in the high byte, a word with the number of
-    data bits in the low byte and of data words in the high byte, then the data two bytes
-    per word (first byte low), all in the fifo before the token arrives. SYNC, the CRC-16
-    and the bit stuffing are added here. A reply queued for the other endpoint is dropped,
-    which the host hears of as tag 4, and that IN gets a NAK. The host's ACK comes back as
-    tag 3. D+ is IO0, D- is IO1, and IO2 is a flag the program keeps for itself. *)
+    first. Others' tokens and their data are ignored. Data after our SETUP or OUT goes to
+    the host, tag 1 (DATA0) or 2 (DATA1) first, ACKed if the CRC is good. Our IN gets a
+    NAK 2.5 bit times after its EOP, or the queued reply. D+ is IO0, D- IO1. *)
 val device : address:int -> half_period:int -> string
 
 val device_dp_pin : int

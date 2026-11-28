@@ -3,8 +3,6 @@
 # the chip through Pico A, in batches of python/demo_glitch_map.py, and checks each frame's
 # bytes and framing error against the receiver's rows. Both engines meet on wire 20, so no
 # pad is touched.
-# Usage: PICO=id:<serial> python3 demo/glitch_map.py IMAGES --bitstream BIT --out DIR
-#            [--frames N] [--batch N]
 import argparse
 import hashlib
 import json

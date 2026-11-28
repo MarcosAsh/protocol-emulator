@@ -1,9 +1,8 @@
 (** A timing table in, firmware out. Rows are the intake's (parameter, min, max, unit),
-    shape lines say which rows time which runs, and [Learn_firmware] writes the firmware:
-    pulse codes, UART, Manchester or clocked serial. Every run is a whole number of units
-    of whole cycles, each limit cleared by a cycle as the library's are. The unit leaving
-    the most room is taken. A refusal names the row the nearest unit, or the kernel's
-    least, misses. *)
+    shape lines say which rows time which runs, and [Learn_firmware] writes pulse codes,
+    UART, Manchester or clocked serial. Every run is a whole number of units of whole
+    cycles, each limit cleared by a cycle. The unit leaving the most room is taken. A
+    refusal names the row the nearest unit, or the kernel's least, misses. *)
 
 open! Core
 open Protocol_emulator

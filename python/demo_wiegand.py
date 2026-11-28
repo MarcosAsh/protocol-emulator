@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # A Wiegand reader's 26-bit card read (Wikipedia, oldid 1374164469) on OUT0 (DATA0) and
 # OUT1 (DATA1), both idling high (MicroPython, Pico A), with 50 us pulses every 500 us.
-# demo/outside.sh wiegand runs it and takes the analyser, capture length and sigrok
-# decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P wiegand:d0=D4:d1=D5:bitwidth_ms=1 -A wiegand=state
 # OUT1 reaches analyser A D5 through CAN board A, whose R follows its T on an idle bus
 

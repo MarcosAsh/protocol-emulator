@@ -18,10 +18,9 @@ let config =
 ;;
 
 (* LFAST frame, MSB first, per the spec's Figure 2: sync 0xA84B, 8-bit header, payload, a
-   1 stop bit. The note leaves the header fields to the reference manual, so they are
-   sigrok's: 0b000_0100_1 is an 8-bit payload on channel A with CTS set. The host's word
-   is not 0x00, whose low bits would outrun the decoder's timeout. 5 Mbaud at 48 MHz is
-   9.6 cycles per bit; the firmware uses 10. *)
+   1 stop bit. The header fields are sigrok's: 0b000_0100_1 is an 8-bit payload on channel
+   A with CTS set. The host's word is not 0x00, whose low bits would outrun the decoder's
+   timeout. 5 Mbaud at 48 MHz is 9.6 cycles per bit; the firmware uses 10. *)
 let firmware =
   [%firmware
     {|

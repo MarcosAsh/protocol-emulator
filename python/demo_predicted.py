@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs a bench copy the way test/measure/predict.exe predicts it (MicroPython, Pico A).
-# Loads the firmware into engine 0, then pushes the prediction's load and bursts as its run
-# feeds them: a word whenever the fifo has room, each burst once the previous one is in the
-# core. demo/hold_capture.py checks the capture against the same file. The gaps between
-# bursts are the host's here, so only the first burst's edges line up with one alignment.
-# Usage: mpremote connect $PICO cp python/protocol_emulator.py python/pico_board.py \
-#            python/bench.py python/bench_firmware.py python/demo_predicted.py X.predicted : \
-#            + exec "import demo_predicted; demo_predicted.main('X.predicted')"
+# Loads engine 0, then pushes the prediction's bursts as its run feeds them: a word whenever
+# the fifo has room, each burst once the previous one is in the core. demo/hold_capture.py
+# checks the capture. Gaps between bursts are the host's, so only the first burst lines up.
 
 import bench
 import bench_firmware

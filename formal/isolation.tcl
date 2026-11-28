@@ -1,15 +1,8 @@
-# Turns engine 0's flops into ports for isolation.sv's invariant, on the flattened
-# engines_top. The ports are:
-#   rx_0, tx_0       the fifos (flops.tcl)
-#   state_0          every other engine 0 flop not already brought out, plus the data
-#                    memory's turn, the checker's turn, engine 0's pending ask, and its
-#                    premises, certificate and verdict; the width goes to isolation.sv
-#                    as STATE_BITS
-#   receivers        the frame receivers' flops, RECEIVER_BITS wide
-#   load_checker, word_class
-#                    the load checker, as in powerup.tcl
-#   checker_flops    the load checker's other flops, CHECKER_BITS wide
-# It also brings out the wires isolation.sv names.
+# Turns engine 0's flops into ports for isolation.sv's invariant, on the flattened engines_top:
+# rx_0 and tx_0 (the fifos, flops.tcl), state_0 (every other engine 0 flop, the data memory's
+# and checker's turns, its pending ask, premises, certificate and verdict; width to isolation.sv
+# as STATE_BITS), receivers (RECEIVER_BITS), load_checker and word_class (as powerup.tcl),
+# checker_flops (CHECKER_BITS), and the wires isolation.sv names.
 
 source flops.tcl
 yosys cd engines_top

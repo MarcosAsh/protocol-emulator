@@ -67,11 +67,10 @@ def release_pcs(words, names):
 
 
 def verdict(cycles, clock_hz=48_000_000, mode="fast", threshold=0.5, pull_up=None):
-    """Decode one release from engine 1's word. [cycles] counts sync flop samples, so the
-    pad crossed the input threshold between n and n + 1 cycles after the release, with
-    n = cycles - ZERO_LOAD (in silicon metastability can add one more at the low end).
-    The 30-70 % rise time and R C assume an exponential charge through [threshold]
-    (VIH / VDD); that part is not proved."""
+    """Decode one release from engine 1's word. [cycles] counts sync flop samples, so the pad
+    crossed the input threshold between n and n + 1 cycles after the release, with n = cycles
+    - ZERO_LOAD (in silicon metastability can add one more). The 30-70 % rise time and R C
+    assume an exponential charge through [threshold] (VIH / VDD); that part is not proved."""
     period = 1e9 / clock_hz
     n = cycles - ZERO_LOAD
     v = {"cycles": cycles, "n": n, "limit_ns": LIMITS_NS[mode]}

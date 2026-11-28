@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The self-check on the host Pico (MicroPython). Engine 0 sends UART frames over wire 20.
-# Engine 1 checks every edge against the certificate's rows, and raises its irq and halts
-# at the first edge that misses its cycle. The run goes quiet over every byte value, then
-# repeats with the bit period one cycle long and one cycle short, then goes quiet again.
-# The wire stays inside the chip, so Pico B and the analyser see nothing. Needs
-# protocol_emulator.py, pico_board.py and the three .hex and two .cert.hex files on the
-# Pico.
+# Engine 1 checks every edge against the certificate's rows, and raises its irq and halts at
+# the first edge that misses its cycle. Runs quiet over every byte value, then with the bit
+# period one cycle long and short, then quiet again. The wire stays inside the chip.
 
 import protocol_emulator as pe
 

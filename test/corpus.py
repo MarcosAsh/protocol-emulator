@@ -1,15 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Builds one static page per protocol plus an index, from data files only: the output of
-# write_corpus.exe (firmware.tsv, limits.tsv, firmware/), test/<protocol>.ml and
-# demo/speed.tsv. These inputs are optional, and a page says when one is missing: clock
-# windows (python/clock_cliffs.py). Board ledgers, named-refusal pictures and agent
-# transcripts get a section only where there is one.
+# Builds one static page per protocol plus an index, from data files only: write_corpus.exe's
+# output, test/<protocol>.ml and demo/speed.tsv, with optional inputs a page says are missing.
 # Writes corpus.sha256 next to the pages in sha256sum's format, and --check verifies a tree
 # against it. There are no timestamps, so the same inputs give the same bytes.
-# Usage: python3 test/corpus.py --data DIR --out DIR [--speed TSV] [--ledger TSV]...
-#            [--witnesses DIR] [--matrix FILE] [--cliffs FILE] [--refusals DIR]
-#            [--transcripts DIR]
-#        python3 test/corpus.py --check DIR
 import argparse
 import ast
 import csv

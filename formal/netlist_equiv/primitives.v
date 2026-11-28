@@ -1,13 +1,8 @@
-// The three user-defined primitives that the IHP standard cells in the netlist are built
-// on, written as modules because yosys can't read UDP tables. Each is its table from
-// sg13cmos5l_udp.v where every input is 0 or 1; the rows that carry x only matter to a
-// simulator. The flop's notifier and x-clear inputs take no part, as in the original.
-//
-// The cell models themselves come from sg13cmos5l_stdcell.v with the specify blocks
-// dropped, a name given to each primitive instance, and the delayed_ nets that the timing
-// checks drive read as the pins they delay. That gives the models at zero delay. cells.ys
-// proves each cell used in the netlist equal to its function in the Liberty file the flow
-// synthesised against, which also checks these tables.
+// The three user-defined primitives the IHP standard cells are built on, as modules because
+// yosys can't read UDP tables. Each is its table from sg13cmos5l_udp.v where every input is 0
+// or 1; the flop's notifier and x-clear inputs take no part. The cell models come from
+// sg13cmos5l_stdcell.v with the specify blocks dropped, so at zero delay. cells.ys proves each
+// cell equal to its Liberty function, which also checks these tables.
 
 // z = s ? b : a
 module ihp_mux2 (z, a, b, s);

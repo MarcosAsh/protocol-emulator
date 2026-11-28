@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Plinkoo (PLK-2 rev. 1.3), the controller's end (MicroPython, Pico A). STB is on OUT5
-# (the flash's CLK, with its CS high), seen by analyser B's D0. DAT is on IO3 (SDA, with
-# its 2k2 pull-up), seen by B's D6. Sends section 6's frame, then one of eight bytes, and
-# reads the ack bit of each. No bench part answers Plinkoo, so both read NACK.
-# demo/outside.sh plinkoo runs it.
+# Plinkoo (PLK-2 rev. 1.3), controller end (MicroPython, Pico A). STB is on OUT5 (analyser B's
+# D0), DAT on IO3 (SDA, 2k2 pull-up; B's D6). Sends
+# section 6's frame, then one of eight bytes, reading each ack bit: no bench part answers, so NACK.
 # outside: analyser=B ms=2000 decode=-P plinkoo:stb=D0:dat=D6 -A plinkoo=length:byte:checksum-ok:checksum-err:ack:nack
 
 import bench

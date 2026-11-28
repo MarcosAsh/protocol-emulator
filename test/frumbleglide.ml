@@ -4,10 +4,9 @@ open Pin_trace
 module Reg = Host_port.Reg
 
 (* FGL-0 Frumbleglide Clockless Telemetry Link, revision 0.9: section 4's timing (p.1) and
-   notes 1-4 (p.2). tCELL's 2.005 to 2.015 us is 96.24 to 96.72 cycles at 48 MHz and no
-   whole number lies between, so a cell is 96 (2.000 us) or 97 (2.021 us), and note 1
-   holds each cell to the limits, not their average. This firmware is the nearest: two
-   waits of 24 and 7864/65536 per half cell, so cells of 96 and 97 averaging 2.010 us,
+   notes 1-4 (p.2). tCELL's 2.005 to 2.015 us is 96.24 to 96.72 cycles at 48 MHz, so a
+   cell is 96 (2.000 us) or 97 (2.021 us), and note 1 holds each cell to the limits, not
+   their average. This firmware is the nearest: cells of 96 and 97 averaging 2.010 us,
    which the limits refuse. *)
 
 let pin = 5

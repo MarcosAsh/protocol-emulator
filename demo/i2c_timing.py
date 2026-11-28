@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Checks a capture's I2C against every UM10204 bus timing parameter, one line each: how many
 # were measured, the least, how many fail, pass or sit within a sample of the limit, then
-# each failure in samples. The i2c_timing sigrok decoder does the same checks for PulseView:
-#   SIGROKDECODE_DIR=demo/decoders sigrok-cli -i CAPTURE.sr -P i2c_timing:scl=D7:sda=D6
-# Usage: python3 demo/i2c_timing.py [--mode fast] [--scl D7 --sda D6] CAPTURE.sr
+# each failure in samples. The i2c_timing sigrok decoder does the same for PulseView
+# (SIGROKDECODE_DIR=demo/decoders).
 
 import argparse
 import os

@@ -1,12 +1,8 @@
-(** The one data memory every engine streams from. Engine [n] reads on cycles [n] modulo
-    the engine count and keeps its last word. [reads] is each pointer's next address and
-    [words] the word at it now. A moved pointer's word arrives within two cycles, which is
-    why a data pull is refused after a pull or seek. [writes] land only while all engines
-    are halted, and write [n] only while the checker walks no engine but [n]. [dma] lands
-    whenever valid, unless a host write takes the cycle, and takes that cycle's read; the
-    caller keeps it off any read an engine or the checker needs, as [keeps] tells. A write
-    to the address an engine last read shows in its word the cycle after. At most two
-    engines. *)
+(** The one data memory every engine streams from, at most two. Engine [n] reads on cycles
+    [n] modulo the count and keeps its last word; a moved pointer's word arrives within
+    two cycles. [writes] land only while all engines are halted, and write [n] only while
+    the checker walks no engine but [n]. [dma] lands whenever no host write takes the
+    cycle, and takes that cycle's read, so the caller holds it off unless [keeps]. *)
 
 open! Core
 open! Hardcaml

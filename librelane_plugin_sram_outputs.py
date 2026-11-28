@@ -1,10 +1,8 @@
-"""
-LibreLane plugin: buffer each SRAM data output next to the macro.
+"""LibreLane plugin: buffer each SRAM data output next to the macro.
 
 The resizer only sees the global-route estimate of an A_DOUT load, which undercounts the
-routed net against the macro's 0.064 pF limit. ``src/config.json`` runs this after
-Project.BufferSramInputs.
-"""
+routed net against the macro's 0.064 pF limit. `src/config.json` runs this after
+Project.BufferSramInputs."""
 import os
 
 from librelane.steps import Step

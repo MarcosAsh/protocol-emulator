@@ -1,10 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # Puts a demo's firmware on Pico B, which stays wired up for every demo: MicroPython for the
-# listener, demo/can_node for can and can_node, demo/start_hold_master (pio or hw build) for
-# start_hold. To reach the bootloader we use mpremote from MicroPython, and for the C
-# builds picotool or, without it, a 1200 baud open of the serial port. The UF2 goes in via
-# picotool or onto the RPI-RP2 drive (mounted with udisksctl if needed).
+# listener, demo/can_node for can and can_node, demo/start_hold_master (pio or hw) for
+# start_hold. The bootloader is reached with mpremote or picotool, else a 1200 baud serial open.
 # Usage: [PICO_B_SERIAL=<serial>] demo/pico_b.sh micropython|can_node|start_hold_pio|start_hold_hw
 set -e
 serial=${PICO_B_SERIAL:-e66548545740ad29}

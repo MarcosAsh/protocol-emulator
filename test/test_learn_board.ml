@@ -1,11 +1,10 @@
 open! Core
 open Protocol_emulator
 
-(* The OCaml half of each learn demo's witness in test/board/learn_*/
-   (demo/learn_witness.py is the sigrok half). What the chip recorded is learned again
-   here and must give the firmware the board ran. The analyser's and Pico B's edges of the
-   chip's speech must read back as the message sent. Each has teeth: with two edges taken
-   out the speech must read otherwise, and a recording a tenth slower must give other
+(* The OCaml half of each learn demo's witness in test/board/learn_*/ (the sigrok half is
+   demo/learn_witness.py). What the chip recorded is learned again here and must give the
+   firmware the board ran, and its speech must read back as the message sent. Teeth: two
+   edges taken out must read otherwise, and a recording a tenth slower must give other
    firmware. *)
 
 let read dir name = In_channel.read_all (dir ^/ name)

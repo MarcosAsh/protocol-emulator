@@ -1,23 +1,8 @@
-(** Learns a protocol from a recording of a transmitter nobody described: its timing
-    table, line coding, frame shapes and checks, all from edge times alone. It returns
-    [Error] when the recording doesn't settle the question, rather than guessing.
-
-    Every run on the line is taken as a whole number of one unit, found by fitting the
-    runs inside frames. Frames are split at idle runs far longer than any inside one. The
-    codings tried, in order:
-
-    - Manchester: runs of one or two half-bit units after a leader, with a bit's first
-      half the complement of its second. One bit may be twice as wide, like RC-6's
-      trailer. A one is whichever way round makes the first bit 1, since RC-5 and RC-6
-      both start that way.
-    - Pulse: each bit is a mark and a space, in two kinds of pair, and the shorter is a 0
-      (NEC and Samsung by the space, SIRC by the mark, PT2262 by both).
-    - UART: a start bit, data LSB first, maybe parity, and a stop bit at idle. Each bit is
-      read at its middle from the start edge, so idle between characters can be any
-      length.
-    - Clocked, from two or three lines: the line whose runs are all one unit is the clock.
-      Data is read at the clock edge it never changes near, and a line that only moves
-      between bursts frames them as a chip select. *)
+(** Learns a protocol from a recording of a transmitter nobody described: timing table,
+    line coding, frame shapes and checks, from edge times alone. It returns [Error] when
+    the recording doesn't settle the question. Every run is a whole number of one unit,
+    found by fitting runs inside frames, and frames split at idle runs far longer than any
+    inside one. Codings tried in order: Manchester, pulse, UART, clocked. *)
 
 open! Core
 

@@ -1,20 +1,8 @@
-// Engine 0 cannot tell what engine 1 or engine 1's host does. Two copies of the two-engine
-// chip as built, with starts gated, share the clear, the pads and all of engine 0's inputs;
-// engine 1's inputs are free in each. From the first clear on, engine 0's pins and what the
-// host reads of it (its check's verdict too) agree. This is by induction on engine 0's
-// flops (isolation.tcl), the frame receivers' when engine 0 owns them, and the load
-// checker's while neither copy has walked engine 1 since engine 0's last check. The data
-// memory's turns are proved to hide engine 1's reads, and the checker's fixed turns fix its
-// checks. The assumptions below close the other channels, and a tooth drops each.
-// Five of them are premises on how the chip is used, not channels it closes:
-//   - no routed pushes between the two (ROUTED)
-//   - no start of every engine at once (START_ALL)
-//   - the receivers' words above engine 0's region while engine 1 owns them (FRAME_IN_REGION)
-//   - no load by engine 1's host while a word engine 0's receiver took waits to land
-//     (LOAD_PENDING)
-//   - engine 0's certificate in its region (CERT_OUTSIDE)
-// The owner is fixed. The teeth that need engine 0 running drop the gate, because a
-// certified start takes a full walk.
+// Engine 0 cannot tell what engine 1 or engine 1's host does. Two copies of the two-engine chip
+// as built, starts gated, share the clear, the pads and engine 0's inputs (engine 1's are
+// free); from the first clear on, engine 0's pins and what the host reads of it, its check's
+// verdict too, agree. The assumptions close other channels, one tooth each. ROUTED, START_ALL,
+// FRAME_IN_REGION, LOAD_PENDING and CERT_OUTSIDE are premises on use.
 
 `include "pairs.sv"
 

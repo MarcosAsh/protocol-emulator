@@ -1,14 +1,8 @@
-(** Kernel precision by bounded-exhaustive enumeration: every program of [words] words
-    over a small timing alphabet, each run on [Machine] for its ground truth and checked
-    by the kernel, as [Timed_program.check] does after assembly.
-
-    The truth is exact for the alphabet: nothing reads [now], [t] or the pins, so a run's
-    path depends on [x] and [p] alone. Start [now] is zero and [x], [p], [t] are anything:
-    - a deadline wait before any [mov t, now] is late for some start [t];
-    - a smaller [p] makes every later entry no earlier, so the model's start, zero, is the
-      worst;
-    - a program that may count [x] down before setting it is out of scope. A run is safe
-      once its state at an issue repeats: pc, [x], [p] and, after [mov t, now], the phase. *)
+(** Kernel precision by exhaustive enumeration: every program of [words] words over a
+    small timing alphabet, run on [Machine] for ground truth and checked by the kernel as
+    [Timed_program.check] does. Nothing reads [now], [t] or the pins, so a run depends on
+    [x], [p] alone. Start [now] is 0, [x], [p], [t] anything. Programs counting [x] down
+    before setting it are out of scope. Safe once an issue's state repeats. *)
 
 open! Core
 open Protocol_emulator

@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Runtime fault on the board (MicroPython, Pico A), as test_two_engines.py's
-# test_a_faulted_engine_lets_go_of_its_pins. Engine 0 (test/fault_release_low.asm) holds
-# SWDIO (IO5, analyser A D7) low against its pull-up until one host word, then its second
-# pull underflows. Engine 1's blink runs on OUT2 (D6) throughout. Words and certificates
-# are test/*.hex's. demo/outside.sh fault_release takes the analyser and capture length from
-# the next line, and its decode is SWDIO's low time.
+# Runtime fault (MicroPython, Pico A), as test_two_engines.py's test_a_faulted_engine_lets_go_
+# of_its_pins. Engine 0 (test/fault_release_low.asm) holds SWDIO (IO5, analyser A D7) low
+# until one host word, then its second pull underflows. Engine 1 blinks on OUT2 (D6).
 # outside: analyser=A ms=4000 decode=-P timing:data=D7 -A timing=time
 import time
 

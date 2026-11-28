@@ -1,10 +1,8 @@
-// The load checker's verdict is Load_check.walk's, for any program, configuration, setup
-// and certificate. The walk goes a pc at a time over load_check_step (the kernel's
-// conjuncts on whole rows), and steps as the checker leaves each pc. When the checker
-// finishes, it has the walk's verdict, reject pc and reason. While it walks, a rank falls
-// every cycle, so it ends. Program and data memory hold still, and a data word is free until
-// its address has held two cycles (data_memory.mli). There is no abort; gate.sv covers a
-// walk cut short.
+// The load checker's verdict is Load_check.walk's, for any program, configuration, setup and
+// certificate. The walk goes a pc at a time over load_check_step (the kernel's conjuncts on
+// whole rows). When the checker finishes it has the walk's verdict, reject pc and reason, and a
+// rank falls every cycle while it walks. Program and data memory hold still, and a data word is
+// free until its address has held two cycles. No abort: gate.sv covers a walk cut short.
 
 module complete (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -88,11 +86,10 @@ module complete (input clk);
       : f == 3 ? {16'h0, r[287:256]} : {16'h0, r[255:224]};
   endfunction
 
-  // The program, and the certificate in the data memory, as the checker reads them. A
-  // program word arrives a cycle after its address. A data word is anything until its
-  // address has held two cycles, then the memory's. No read of the data memory takes its
-  // address from another one; each comes from a register (smt2 would see a loop through the
-  // memory otherwise).
+  // The program, and the certificate in the data memory, as the checker reads them. A program
+  // word arrives a cycle after its address. A data word is anything until its address has held
+  // two cycles, then the memory's. No read of the data memory takes its address from another
+  // one, each comes from a register (smt2 would see a loop through the memory otherwise).
   reg [15:0] prog [0:511];
   reg [15:0] data [0:511];
   (* anyseq *) wire [15:0] any_data;
@@ -155,11 +152,10 @@ module complete (input clk);
     .fell_x_lo(fell_x_lo), .fell_x_hi(fell_x_hi), .fell_y_lo(fell_y_lo),
     .fell_y_hi(fell_y_hi), .fell_captured(fell_captured), .fell_awaiting(fell_awaiting));
 
-  // The certificate's layout, as load_check.mli gives it and Load_check.walk reads it. From
-  // the base: the counts, then the entries (three words each), the wide dictionary (three
-  // words an interval), and the narrow one (two words an interval). An entry packs its pc,
-  // the captured and awaiting bits, and indices for the phase, arm, period, x and y, where
-  // index 0 is the whole range.
+  // The certificate's layout, as load_check.mli gives it and Load_check.walk reads it: counts,
+  // entries (three words each), wide dictionary (three words an interval), narrow one (two). An
+  // entry packs its pc, the captured and awaiting bits and indices for phase, arm, period, x
+  // and y (index 0 is the whole range).
   wire [15:0] count_word = data[base], wide_count_word = data[base + 9'd1];
   reg [7:0] r_count, r_wide_count;
   wire [8:0] entries_at = base + 9'd2;
@@ -206,11 +202,10 @@ module complete (input clk);
   wire [15:0] r_word = prog[r_pc];
   wire [439:0] r_stored_row = decode(r_entry, 3'd5);
   wire [8:0] r_next_pc, r_target_pc;
-  // The walk's lookups at r_pc, of its successor (n) and target (t). Each is a binary search
-  // over the entries, with a probe made as the checker makes one; the walk is the same
-  // whenever it probes. The result is the full row at pc 0, the entry's row on a hit, or the
-  // empty row once the search ends with none. A lookup that isn't made gives any row, which
-  // the walk must not need.
+  // The walk's lookups at r_pc, of its successor (n) and target (t): a binary search over the
+  // entries, probed as the checker probes, so the walk is the same whenever it probes. The
+  // result is the full row at pc 0, the entry's row on a hit, or the empty row when the search
+  // ends with none. A lookup not made gives any row, which the walk must not need.
   reg [7:0] r_t_lo, r_t_hi, r_t_sel, r_n_lo, r_n_hi, r_n_sel;
   reg r_t_hit, r_n_hit;
   reg [47:0] r_t_entry, r_n_entry;

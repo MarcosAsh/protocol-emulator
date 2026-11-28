@@ -1,12 +1,8 @@
 (** Firmware for one engine, written from what [Learn] found, that sends any frame of the
-    learned protocol (including never-recorded ones). The host computes nothing but the
-    words. It's checked like any other firmware: the analyser and then the kernel must
-    accept it under the period it was written for, or there is no firmware.
-
-    The host writes the period first, then for each frame its kind (when there is more
-    than one) and its bits, 16 to a word, LSB first in the order sent. A UART's word is a
-    character, parity included. Every run starts at a deadline, [wait t+] on the period,
-    so each edge is a whole number of units after the frame's first. *)
+    learned protocol, never-recorded ones included. It's checked like any other firmware:
+    the analyser and then the kernel must accept it under the period it was written for.
+    The host writes the period, then per frame its kind (if more than one) and its bits,
+    16 to a word, LSB first (a UART's word is a character, parity included). *)
 
 open! Core
 

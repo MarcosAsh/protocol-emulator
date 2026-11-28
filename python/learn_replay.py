@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Pico B plays a transmitter the chip was never told about (MicroPython). Plays replay.json's
 # segments, each giving which lines are pulled low and for how many microseconds, from a PIO
-# machine at 1 MHz on GP2 (IO3) and GP3 (IO2). The pins are open drain against the
-# carrier's pull-ups, like an IR receiver module's output. Segments come from public
-# recordings (demo/learn_prepare.py).
+# machine at 1 MHz on GP2 (IO3) and GP3 (IO2). The pins are open drain against the carrier's
+# pull-ups. Segments come from public recordings (demo/learn_prepare.py).
 
 import array
 import json

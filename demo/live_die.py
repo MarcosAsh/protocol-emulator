@@ -3,8 +3,6 @@
 # on each cycle while its netlist sends "Jane St!" (demo/live_die_stimulus.py). Fails unless
 # the netlist's pins match the RTL's on every cycle. demo/die.py colours the cells and gives
 # them src lines.
-# Usage: source env.sh && make -C pages/die, or
-#        demo/live_die.py GDS --provenance JSON -o pages/die/die.bin
 import argparse
 import glob
 import gzip

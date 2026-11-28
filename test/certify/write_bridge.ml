@@ -3,12 +3,11 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* Proves Bridge's UART to SPI bridge by induction on the two-engine chip, for all time.
-   Each frame on IN0 reaches the wire, then SCK and MOSI, with every edge a fixed number
-   of steps after its stop bit begins and MOSI showing its byte at SCK's rises. It assumes
-   any UART at Bridge.period on IN0 with frames Bridge.spacing or more apart, and free
-   fifo traffic from the hosts. The invariant is the same kind as write_link.ml's: mined
-   tables of both engines' state. *)
+(* Proves Bridge's UART to SPI bridge by induction on the two-engine chip, for all time:
+   each frame on IN0 reaches the wire, then SCK and MOSI, every edge a fixed number of
+   steps after its stop bit begins. Assumes any UART at Bridge.period on IN0 with frames
+   Bridge.spacing or more apart, and free fifo traffic. The invariant is mined tables of
+   both engines' state, as in write_link.ml. *)
 
 let period = Bridge.period
 let wire = Bridge.wire
@@ -193,10 +192,9 @@ let run ~sends ~steps =
   Queue.to_list trace
 ;;
 
-(* What the tables cover: each engine's outputs, except the host's fifos and the two
-   timers (which are given as distances back from [now]), plus the ghosts. Each is keyed
-   by one engine, and its data bits follow that engine's frame byte. A count the ghosts
-   saturate is claimed as the range it keeps, and any other non-data field as a single
+(* The tables cover each engine's outputs but the host's fifos and the two timers (given
+   as distances back from [now]), plus the ghosts. Data bits follow the keying engine's
+   frame byte. A count the ghosts saturate is claimed as a range, anything else as one
    value. *)
 module Field = struct
   module Kind = struct

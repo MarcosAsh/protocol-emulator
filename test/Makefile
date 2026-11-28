@@ -179,20 +179,17 @@ replay:
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_replay.xml
 
 # Gate-level tests and replays with the router's delays at one corner (sdf_slow, sdf_typ,
-# sdf_fast) or all three (sdf), using the flow's SDF in SDF_DIR at the chip's 50 MHz. Each
-# is one run because annotating takes minutes. Icarus has no timing checks, so a violation
-# only shows up as a wrong value. GROUP picks a subset of the tests by module and name:
-# CI runs each corner in eighteen jobs, runners vary 2x in speed and a job gets five hours,
-# so no group should take much more than two on a fast runner.
+# sdf_fast) or all three (sdf), using SDF_DIR's SDF at 50 MHz. Each is one run because
+# annotating takes minutes. Icarus has no timing checks, so a violation only shows as a wrong
+# value. GROUP picks a subset by module and name: CI runs each corner in 18 jobs.
 SDF_DIR ?= ../runs/wokwi/final/sdf
 GROUP ?= all
 space := $(subst ,, )
 SDF_MODULES_all = $(GATE_TEST_MODULES),test_replay
-# the replays sorted by their slow-corner time (dmx512 and avr_isp each take over two
-# hours alone).
-# replay_rest takes every trace the others don't name, so a new one always runs somewhere.
-# cocotb puts the filter unquoted in its shell line, so it's quoted here and ends on \Z
-# rather than $
+# the replays sorted by their slow-corner time (dmx512 and avr_isp each take over two hours
+# alone). replay_rest takes every trace the others don't name, so a new one always runs
+# somewhere. cocotb puts the filter unquoted in its shell line, so it's quoted here and ends on
+# \Z rather than $
 SDF_REPLAYS_dmx512 = dmx512
 SDF_REPLAYS_avr_isp = avr_isp
 SDF_REPLAYS_wiegand = wiegand|ir_nec

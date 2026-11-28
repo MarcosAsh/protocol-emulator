@@ -26,11 +26,8 @@ let config =
 
 (* Takes two 16-bit samples per frame from the host, left then right, LSB first in slots
    12 to 27 with the rest 0. The channel status says consumer, PCM, 44.1 kHz, accuracy
-   code 00. Every subframe starts and ends high, so the preambles are fixed levels and the
-   parity bit is the last half slot high. [y] counts frames to the next B. [isr] records
-   whether left had a sample, and right takes one only then, so an empty fifo gives a
-   silent frame. The line idles high four half slots before the first preamble, which is
-   where sigrok's decoder joins. *)
+   code 00. Subframes start and end high, so the preambles are fixed levels. [y] counts
+   frames to the next B; right takes a sample only if left did (empty fifo: silence). *)
 let firmware =
   [%firmware
     {|
@@ -215,13 +212,10 @@ let apart starts =
   | _ :: later -> List.map2_exn (List.drop_last_exn starts) later ~f:(fun a b -> b - a)
 ;;
 
-(* The limit table's byte 3 of the channel status (p.1, "S/PDIF control word components",
-   spec.txt l.222-224), which this firmware sends as 0: code 0000, 44.1 kHz, accuracy code
-   00, 1100 ppm. An accuracy is a mean rate, so it holds over a block of 192 frames
-   (l.182, l.256); a frame alone is 1088 or 1089 cycles, inside 1100 ppm but not by a
-   cycle. Mode 0's maximum, 192 kHz (l.180), is checked a frame at a time. Not rows: 48
-   and 32 kHz and 50 ppm are codes it doesn't send, and bit 2's 4 to 10 Hz (l.254) is
-   CD-DA copy prevention, where the firmware holds bit 2 at 0. *)
+(* The limit table's byte 3 of the channel status (p.1, spec.txt l.222-224), which this
+   firmware sends as 0: code 0000, 44.1 kHz, accuracy code 00, 1100 ppm. An accuracy is a
+   mean rate, so it holds over a block of 192 frames (l.182, l.256); a frame alone is 1088
+   or 1089 cycles. Mode 0's maximum, 192 kHz (l.180), is checked a frame at a time. *)
 let limits =
   let sheet ~where =
     { Datasheet.Sheet.part = "S/PDIF, IEC 60958 type II"

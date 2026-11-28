@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# MICROWIRE (AN-452), the controller's end (MicroPython, Pico A): CS on OUT6, the flash's
-# CS, analyser B's D3; SK on OUT5, the flash's CLK, B's D0; DI on OUT4, the flash's DI,
-# B's D1; DO on IN0, the flash's DO, B's D2. CS high deselects the flash. EWEN, READ 5,
-# WRITE 5 with its 25.94 ms CS low, READ 5: no bench part answers, so DO is not judged.
-# demo/outside.sh microwire runs it.
+# MICROWIRE (AN-452), the controller's end (MicroPython, Pico A): CS on OUT6, SK on OUT5, DI
+# on OUT4, DO on IN0, which are analyser B's D3, D0, D1 and D2 (the flash's pins). CS high
+# deselects the flash. EWEN, READ 5, WRITE 5, READ 5: no bench part answers, so DO is not judged.
 # outside: analyser=B ms=2000 decode=-P microwire:cs=D3:sk=D0:si=D1:so=D2 -A microwire=start-bit:si-bit
 
 import bench

@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A DMX512 controller on OUT0, watched by analyser A's D4 (MicroPython, Pico A). Sends a
 # packet of start code 0x00 and 512 channels at 250 kbit/s twice, then the next packet's
-# break. demo/outside.sh dmx512 runs it and takes the analyser, capture length and sigrok
-# decoders from the next line.
+# break. demo/outside.sh dmx512 runs it.
 # outside: analyser=A ms=5000 decode=-P dmx512:dmx=D4 -A dmx512=break:mab:startcode:channel:data
 
 import bench

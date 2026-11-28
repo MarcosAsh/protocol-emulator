@@ -1,8 +1,7 @@
 (** The core. It implements [Machine]'s semantics, and the tests run the two in lockstep.
     Memory reads one address ahead of [pc], so a jump spends its second cycle refilling.
-    [program_write] only counts while halted, and never together with [start]. [start]
-    fetches address 0 for one cycle, so the first instruction issues two cycles later at
-    [now = 0]. A running core ignores [start]. *)
+    [program_write] counts only while halted and never with [start], which fetches address
+    0 for a cycle, so the first instruction issues two cycles later at [now = 0]. *)
 
 open! Core
 open! Hardcaml

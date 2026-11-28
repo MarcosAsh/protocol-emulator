@@ -1,12 +1,8 @@
 (** Philips RC-6 mode 0 infrared remote control on one line, OUT0, as SB-Projects' page
-    gives it (updated 17 July 2025): high for a mark, with no 36 kHz carrier. Every time
-    is a whole number of units of 444 us, which the host loads. A frame is a leader of 6
-    units marked and 2 not, a start bit 1, mode bits 000, a trailer bit of 2 units a half,
-    8 address bits and 8 command bits msb first, and 6 units of signal free time. A one is
-    a unit's mark then a unit's space, a zero the reverse.
-
-    The host sends the unit once, then per frame the two words of [words]. A late word is
-    an underflow fault. *)
+    gives it (updated 17 July 2025): high for a mark, no 36 kHz carrier. Times are whole
+    units of 444 us, which the host loads. A frame: leader of 6 units marked and 2 not,
+    start bit 1, mode 000, 2-unit trailer bit, 8 address and 8 command bits msb first, 6
+    units free. The unit is sent once, then per frame [words]. A late word underflows. *)
 
 open! Core
 open Protocol_emulator

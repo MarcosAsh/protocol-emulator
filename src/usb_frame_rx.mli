@@ -1,17 +1,8 @@
-(** USB full speed receive into the data memory, like [Frame_rx] does for 10BASE-T:
-    [Usb_rx] at 8 samples a bit on both clock edges, then the CRC-5 and CRC-16 after the
-    PID, each checked against its residue at the packet's end. A token is good if
-    [crc5_ok], a data packet if [crc16_ok], and neither after a stuffing error or a PID
-    whose check bits are wrong.
-
-    [arm] (re)starts it: the next packet's words land from [base] up, with the PID in the
-    first low half, and the packet's end disarms it with [finished]. With [rearm] it stays
-    armed, so each packet lands from [base] in turn, with no host write needed between two
-    a device must answer. Then [finished] holds from one packet's end until the next one's
-    SYNC. A word lands only where [may_write] lets it and only below the data memory's
-    end; otherwise it is counted and [dropped] says so. A word waits for [may_write] until
-    the next one arrives, and [finished] waits until the last one lands. [half] marks a
-    last word that holds one byte. *)
+(** USB full speed receive into the data memory, like [Frame_rx] for 10BASE-T: [Usb_rx] at
+    8 samples a bit on both clock edges, then CRC-5 and CRC-16 after the PID, each checked
+    against its residue at the packet's end. A token is good if [crc5_ok], a data packet
+    if [crc16_ok], neither after a stuffing error. With [rearm] each packet lands from
+    [base] in turn and [finished] holds until the next SYNC. *)
 
 open! Core
 open! Hardcaml

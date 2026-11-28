@@ -5,12 +5,10 @@
 
 `default_nettype none
 
-// Usb_frame_rx alone on an Icepi Zero, in place of the chip. D+ is pulled up on the first
-// USB-C port, so the host plugged into it talks full speed. Each packet lands in a
-// 512-word ring (the receiver rearms the cycle after) and goes out on OUT0 (header 8,
-// Pico B GP1) at 1 Mbaud: 0xa5, flags, words, packets lost so far, then the words low
-// byte first. Flags, from bit 0: crc5_ok crc16_ok half aligned stuff_error dropped.
-// Header 15 high detaches. The button resets.
+// Usb_frame_rx alone on an Icepi Zero, in place of the chip. D+ is pulled up on the first USB-C
+// port, so the host talks full speed. Each packet lands in a 512-word ring and goes out on OUT0
+// (header 8, Pico B GP1) at 1 Mbaud: 0xa5, flags, words, packets lost, then the words low byte
+// first. Flags: crc5_ok crc16_ok half aligned stuff_error dropped. Header 15 high detaches.
 module usb_fs_check (
     input  wire       clk,
     input  wire       button_n,

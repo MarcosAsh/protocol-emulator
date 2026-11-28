@@ -1,12 +1,8 @@
 // A late message can make the core fault, but never makes it jitter. Take a program with no
 // fifo wait and no jump on a fifo test. Two runs from the same start, whose host sends and
 // reads the same words at different times, drive the same pins every cycle until one sets
-// underflow or overflow. This is host_timing's induction step under that restriction, with
-// the fifo reports free in each copy, and the base is the shared reset. Pops are compared
-// too, so the k-th pull of each takes the k-th word sent (fifo_order), which is why there
-// is one shared pull port. With no pushes (never_pushes) only underflow remains. Prior art:
-// Kopetz's temporal firewall, Giotto's logical execution time (Henzinger, Horowitz,
-// Kirsch 2001).
+// underflow or overflow. This is host_timing's induction step under that restriction. Prior
+// art: Kopetz's temporal firewall, Giotto's logical execution time.
 module late_step (
   input clock, clear, start, stop, clear_irq,
   input [176:0] config_bits,

@@ -2,9 +2,7 @@
 # Runs demo/hold_capture.py on captures built from test/measure's predictions at 100 MHz
 # (10 ns per sample), in the CSV format LogicAnalyzer's TerminalCapture saves. Cases: exact
 # edges, edges randomly a sample early or late, one edge 300 ns late that must fail its
-# limit, a drifting analyser clock, and the same read back from a sigrok session file.
-# Then python/demo_predicted.py's feed of a prediction's words, on a stand-in chip.
-# Usage: python3 test/test_hold_capture.py
+# limit, a drifting analyser clock, and a sigrok session file. Then python/demo_predicted.py's feed.
 
 import os
 import random

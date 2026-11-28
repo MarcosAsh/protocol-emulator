@@ -162,13 +162,10 @@ value_step: engine.v
 usb_frame_rx.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe usb-rx > formal/usb_frame_rx.v
 
-# By k-induction: the USB receiver keeps what a host sends at 8 samples a bit (any packet
-# with up to 8 data bytes) and treats seven 1s in a row as a stuffing error. When re-armed,
-# any second packet lands from the base as the first did. Takes about 4 min;
-# usb_roundtrip_proof runs on Verilog written already. Each of these teeth must fail: a
-# receiver that never unstuffs, one that packs a lone byte high, one that disarms at a
-# packet's end whatever rearm says, one that restarts its count on the arm alone, a host
-# that never stuffs, and a host that sends its CRC raw.
+# By k-induction: the USB receiver keeps what a host sends at 8 samples a bit (up to 8 data
+# bytes) and treats seven 1s in a row as a stuffing error. Re-armed, any second packet lands
+# from the base as the first did. About 4 min; usb_roundtrip_proof runs on Verilog written
+# already. Six receiver and host teeth must fail.
 UNDESTUFFED = s/^\(\s*assign full_run = ones == \)signal_const_[0-9]*;/\13'b111;/
 HALF_HIGH = s/^\(\s*assign signal_mux = \)half_word ? signal_cat : word_next;/\1word_next;/
 UNREARMED = s/^\(\s*assign signal_and_[0-9]* = ends\) & signal_not_[0-9]*;/\1;/
@@ -192,11 +189,10 @@ usb_roundtrip_proof:
 line_stuff.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe line-stuff > formal/line_stuff.v
 
-# By BMC: the line path's stuffing sends any stream of up to 96 bits (at most 15 of them
-# stuffed) the way USB stuffs it, each bit once and in order, and drains to nothing owed.
-# That covers every such stream from the clear to the end of its drain. Each of these teeth
-# must fail: a stuffed slot sending its own bit, the oldest owed bit read one along, and a
-# drain that takes bits. line_stuff_proof runs on Verilog written already.
+# By BMC: the line path's stuffing sends any stream of up to 96 bits (at most 15 stuffed) the
+# way USB stuffs it, each bit once and in order, and drains to nothing owed. Teeth that must
+# fail: a stuffed slot sending its own bit, the oldest owed bit read one along, a drain that
+# takes bits. line_stuff_proof runs on Verilog written already.
 UNSTUFFED = s/^\(\s*assign signal_and_[0-9]* = \)signal_not_[0-9]* \& \(signal_mux_[0-9]*\);/\1\2;/
 OLDEST_OFF = s/^\(\s*assign signal_sub = count_0\) - signal_const_[0-9]*;/\1;/
 DRAIN_TAKES = s/^\(\s*assign taking = \).*;/\11'b1;/
@@ -216,13 +212,10 @@ line_stuff_proof:
 frame_rx.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe frame-rx > formal/frame_rx.v
 
-# By k-induction: the 10BASE-T receiver keeps every frame of any length that a sender puts
-# on the line, from any phase, and judges its FCS. That holds through 3.1 ns of jitter on
-# each edge at 40 MHz (5 ns at 50), with each half bit within 0.2% of its length, or within
-# 1% with no jitter. The proof takes seconds; the covers and teeth take about ten minutes.
-# Each of these teeth must fail: a receiver that takes edges half a bit on, one that never
-# corrects its phase, one that judges the FCS the wrong way round, and a sender with 9.4 ns
-# of jitter or 100 ns of TP_IDL.
+# By k-induction: the 10BASE-T receiver keeps every frame of any length that a sender puts on
+# the line, from any phase, and judges its FCS. That holds through 3.1 ns of jitter on each edge
+# at 40 MHz (5 ns at 50) with each half bit within 0.2% of its length, or within 1% with no
+# jitter. Seconds for the proof, ten minutes with covers and teeth.
 BLANK_HALF = s/^\(\s*assign blank = \)\(\w*\) ? .*;/\1\2 ? 11'b00010100000 : 11'b00010000000;/
 FREE_RUNNING = s/^\(\s*assign centred = \)\(.*\);/\1sm == 2'd0 ? \2 : drifted - bit_length;/
 INVERTED = s/^\(\s*assign \w* = crc_next \)==/\1!=/
@@ -298,11 +291,10 @@ fail_safe_teeth: engines.v
 	! cmp -s engines.v fail_safe_teeth/restartable.v
 	sby -f fail_safe.sby kept_drive runs_on restarts unmasked unstopped restartable
 
-# Fail-safe as a corollary of the one-run theorem, per engine inside the two-engine chip
-# with the rest free (phase_step.sv's CHIP). Each edge driven comes the cycle after an entry
-# inside its row, except the release on the edge a fault shows, and then nothing happens
-# until reset. Teeth: no kernel check, edge at the entry, mask gone or a cycle late, fault
-# flop not sticky, a Manchester half one cycle early.
+# Fail-safe as a corollary of the one-run theorem, per engine inside the two-engine chip with
+# the rest free (phase_step.sv's CHIP). Each edge driven comes the cycle after an entry inside
+# its row, except the release on the edge a fault shows, and then nothing happens until reset.
+# Teeth: no kernel check, edge at the entry, mask gone or late, fault flop not sticky.
 FAULT_LATE = /^module engines (/,/^endmodule/{s/^\(\s*assign signal_mux[_0-9]* = \)faulted\$$0 \(? signal_const[_0-9]* : signal_wire_[0-9]*;\)/\1late$$0 \2/;s/^\(\s*\)wire faulted\$$0;/&\n\1reg late$$0 = 0;\n\1always @(posedge clock) late$$0 <= faulted$$0;/}
 FLIP_EARLY = /^module engine (/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)issue & flip_pending_0;/\1flip_pending_0;/
 fail_safe_table: engines.v kernel_step.v kernel_accepts.v
@@ -320,11 +312,10 @@ fail_safe_table_proof:
 	sby -f fail_safe_table.sby prove_0 prove_1 cover
 	sby -f fail_safe_table.sby no_accepts edge_at_entry unmasked late_mask unsticky flip_early
 
-# A UART from engine 0 to engine 1 over a wire, by induction: each word engine 1 pushes is
-# the byte engine 0 sent in that frame, once per frame, with each sample half a bit from the
-# wire's edges. The proof takes about 2 min and the covers 12. Teeth, which fail from reset:
-# a claim no run keeps, the next bit pushed, a margin one wider, and a receiver at 11 cycles
-# a bit.
+# A UART from engine 0 to engine 1 over a wire, by induction: each word engine 1 pushes is the
+# byte engine 0 sent in that frame, once per frame, with each sample half a bit from the wire's
+# edges. The proof takes about 2 min and the covers 12. Teeth, which fail from reset: a claim no
+# run keeps, the next bit pushed, a margin one wider, a receiver at 11 cycles a bit.
 link: engines_sram.v
 	(cd .. && dune exec -- test/certify/write_link.exe) > link.sv
 	(cd .. && dune exec -- test/certify/write_link.exe -rx-period 11) > link_baud.sv
@@ -333,11 +324,10 @@ link: engines_sram.v
 link_proof:
 	sby -f link.sby prove cover never_pushes next_bit wider baud
 
-# The UART to SPI bridge across both engines, by induction on the two-engine chip
-# (bridge.sv): each frame on IN0 goes out on the wire, then on SCK and MOSI, with every
-# edge a fixed number of steps after its stop bit. Assumes frames are Bridge.spacing apart.
-# Takes about 1 min. Teeth: the next bit, a margin one wider, the fall one step early, SCK's
-# first rise one step late.
+# The UART to SPI bridge across both engines, by induction on the two-engine chip (bridge.sv):
+# each frame on IN0 goes out on the wire, then on SCK and MOSI, with every edge a fixed number
+# of steps after its stop bit. Assumes frames are Bridge.spacing apart. About 1 min. Teeth: the
+# next bit, a margin one wider, the fall one step early, SCK's first rise one step late.
 bridge: engines_sram.v
 	(cd .. && dune exec -- test/certify/write_bridge.exe) > bridge.sv
 	$(MAKE) bridge_proof
@@ -345,31 +335,19 @@ bridge: engines_sram.v
 bridge_proof:
 	sby -f bridge.sby prove next_bit wider early late
 
-# Engine 0 cannot tell what engine 1 or engine 1's host does. Two copies of the two-engine
-# chip as built agree for all time on engine 0's pins, on what the host reads of it, and on
-# its check's verdict (isolation.sv). Each tooth drops one assumption and must fail:
-#   - engine 1 heard by wire or pad
-#   - engine 0's pointer or engine 1's host off their side of the region
-#   - reads ignoring the turn
-#   - a load while engine 1 runs
-#   - a write as engine 0 starts
-#   - engine 1's receivers writing the region
-#   - engine 1's host loading while engine 0's receiver holds a word
-#   - the receivers changing hands
-#   - engine 0's certificate outside its region
-#   - engine 1's host's data writes ending engine 0's walk
-# The ones that need engine 0 running drop the gate. isolation_proof is for CI.
+# Engine 0 cannot tell what engine 1 or engine 1's host does: two copies of the two-engine chip
+# as built agree for all time on engine 0's pins, what the host reads of it and its check's
+# verdict (isolation.sv). Each tooth drops one assumption and must fail, those needing engine 0
+# running with the gate dropped. isolation_proof is for CI.
 ANY_TURN = /^module data_memory/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)signal_eq[_0-9]* & \(signal_not[_0-9]*\);/\1\2;/
 ABORT_ANY = /^module engines /,/^endmodule/s/^\(\s*assign abort = .*\);/\1 | hosts$$data_write$$valid_1;/
 isolation: engines_sram.v engines_gated.v
 	$(MAKE) isolation_proof
 
-# The load checker's walk, for any program, configuration, setup and data memory. An
-# accepted walk passed every pc, and a pc that falls through was checked against the row the
-# walk then holds. Each entry decodes to the row its layout gives, and a lookup finds the
-# row the walk holds at the target. The short cover and the early tooth end the walk at pc 1
-# (SHORT_WALK, below) and at pc 0, which has to accept with pc 1 unchecked. The early_read
-# tooth takes a data word one cycle before either engine's turn delivers it.
+# The load checker's walk, for any program, configuration, setup and data memory. An accepted
+# walk passed every pc, a pc that falls through was checked against the row the walk then holds,
+# each entry decodes to its layout's row, and a lookup finds the target's row. The short cover
+# and early tooth end the walk at pc 1 (SHORT_WALK) and pc 0, which has to accept.
 EARLY_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000000;/
 EARLY_READ = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = read_wait == \)signal_const[_0-9]*;/\12'b10;/
 certify: engines_gated.v
@@ -385,11 +363,9 @@ certify_proof:
 	sby -f certify.sby prove cover short_cover early early_read
 
 # The load checker is complete as well as sound. For any program, configuration, setup and
-# certificate it passes a pc only where Load_check.walk does, over the kernel's own
-# conjuncts on whole rows (load_check_step.v), and finishes with the walk's verdict, reject
-# pc and reason. A rank falls every cycle of a walk, so it finishes. Covers reach a refusal
-# and, ending at pc 1, an acceptance. These teeth must fail: the successor's phase conjunct
-# dropped on chip, the reject pc one off, and a read that never ends.
+# certificate it passes a pc only where Load_check.walk does, over the kernel's conjuncts on
+# whole rows (load_check_step.v), and finishes with the walk's verdict, reject pc and reason. A
+# rank falls every cycle, so it finishes.
 NEXT_PHASE = /^module load_checker /,/^endmodule/s/^\(\s*failed_next\$$phase <= \)signal_wire_[0-9]*;/\11'b0;/
 OFF_BY_ONE = /^module load_checker /,/^endmodule/s/^\(\s*reject_pc_0 <= signal_wire_[0-9]*\);/\1 + 10'd1;/
 STALL = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = \).*;/\11'b0;/
@@ -408,16 +384,10 @@ complete_proof:
 	for t in short next_phase off_by_one stall; do ! cmp -s engines_gated.v complete_teeth/$$t.v || exit 1; done
 	sby -f complete.sby prove cover short_cover next_phase off_by_one stall
 
-# A start only reaches a core once it is certified, by an accepted walk that began after
-# the core's last write that held it free, and never right after the checker held its
-# ports. A walk takes thousands of cycles, so the short covers and the teeth end it at pc 1,
-# which no claim depends on. There a cover reaches a certified start, and each of these
-# teeth has to fail: certified never cleared, a check begun on a busy engine, no abort, no
-# abort on a write where the walk has read, the frame receiver ungated, the premises live.
-# Each engine's turn at the checker lasts 65,536 cycles, so the covers shorten it to 32
-# (SHORT_TURN). The teeth give engine 0 every turn, with a walk beginning once the checker
-# is idle (ONE_TURN). The overrun tooth, a full walk left running past its turn, also has
-# to fail.
+# A start only reaches a core once it is certified, by an accepted walk that began after the
+# core's last write that held it free, and never right after the checker held its ports. Covers
+# end a walk at pc 1 and shorten each 65,536-cycle checker turn to 32 (SHORT_TURN). Teeth:
+# certified never cleared, a check on a busy engine, no abort, ungated receiver.
 SHORT_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000001;/
 STICKY = /^module engines /,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)signal_or[_0-9]* ? gnd : /\1/
 ASK_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign asks\$$[01] = \)\(signal_or[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
@@ -475,9 +445,8 @@ isolation_proof:
 
 # Self_check.checker beside its contract (test/self_check_contract.ml), any line, 116 cycles
 # from the clear: irq only after a break and when the contract says, and no deadline missed.
-# That covers the first frame's deadlines for a first fall by about cycle 22. Covers meet
-# each deadline to the cycle. Teeth: a stamp one cycle off at either check, irq missing or
-# late. Takes about 30 min.
+# That covers the first frame's deadlines for a first fall by about cycle 22. Covers meet each
+# deadline to the cycle. Teeth: a stamp one cycle off, irq missing or late. About 30 min.
 self_check: engine_sram.v
 	(cd .. && dune exec -- test/certify/write_self_check.exe) > self_check.sv
 	(cd .. && dune exec -- test/certify/write_self_check.exe -mutant stamp) > self_check_stamp.sv
@@ -625,11 +594,10 @@ data_certificates: engine_sram.v
 data_names:
 	@echo $(DATA)
 
-# Every firmware in test/library.ml, under the assumptions its entry states and the
-# certificate prints. Most need none. Others assume the period the host loads, or one edge
-# from the arm to its wait. Firmware that waits on the host or anchors on a captured edge
-# assumes the core is within 84 ms of its deadline and edge (24 bits of the difference wrap
-# beyond that). With the period or the line's level at the arm left free it has to fail.
+# Every firmware in test/library.ml, under the assumptions its entry states and the certificate
+# prints (most need none): the period the host loads, or one edge from the arm to its wait.
+# Firmware that waits on the host or anchors on a captured edge assumes the core is within 84 ms
+# of its deadline and edge. With the period or the arm's line level free it must fail.
 INDUCTIVE = $(shell cd .. && dune exec -- test/certify/write_certificate.exe -names)
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
@@ -751,9 +719,8 @@ kernel_miter:
 
 # The simulated circuit is the Verilog the proofs and flow read. Each chip module, built as
 # bin/generate.exe top -sram -engines 2, equals the committed file as Yosys reads it, by
-# Hardcaml's Sec with every UNSAT checked by cake_lpr (test/translation). Takes seconds. Each
-# tooth must fail in its module alone: host_port's config gate open, pc stepping back, a fifo
-# word written at the read address, a fifo flop's initial value, the reset synchroniser's edge.
+# Hardcaml's Sec with every UNSAT checked by cake_lpr (test/translation). Seconds. Each tooth,
+# such as host_port's config gate open or pc stepping back, must fail in its module alone.
 TRANSLATION = ../_build/default/test/translation/check_translation.exe check \
   -lib ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 translation:
@@ -800,12 +767,10 @@ frontend_equiv_step:
 	if [ -z "$(FAILS)" ]; then grep -qx 0 $(STEP)/status; \
 	else grep -q "unproven \$$equiv cells in 'equiv_status -assert'" $(STEP)/equiv.log; fi
 
-# The copies the proofs read, held to that Verilog. Their modules are the chip's word for
-# word but for the flop program memory (sram_equiv), solo's one-engine data memory and the
-# ungated engines. engines_top only wires its ports through (tied/wrapper.ys), and the
-# ungated engines, each start taken only once certified, step as the chip's from any state
-# (tied/equiv.ys). Takes about 5 min. Teeth: pc stepping back in engine.v, two starts
-# swapped in engines_top, the ungated engines as written.
+# The copies the proofs read, held to that Verilog. Their modules are the chip's word for word
+# but for the flop program memory (sram_equiv), solo's one-engine data memory and the ungated
+# engines (each start taken only once certified), which step as the chip's from any state
+# (tied/equiv.ys). engines_top only wires its ports through. About 5 min.
 TIED = tied_run
 TIED_FLOPS = s/^\(\s*\)program_memory$$/\1sram_macro/
 TIED_GATED = /^module engines (/,/^endmodule/{s/^\(\s*assign signal_wire_[0-9]* = hosts\$$start_\([01]\)\);/\1 \& certified$$\2;/;s/^\(\s*assign signal_wire_[0-9]* = start_all\);/\1 \& certified$$0 \& certified$$1;/}
@@ -866,15 +831,9 @@ tied_equiv:
 	else grep -q 'SAT proof finished - model found: FAIL!' $(EQ)/equiv.log; fi
 
 # Power-up is deterministic: two copies of the chip from any two states, reset at the first
-# edge and with the same pins after it, drive the same pins (powerup.sv). By induction on
-# an invariant over the flops powerup.tcl brings out. havoc proves it with the words and
-# read buffers of the host fifos and the edge stamps free while cleared
-# (powerup_havoc.awk), as netlist_anystate needs. cold, further below, gives each program
-# SRAM's words their own values in each copy until its engine first starts or is lent to
-# the load checker.
-# Each takes about 2 min, since each clock edge is a step. Teeth: no reset at the first edge
-# and the engines' pin register without its clear have to fail, the latter under havoc too.
-# With the fix for an empty rx fifo's stale head reverted the invariant must not prove.
+# edge, with the same pins after it, drive the same pins (powerup.sv), by induction on an
+# invariant over the flops powerup.tcl brings out. havoc frees fifo words and edge stamps while
+# cleared; cold gives program SRAM words their own values per copy until first start.
 powerup:
 	mkdir -p powerup_teeth
 	awk -f powerup_unreset.awk ../src/protocol_emulator.v ../src/protocol_emulator.v \
@@ -932,12 +891,10 @@ netlist_equiv:
 	  "$$(cut -d' ' -f1 physical.count) fill, decap and antenna cells"
 	grep 'Status = $(EXPECT) ' $(EQUIV)/proof.log
 
-# mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
-# synchroniser untied, and the RTL as written with the host port's state held and with the
-# load checker's reset going to Header instead of Idle. The counterexamples of the last
-# three must pass the first cycle. The held state's is 35 cycles deep, past what dprove's
-# own BMC reaches, so BMC alone looks for it. Holding the load checker's state is no tooth:
-# it first moves in a checker turn, 65,536 cycles from the clear, past any BMC.
+# mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset synchroniser
+# untied, and the RTL with the host port's state held or the load checker's reset going to
+# Header. The last three's counterexamples must pass the first cycle. The held state's is 35
+# cycles deep, past dprove's BMC, so BMC alone looks for it.
 netlist_equiv_teeth:
 	mkdir -p netlist_equiv_teeth
 	sed '/ RM_IHPSG13_1P_512x16_c2_bm_bist \\core\.top\.engines\.data_memory\.sram_macro\.sram /,/;$$/'\
@@ -999,12 +956,9 @@ netlist_anystate_teeth:
 	$(MAKE) netlist_anystate EQUIV=netlist_anystate_stuck ANY_EXPECT=0
 
 # The Icepi Zero's build equals the RTL: synth_ecp5's netlist before place and route, against
-# icepi_top.v around the chip's Verilog, with macro cores cut on both sides
-# (icepi_equiv/miter.ys), from all 0 and from the bitstream's configured state
-# (configured.awk). Takes about 5 min:
-#   make -C icepi build/usb1.json && make icepi_equiv
-# ICEPI_JSON, USB, MHZ, FS and PROBE select another build, as in icepi/Makefile's equiv
-# target.
+# icepi_top.v around the chip's Verilog, macro cores cut on both sides (icepi_equiv/miter.ys),
+# from all 0 and from the bitstream's configured state (configured.awk). About 5 min after make
+# -C icepi build/usb1.json. ICEPI_JSON, USB, MHZ, FS and PROBE pick another build.
 ICEPI = icepi_equiv_run
 ICEPI_JSON = ../icepi/build/usb1.json
 USB = 1
@@ -1140,19 +1094,9 @@ sat_tools:
 	  -iquote aiger-$(AIGER) certifaiger-$(CERTIFAIGER)/src/certifaiger.cpp aiger.o -o bin/certifaiger
 
 # Certifaiger witnesses for the step lemmas, the self-check's, the fail-safe's and the load
-# checker's completeness. The model is the lemma's prove task run through SBY's own aiger
-# flow (witness/model.ys). rIC3 proves it by k-induction and writes a witness circuit, and
-# each SAT check Certifaiger makes of the pair must be UNSAT by an LRAT proof cake_lpr
-# accepts.
-# Trusted: the .sby and the Verilog it reads, SBY's --dumpfiles and --dumpcfg, Yosys from
-# parsing to write_aiger, model.ys, Certifaiger's checks and the aiger library under it,
-# aigsplit, aigtocnf, cake_lpr's verified build, the C compilers, make and the shell; not
-# rIC3 or cadical. Needs make sat_tools. witness_proof runs on files written already.
-# phase_table's peaks at 30 GB and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h), and
-# complete's peaks at 25 GB, both too big for a hosted runner. CI proves the others:
-# phase_step's, edge_step's, event_step's, frame_step's, value_step's, self_check_clean's
-# and fail_safe's (2.5 to 13 min, 4.3 GB). self_check_clean's Verilog comes from make
-# self_check_clean, so it isn't in WITNESSED.
+# checker's completeness. rIC3 proves the lemma's task (witness/model.ys) by k-induction, and
+# each SAT check Certifaiger makes must be UNSAT by an LRAT proof cake_lpr accepts (trusted
+# base: docs/verification.md). phase_table's and complete's are too big for a hosted runner.
 WITNESSED = phase_step edge_step event_step frame_step value_step phase_table fail_safe complete
 witness: engine.v engines.v kernel_step.v kernel_accepts.v engines_gated.v load_check_step.v
 	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
@@ -1176,11 +1120,10 @@ witness_model:
 	awk '/^\[/ { on = $$0 == "[script]"; next } on' $(W)/task.sby > $(W)/read.ys
 	cd $(W) && yosys -q -l model.log ../witness/model.ys
 
-# One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it. On disk,
-# Inductive's would take GBs. If either side dies the other ends too, by SIGPIPE or EOF.
-# HEAP is cake_lpr's heap in MB. phase_step's, edge_step's, self_check_clean's and
-# fail_safe's checks pass in 4096; phase_table's and complete's need 24576 (five of
-# phase_table's don't fit in 4096).
+# One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it (on disk,
+# Inductive's would take GBs). If either side dies the other ends too, by SIGPIPE or EOF. HEAP
+# is cake_lpr's heap in MB: 4096 for phase_step's, edge_step's, self_check_clean's and
+# fail_safe's checks, 24576 for phase_table's and complete's.
 WITNESS_HEAP_phase_table = 24576
 WITNESS_HEAP_complete = 24576
 HEAP = $(or $(WITNESS_HEAP_$(LEMMA)),4096)
@@ -1194,12 +1137,10 @@ witness_unsat:
 	rm $(W)/$(CHECK).cnf
 	@echo "$(W): $(CHECK) verified"
 
-# Each weakened copy the .sby expects to fail, run through the same script. rIC3 has to
-# find a counterexample within the task's depth that aigsim replays to a bad state (so
-# model.ys can't have made the model vacuous), and Certifaiger has to reject the lemma's
-# witness. There must be at least WITNESS_TEETH_<lemma> of them, so none go missing
-# unnoticed. A copy that reads other files than the prove task does (like the narrow core)
-# is a different model, not a tooth here.
+# Each weakened copy the .sby expects to fail, run through the same script: rIC3 has to find a
+# counterexample within the task's depth that aigsim replays to a bad state, and Certifaiger has
+# to reject the lemma's witness. At least WITNESS_TEETH_<lemma> must exist. A copy that reads
+# other files than the prove task (like the narrow core) is a different model.
 WITNESS_TEETH_phase_step = 10
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_event_step = 5

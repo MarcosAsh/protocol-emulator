@@ -1,19 +1,8 @@
 (** 10BASE-T receive: Manchester decoding with digital clock recovery, for the 8x4 die. A
-    bit's second half carries its value, so every bit has a transition in its middle. The
-    first transition from idle is taken as one, since the preamble's alternating bits have
-    no others. A transition at least 3/4 of a bit after the expected position of the last
-    one is the next mid-bit transition: its bit is the level after it, and the expected
-    position moves by its error over [2^gain_shift]. Earlier transitions are bit
-    boundaries and are ignored. With none for 3/2 of a bit the carrier is gone (TP_IDL
-    after a frame, or a broken one).
-
-    After 0xd5 the bits are a frame, packed sixteen to a word, first bit lowest, so the
-    first byte lands in the low half as the data memory holds it. A frame that ends on a
-    half word gives its last byte in a low half of its own.
-
-    [rd] is samples of RD+ minus RD-, already through the synchroniser, earliest in bit 0.
-    [rate] picks the second of two [samples_per_bit], so one chip decodes at either clock.
-    [Frame_rx] is its place on the chip. *)
+    bit's second half carries its value. A transition at least 3/4 of a bit after the
+    expected position of the last is the next mid-bit one and moves the expected position
+    by its error over [2^gain_shift]; earlier ones are ignored. With none for 3/2 of a bit
+    the carrier is gone. After 0xd5 bits pack sixteen to a word, first bit lowest. *)
 
 open! Core
 open! Hardcaml

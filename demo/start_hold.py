@@ -3,7 +3,6 @@
 # falling while SCL is high to SCL's next fall, to the nearest sample. It shares nothing with
 # pio_check's bound or the chip's stamps. It only looks at falls, so the pull-ups' slow
 # rises don't matter.
-# Usage: python3 demo/start_hold.py CAPTURE.sr
 
 import bisect
 import re

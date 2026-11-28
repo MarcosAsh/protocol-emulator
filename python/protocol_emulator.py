@@ -138,21 +138,18 @@ class Host:
         self.write(DATA, words)
 
     def certify(self, certificate, base=0, loaded=None, single_edge=False, floor=False):
-        """Write the selected engine's certificate at base and have the chip check its
-        program against it, which a start requires. Every core must be halted for the
-        write, and the certification lasts until the program or configuration changes.
-        loaded is the period every run-time load of p is assumed to carry (with floor, it
-        is the minimum). The core then faults if p or the capture pin breaks what the check
-        assumed."""
+        """Write the selected engine's certificate at base and have the chip check its program
+        against it, which a start requires. Every core must be halted. It lasts until the
+        program or configuration changes. loaded is the period every run-time load of p is
+        assumed to carry (with floor, the minimum); p or the capture pin breaking it faults."""
         self.load_data(certificate, base)
         self.check(base, loaded, single_edge, floor)
 
     def check(self, base=0, loaded=None, single_edge=False, floor=False, polls=2000):
         """Like certify, but against a certificate the data memory already holds, e.g. after
         a patch while another core runs and no data write can land. Raises OSError if the
-        selected core is running, since the chip drops that check and keeps its last
-        verdict, or if the check still reads busy after polls reads, as it does with MISO
-        stuck high."""
+        selected core is running (the chip drops that check) or if the check still reads
+        busy after polls reads, as with MISO stuck high."""
         if not self.status()["halted"]:
             raise OSError("the core is running, so the chip drops the check")
         for reg, words in check_writes(base, loaded, single_edge, floor):
@@ -227,9 +224,8 @@ class Host:
     def arm_usb(self, dp_pin, base=0, owner=0, rearm=False):
         """Capture the next USB full speed packet into the data memory from base, with D+ on
         dp_pin and D- on the next pin. One packet per arm, or with rearm every packet from
-        base in turn. frame_status reports the last one, and its fcs_ok is the CRC-16. Its
-        words land in engine owner's data turns, and only that engine reads the status pins
-        28-31."""
+        base in turn. frame_status reports the last one (fcs_ok is the CRC-16). Its words
+        land in engine owner's data turns, and only that engine reads status pins 28-31."""
         self.write(FRAME_BASE, [base])
         self.write(
             FRAME_CONTROL,

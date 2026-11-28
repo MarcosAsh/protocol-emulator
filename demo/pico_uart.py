@@ -2,9 +2,7 @@
 # Comparison UART for the overlay, bit-banged from MicroPython on Pico B's GP2. Each bit is
 # written once ticks_us passes its deadline (counted from the start bit), so it jitters but
 # never drifts. It isn't PIO, which would be as exact as the chip. GP2 is the carrier's SDA,
-# analyser B's D6, and the chip leaves it alone after reset. Capture with ANALYSER=B and
-# compare with --against-channel D6.
-# Usage: mpremote connect id:<serial of Pico B> run --no-follow demo/pico_uart.py
+# analyser B's D6, and the chip leaves it alone after reset.
 
 import time
 

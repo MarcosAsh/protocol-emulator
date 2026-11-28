@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # A remote lab job on Pico A (MicroPython). lab.json is generate.exe lab's firmware.json:
-# the certified table interpreter, the diagram's table and its tx words. We load all of it
-# while the engine is halted (the tx words fit the fifo), so the host's timing can't shape
-# the waveform. The engine runs for run_ms and is stopped; PASS if its faults match the
-# model's. demo/lab.py copies this over with lab.json and resets the chip before and after.
+# the certified table interpreter, the diagram's table and its tx words, all loaded while the
+# engine is halted so the host's timing can't shape the waveform. It runs for run_ms and is
+# stopped; PASS if its faults match the model's. demo/lab.py resets the chip before and after.
 
 import bench
 import protocol_emulator as pe

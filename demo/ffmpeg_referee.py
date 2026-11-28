@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Has FFmpeg read the frames back from a capture of python/demo_spdif_ac3.py or
 # demo_spdif_codecs.py. Reads OUT0's samples by run length, packs the words into
-# DIR/DEMO.spdif (a file per codec for spdif_codecs), compares the MD5 of the frames
-# FFmpeg finds there with that of the bursts sent, and decodes each to a .wav.
-# Usage: python3 demo/ffmpeg_referee.py DIR [DEMO], after demo/outside.sh DEMO with
-#        CAPTURES=DIR. DEMO is spdif_ac3 unless given.
+# DIR/DEMO.spdif (a file per codec for spdif_codecs), compares the MD5 of the frames FFmpeg
+# finds with that of the bursts sent, and decodes each to a .wav. DEMO defaults to spdif_ac3.
 
 import struct
 import subprocess

@@ -29,11 +29,8 @@ let config =
 
 (* The host writes L then L bytes, each in a word's high byte. The firmware takes L, waits
    160 us for the rest to land in the fifo, sends sync, L, the bytes and the checksum,
-   then the ack bit, and pushes DAT as it sampled it: 0 acknowledged, 1 not. osr holds
-   each byte inverted, since a direction bit of 1 pulls DAT low; y is the negated sum, x
-   the payload bytes still to load after the next. Each byte's loop loads the next byte
-   while STB is low after its last bit. [t] is the next fall on entry to a loop, and each
-   [wait t+] moves it 8 on. *)
+   then the ack bit, and pushes DAT as sampled (0 acknowledged). osr holds each byte
+   inverted (a direction bit of 1 pulls DAT low); y the negated sum, x the bytes left. *)
 let firmware =
   [%firmware
     {|

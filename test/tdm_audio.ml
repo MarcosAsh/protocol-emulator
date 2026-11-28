@@ -3,13 +3,11 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* Cirrus Logic AN301 REV1 (Sep 2006), the TDM tutorial. It has no timing table; the
-   format is on pp.2-3 and Figures 2-6. A frame is eight 32-bit channel blocks, each a
-   24-bit audio word MSB first plus an 8-bit zero pad (Figure 3). FSYNC rises one SCLK
-   before channel 1, so the last bit of channel 8 falls inside it (p.3, Figure 4), and it
-   is high for one SCLK, the minimum p.3 allows. SCLK is 8 MHz (6 cycles of the 48 MHz
-   clock, 3 per half), giving a 31.25 kHz frame. p.2 gives 12.288 MHz only as the example
-   for 48 kHz, and 4 cycles per bit leaves no room for a jmp. *)
+(* Cirrus Logic AN301 REV1 (Sep 2006), the TDM tutorial, no timing table: format on pp.2-3
+   and Figures 2-6. A frame is eight 32-bit channel blocks, each a 24-bit audio word MSB
+   first plus an 8-bit zero pad (Figure 3). FSYNC rises one SCLK before channel 1 (p.3,
+   Figure 4) and is high one SCLK, the minimum p.3 allows. SCLK is 8 MHz (6 cycles at 48
+   MHz), a 31.25 kHz frame; 4 cycles per bit leaves no room for a jmp. *)
 let clk_pin = 5
 let sync_pin = clk_pin + 1
 let data_pin = clk_pin + 2

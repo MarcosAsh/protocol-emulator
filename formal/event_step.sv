@@ -1,9 +1,8 @@
-// Event lemma: for any program and config written while halted (host_spacing.sv), a pin
-// wait at an issue releases in exactly the cycle whose sample shows its level (for an
-// edge, that level after the other one), and a held wait issues again the next cycle, so
-// no event goes unseen and none is invented. A jmp on the pin goes where that cycle's
-// sample says, as a poll and a guard need. An input pin, or a bidirectional one that isn't
-// driven, samples that cycle's input.
+// Event lemma: for any program and config written while halted (host_spacing.sv), a pin wait at
+// an issue releases in exactly the cycle whose sample shows its level (for an edge, that level
+// after the other one), and a held wait issues again the next cycle, so no event goes unseen
+// and none is invented. A jmp on the pin goes where that cycle's sample says. An input pin, or
+// a bidirectional one that isn't driven, samples that cycle's input.
 
 module event_step (input clk);
   // The config as the host port holds it. A write only lands while the core is halted and

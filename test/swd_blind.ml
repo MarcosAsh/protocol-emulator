@@ -30,8 +30,7 @@ let config =
 (* A word is eight clocks, two bits each from bit 0: the level, then 1 to drive it or 0 to
    let go. The level and direction change after a fall, the target takes the bit on the
    rise, and we take the target's bit on the next fall. A release happens at once and a
-   drive two cycles later, so the line stays released for at least a period plus two
-   cycles. *)
+   drive two cycles later, so the line stays released at least a period and two cycles. *)
 let firmware =
   [%firmware
     {|
@@ -404,11 +403,10 @@ let scenario =
   }
 ;;
 
-(* The bench's run: every select sequence of chapter 5 and the RP2040's connection. In
-   order: JTAG to SWD (p.5-111), a DPIDR read, SWD to dormant (p.5-116), dormant to SWD
-   with the SW-DP's activation code (p.5-117, Table 5-1), TARGETSEL for core 0 (Figure
-   4-9), the DPIDR and an AP read, then SWD to JTAG (p.5-111) and JTAG to dormant
-   (p.5-115). The rows' highs and lows are labelled. *)
+(* The bench's run: every select sequence of chapter 5 and the RP2040's connection: JTAG
+   to SWD (p.5-111), DPIDR read, SWD to dormant (p.5-116), dormant to SWD with the SW-DP's
+   activation code (p.5-117, Table 5-1), TARGETSEL for core 0 (Figure 4-9), DPIDR and an
+   AP read, SWD to JTAG (p.5-111), JTAG to dormant (p.5-115). Highs and lows labelled. *)
 let bench_segments =
   let alert =
     List.concat_map
@@ -482,10 +480,9 @@ let bench =
 ;;
 
 (* The spec counts SWCLK cycles; at the bench's 1 MHz a cycle is 1 us. Trn: the host lets
-   go for at least a data period, which is the kernel's bound on SWDIO's direction. An
-   analyser only sees SWDIO's level, and a driven 1 looks the same as a release, so a
-   measured Trn reads 48, a bit. The rest are the labelled runs of SWDIO from the bench
-   run. *)
+   go for at least a data period, the kernel's bound on SWDIO's direction. An analyser
+   sees only SWDIO's level, and a driven 1 looks like a release, so a measured Trn reads
+   48, a bit. The rest are the labelled SWDIO runs of the bench run. *)
 let limits =
   let us = 1_000. in
   let sheet page =
