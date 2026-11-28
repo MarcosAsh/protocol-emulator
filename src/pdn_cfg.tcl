@@ -1,7 +1,11 @@
-# Tiny Tapeout SG13CMOS5L power grid (Metal4-only), adapted from LibreLane's
-# scripts/openroad/common/pdn_cfg.tcl and ihp-um-janestreet-prism's, without the per-macro grid:
-# with PDN_MULTILAYER 0 it has no shapes/vias and OpenROAD reports PDN-0232/0233. The SRAM is
-# powered by Project.ExtendPowerStripes (odb_sram_stripes.py).
+# Tiny Tapeout SG13CMOS5L power grid (Metal4-only).
+#
+# Copy of LibreLane's scripts/openroad/common/pdn_cfg.tcl without its
+# per-macro grid. With PDN_MULTILAYER 0 that macro grid has no shapes/vias
+# and an unpatched OpenROAD reports PDN-0232/0233. The SRAM is powered by
+# Project.ExtendPowerStripes (odb_sram_stripes.py) after GeneratePDN.
+#
+# Adapted from LibreLane and ihp-um-janestreet-prism/src/pdn_cfg.tcl.
 
 source $::env(SCRIPTS_DIR)/openroad/common/io.tcl
 source $::env(SCRIPTS_DIR)/openroad/common/set_global_connections.tcl

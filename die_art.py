@@ -1,7 +1,9 @@
-# Draws the carrier board's surprised cat in Metal4 over the hardened design, the face of the
-# carrier PCB silkscreen (~/.local/share/protocol-emulator/pcb/carrier/gen.py), rasterised on
-# a 0.25 um grid so every edge is Manhattan. Pixels within CLEARANCE of existing Metal4 are
-# dropped, so the stripes cut through the art and nothing shorts.
+# Draws the carrier board's surprised cat in Metal4 over the hardened design.
+#
+# Same face as the carrier PCB silkscreen (~/.local/share/protocol-emulator/pcb/carrier/gen.py),
+# rasterised on a 0.25 um grid so every edge is Manhattan. Pixels within CLEARANCE of
+# existing Metal4 are dropped, so the stripes cut through the art and nothing shorts.
+# Usage: python3 die_art.py IN.gds OUT.gds --box X0 Y0 X1 Y1
 import argparse
 import math
 

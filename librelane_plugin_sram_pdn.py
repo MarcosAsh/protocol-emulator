@@ -1,8 +1,18 @@
-"""LibreLane plugin: rewrite Metal4 PDN stripes onto the IHP SRAM's power columns.
+"""
+LibreLane plugin: rewrite Metal4 PDN stripes onto the IHP SRAM's power columns.
 
-LibreLane imports every module named `librelane_plugin_*` on the Python path, and both
-`python -m librelane` and the Tiny Tapeout GDS action run from the repository root.
-`src/config.json` inserts the step after GeneratePDN as Project.ExtendPowerStripes."""
+LibreLane imports every module on the Python path whose name starts with
+``librelane_plugin_`` (librelane/plugins.py).  ``python -m librelane`` and the
+Tiny Tapeout GDS action both run from the repository root, so this file is
+found without installing anything.  ``src/config.json`` inserts the step
+after GeneratePDN:
+
+    "meta": {
+      "substituting_steps": {
+        "+OpenROAD.GeneratePDN": "Project.ExtendPowerStripes"
+      }
+    }
+"""
 import os
 
 from librelane.steps import Step
