@@ -622,3 +622,51 @@ let%expect_test "waveform of a control write" =
     └──────────────────┘└────────────────────────────────────────────────────────────────────┘
     |}]
 ;;
+
+(* the four stamp registers read the head and only the last pops it, and a write to the
+   mask or the control empties the queue *)
+let%expect_test "stamps pop on the last read and flush on a write" =
+  Two.run ~half:4 (fun m ~watch i o ->
+    let strobes = ref [] in
+    let watch n =
+      for _ = 1 to n do
+        watch 1;
+        if Bits.to_bool !(o.stamps.flush) then strobes := "flush" :: !strobes;
+        if Bits.to_bool !(o.stamps.pop) then strobes := "pop" :: !strobes
+      done
+    in
+    let strobed () =
+      let seen = List.rev !strobes in
+      strobes := [];
+      seen
+    in
+    i.stamps.head.time := Bits.ones Isa.timer_bits;
+    i.stamps.head.pins := Bits.ones Isa.num_pins;
+    List.iter
+      Reg.
+        [ "time_lo", stamp_time_lo
+        ; "time_hi", stamp_time_hi
+        ; "pins_lo", stamp_pins_lo
+        ; "pins_hi", stamp_pins_hi
+        ]
+      ~f:(fun (reg, addr) ->
+        let read = List.hd_exn (Spi_master.read m ~watch addr ~count:1) in
+        print_s [%message reg (read : Int.Hex.t) ~strobes:(strobed () : string list)]);
+    List.iter
+      Reg.[ "mask", stamp_mask; "control", stamp_control; "frame_base", frame_base ]
+      ~f:(fun (reg, addr) ->
+        Spi_master.write m ~watch addr [ 0 ];
+        print_s [%message reg ~strobes:(strobed () : string list)]);
+    ());
+  [%expect
+    {|
+    (time_lo (read 0xffff) (strobes ()))
+    (time_hi (read 0xff) (strobes ()))
+    (pins_lo (read 0xffff) (strobes ()))
+    (pins_hi (read 0xf) (strobes (pop)))
+    (mask (strobes (flush)))
+    (control (strobes (flush)))
+    (frame_base (strobes ()))
+    (events ())
+    |}]
+;;
